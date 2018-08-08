@@ -14,9 +14,28 @@ def tf_mymin(x, y):
     """ Special min function for the findcellidx function """
     with tf.name_scope('mymin'):
         return tf.where(tf.less(x,y), x, tf.round(y))
-    
+
 #%%
-def tf_findcellidx(points, ncx, ncy, inc_x, inc_y):
+def tf_findcellidx_1D(points, ncx, inc_x):
+    """
+    
+    """
+    with tf.name_scope('findcellidx_1D') :
+        p = tf.squeeze(points)
+        ncx, inc_x = tf.cast(ncx, tf.float32), tf.cast(inc_x, tf.float32)
+        
+        # Scale to [0,1] domain
+        p = tf.cast(p[:,0] + 1, tf.float32) / 2.0
+        
+        # Floor values to find cell
+        idx = tf.floor(p / (inc_x/2.0))
+
+        idx = tf.clip_by_value(idx, clip_value_min=0, clip_value_max=ncx)
+        idx = tf.cast(idx, tf.int32)
+        return idx
+
+#%%
+def tf_findcellidx_2D(points, ncx, ncy, inc_x, inc_y):
     """ Computes the cell index for some points and a given tessalation 
     
     Arguments:
@@ -27,7 +46,7 @@ def tf_findcellidx(points, ncx, ncy, inc_x, inc_y):
     Output:
         idx: 1D-`Tensor` [n_points,], with the cell idx for each input point
     """
-    with tf.name_scope('findcellidx'):
+    with tf.name_scope('findcellidx_2D'):
         p = tf.transpose(tf.squeeze(points)) # 2 x n_points
         ncx, ncy = tf.cast(ncx, tf.float32), tf.cast(ncy, tf.float32)
         inc_x, inc_y = tf.cast(inc_x, tf.float32), tf.cast(inc_y, tf.float32)

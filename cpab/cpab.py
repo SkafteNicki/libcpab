@@ -6,11 +6,11 @@ Created on Thu Jul 12 16:02:06 2018
 """
 #%%
 from .cpab1d.setup_constrains import get_constrain_matrix_1D
-from .cpab1d.transformer import tf_cpab_transformer as tf_cpab1d_transformer
 from .cpab2d.setup_constrains import get_constrain_matrix_2D
-from .cpab2d.transformer import tf_cpab_transformer as tf_cpab2d_transformer
 from .cpab3d.setup_constrains import get_constrain_matrix_3D
-from .cpab3d.transformer import tf_cpab_transformer as tf_cpab3d_transformer
+from .cpab1d.transformer import tf_cpab_transformer_1D
+from .cpab2d.transformer import tf_cpab_transformer_2D
+from .cpab3d.transformer import tf_cpab_transformer_3D
 
 from .helper.utility import get_dir, save_obj, load_obj, create_dir, check_if_file_exist
 from .helper.math import null
@@ -61,15 +61,15 @@ class cpab:
         # Specific for the different dims
         if self.ndim == 1:
             self.get_constrain_matrix_f = get_constrain_matrix_1D
-            self.transformer_f = tf_cpab1d_transformer
+            self.transformer_f = tf_cpab_transformer_1D
             self.nC = self.nc[0]
         elif self.ndim == 2:
             self.get_constrain_matrix_f = get_constrain_matrix_2D
-            self.transformer_f = tf_cpab2d_transformer
+            self.transformer_f = tf_cpab_transformer_2D
             self.nC = 4*np.prod(self.nc)
         elif self.ndim == 3:
             self.get_constrain_matrix_f = get_constrain_matrix_3D
-            self.transformer_f = tf_cpab3d_transformer
+            self.transformer_f = tf_cpab_transformer_3D
             self.nC = 6*np.prod(self.nc)
             
         # Check if we have already created the basis

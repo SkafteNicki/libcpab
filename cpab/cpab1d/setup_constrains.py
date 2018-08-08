@@ -7,9 +7,6 @@ Created on Wed Aug  8 07:36:43 2018
 #%%
 import numpy as np
 
-
-
-
 #%%
 def get_constrain_matrix_1D(nc, domain_min, domain_max,
                             valid_outside, zero_boundary, volume_perservation):
