@@ -5,7 +5,12 @@ Created on Thu Jul 12 16:02:06 2018
 @author: nsde
 """
 #%%
+from .cpab1d.setup_constrains import get_constrain_matrix_1D
+from .cpab2d.setup_constrains import get_constrain_matrix_2D
+from .cpab3d.setup_constrains import get_constrain_matrix_3D
+
 from .helper.utility import get_dir
+from .helper.math import null
 
 #%%
 class cpab:
@@ -46,6 +51,26 @@ class cpab:
                           'vp' + str(int(self.volume_perservation))
         self.basis_file = get_dir(__file__) + '/../' + self.basis_name
         
+        # Get constrain matrix
+        if self.ndim == 1:
+            L = get_constrain_matrix_1D(self.nc, self.domain_min, self.domain_max,
+                                        self.valid_outside, self.zero_boundary,
+                                        self.volume_perservation)
+        elif self.ndim == 2:
+            L = get_constrain_matrix_2D(self.nc, self.domain_min, self.domain_max,
+                                        self.valid_outside, self.zero_boundary,
+                                        self.volume_perservation)
+        elif self.ndim == 3:
+            L = get_constrain_matrix_3D(self.nc, self.domain_min, self.domain_max,
+                                        self.valid_outside, self.zero_boundary,
+                                        self.volume_perservation)
+            
+        # Find null space of constrain matrix
+        B = null(L)
+        self.constrains = L
+        self.basis = B
+        
+        
     def transform(self):
         pass
     
@@ -54,7 +79,3 @@ class cpab:
     
     def sample_transformation(self):
         pass
-
-#%%
-if __name__ == '__main__':
-    transformer = cpab(tess_size=(2,3,4))
