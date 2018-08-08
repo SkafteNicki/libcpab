@@ -6,4 +6,4 @@ Created on Tue Aug  7 13:50:53 2018
 """
 
 from cpab_lib import cpab
-transformer = cpab(tess_size=[2])
+transformer = cpab(tess_size=[4,4,3])

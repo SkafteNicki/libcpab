@@ -9,7 +9,7 @@ from .cpab1d.setup_constrains import get_constrain_matrix_1D
 from .cpab2d.setup_constrains import get_constrain_matrix_2D
 from .cpab3d.setup_constrains import get_constrain_matrix_3D
 
-from .helper.utility import get_dir
+from .helper.utility import get_dir, save_obj, load_obj, create_dir, check_if_file_exist
 from .helper.math import null
 
 #%%
@@ -19,7 +19,8 @@ class cpab:
     '''
     def __init__(self, tess_size, 
                  zero_boundary=False, 
-                 volume_perservation=False):
+                 volume_perservation=False,
+                 save_basis=True):
         # Check input
         assert len(tess_size) > 0 and len(tess_size) <= 3, \
             '''Transformer only support 1D, 2D or 3D'''
@@ -44,32 +45,49 @@ class cpab:
         self.domain_min = [-1 for e in self.nc]
         self.inc = [(self.domain_max[i] - self.domain_min[i]) / 
                     self.nc[i] for i in range(self.ndim)]
-        self.basis_name = 'cpab_basis_dim' + str(self.ndim) + '_tess' + \
+        self._basis_name = 'cpab_basis_dim' + str(self.ndim) + '_tess' + \
                           '_'.join([str(e) for e in self.nc]) + '_' + \
                           'vo' + str(int(self.valid_outside)) + '_' + \
                           'zb' + str(int(self.zero_boundary)) + '_' + \
                           'vp' + str(int(self.volume_perservation))
-        self.basis_file = get_dir(__file__) + '/../' + self.basis_name
+        self._basis_file = get_dir(__file__) + '/basis/' + self._basis_name
+        create_dir(get_dir(__file__) + '/basis/')
         
-        # Get constrain matrix
-        if self.ndim == 1:
-            L = get_constrain_matrix_1D(self.nc, self.domain_min, self.domain_max,
-                                        self.valid_outside, self.zero_boundary,
-                                        self.volume_perservation)
-        elif self.ndim == 2:
-            L = get_constrain_matrix_2D(self.nc, self.domain_min, self.domain_max,
-                                        self.valid_outside, self.zero_boundary,
-                                        self.volume_perservation)
-        elif self.ndim == 3:
-            L = get_constrain_matrix_3D(self.nc, self.domain_min, self.domain_max,
-                                        self.valid_outside, self.zero_boundary,
-                                        self.volume_perservation)
+        # Check if we have already created the basis
+        if not check_if_file_exist(self._basis_file+'.pkl'):
+            # Get constrain matrix
+            if self.ndim == 1:
+                L = get_constrain_matrix_1D(self.nc, self.domain_min, self.domain_max,
+                                            self.valid_outside, self.zero_boundary,
+                                            self.volume_perservation)
+            elif self.ndim == 2:
+                L = get_constrain_matrix_2D(self.nc, self.domain_min, self.domain_max,
+                                            self.valid_outside, self.zero_boundary,
+                                            self.volume_perservation)
+            elif self.ndim == 3:
+                L = get_constrain_matrix_3D(self.nc, self.domain_min, self.domain_max,
+                                            self.valid_outside, self.zero_boundary,
+                                            self.volume_perservation)
+                
+            # Find null space of constrain matrix
+            B = null(L)
+            self.constrains = L
+            self.basis = B
+            self.D, self.d = B.shape
             
-        # Find null space of constrain matrix
-        B = null(L)
-        self.constrains = L
-        self.basis = B
-        
+            # Save basis as pkl file
+            if save_basis:
+                save_obj({'basis': self.basis,
+                          'constrains': self.constrains,
+                          'D': self.D,
+                          'd': self.d,
+                          'nc': self.nc}, self._basis_file)
+        else:
+            file = load_obj(self._basis_file)
+            self.B = file['basis']
+            self.constrains = file['constrains']
+            self.D = file['D']
+            self.d = file['d']
         
     def transform(self):
         pass

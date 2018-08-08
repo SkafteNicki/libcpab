@@ -11,8 +11,6 @@ try:
 except:
     import pickle as pkl
 import os
-import matplotlib.pyplot as plt
-import numpy as np
 import tensorflow as tf
 from tensorflow.python.client import device_lib 
 
@@ -58,48 +56,15 @@ def get_dir(file):
     return os.path.dirname(os.path.realpath(file))
 
 #%%
-def load_basis():
-    """ Load a pre-calculated CPAB basis. See transformer/setup_CPAB_transformer
-        for more information on this.
-    """
-    basis_loc = get_dir(__file__) + '/../cpab_basis'
-    try:
-        basis = load_obj(basis_loc)
-    except:
-        raise ValueError('call setup_CPAB.py first')
-    return basis
+def create_dir(direc):
+    """ Create a dir if it does not already exists """
+    if not os.path.exists(direc):
+        os.mkdir(direc)
 
 #%%
-def show_images(images, cols=1, title=None, scaling=False):
-    """ Display a list of images in a single figure with matplotlib.
-    
-    Arguments
-        images: List/tensor of np.arrays compatible with plt.imshow.
-    
-        cols (Default = 1): Number of columns in figure (number of rows is 
-                            set to np.ceil(n_images/float(cols))).
-        
-        title: One main title for the hole figure
-            
-        scaling (Default = False): If True, will rescale the figure by the
-                number of images. Good if one want to show many.
-    """
-    n_images = len(images)
-    rows = np.ceil(n_images/float(cols))
-    fig = plt.figure()
-    if type(title)==str: fig.suptitle(title, fontsize=20)
-    for n, image in enumerate(images):
-        a = fig.add_subplot(cols, rows, n + 1)
-        if image.ndim == 2: plt.gray()
-        a.imshow(image)
-        a.axis('on')
-        a.axis('equal')
-        a.set_xticklabels([])
-        a.set_yticklabels([])
-    if scaling: fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
-    fig.subplots_adjust(wspace=0, hspace=0)
-    plt.show()
-    
+def check_if_file_exist(file):
+    return os.path.isfile(file)
+
 #%%
 if __name__ == '__main__':
     pass    
