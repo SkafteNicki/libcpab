@@ -7,7 +7,6 @@ Created on Wed Aug  8 09:21:24 2018
 #%%
 import tensorflow as tf
 
-
 '''
 # Optimize theta by aligning time series
 

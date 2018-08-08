@@ -5,21 +5,25 @@ from scipy.linalg import expm as scipy_expm
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
-from Transform import TransformNS
+#from Transform import TransformNS
 import pickle
 import os.path
 import time
+from ..helper.utility import load_basis, get_dir
+from sys import platform as _platform
 
 #%% Load dynamic module
-dir_path = "/home/asger/transform/ddtn/ddtn/cuda"
+def load_dynamic_modules():
+    dir_path = get_dir(__file__)
+    transformer_module = tf.load_op_library(dir_path + '/./CPAB_ops.so')
+    transformer_op = transformer_module.calc_trans
+    grad_op = transformer_module.calc_grad
+    
+    return transformer_op, grad_op
 
-transformer_module = tf.load_op_library(dir_path + '/./CPAB_ops.so')
-transformer_op = transformer_module.calc_trans
-grad_op = transformer_module.calc_grad
+if _platform == "linux" or _platform == "linux2" or _platform == "darwin":    
+    transformer_op, grad_op = load_dynamic_modules()
 
-transformer_module_old = tf.load_op_library(dir_path + '/./calcT_op.so')
-transformer_op_old = transformer_module_old.calc_t_batch
-grad_op_old = transformer_module_old.calc_t_batch_grad
 
 #%%
 def _tf_log2(x):
@@ -167,5 +171,5 @@ def _calc_grad_numeric(op, grad): #grad: n_theta x 2 x nP
 
 #%%
 @function.Defun(tf.float32, tf.float32, func_name = 'tf_CPAB_transformer', python_grad_func = _calc_grad_numeric)
-def tf_CPAB_transformer(points, theta):
+def tf_cpab_transformer(points, theta):
 	return _calc_trans(points, theta)

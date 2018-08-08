@@ -95,8 +95,10 @@ class cpab:
             self.constrains = file['constrains']
             self.D = file['D']
             self.d = file['d']
-        
+    
+    #%%
     def transform(self, points, theta):
+        ''' '''
         assert theta.shape[0] == self.d, \
             'Expects theta to have shape N x ' + self.d
         assert points.shape[0] == self.ndim, \
@@ -106,8 +108,18 @@ class cpab:
         newpoints = self.transformer_f(points, theta)
         return newpoints
     
-#    def sample_grid(self):
-#        pass
-#    
+    #%%
+    def sample_grid(self, n_points):
+        ''' '''
+        assert len(n_points) == self.ndim, \
+            'n_points needs to be a list equal to the dimensionality of the transformation'
+        lin_p = [np.linspace(self.domain_min[i], self.domain_max[i], n_points)
+                for i in range(self.ndim)]
+        mesh_p = np.meshgrid(*lin_p)
+        grid = np.vstack([array.flatten() for array in mesh_p])
+        return grid
+    
+    #%%
     def sample_transformation(self, n_sample):
+        ''' '''
         return np.random.normal(size=(n_sample, self.d))

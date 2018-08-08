@@ -66,5 +66,17 @@ def check_if_file_exist(file):
     return os.path.isfile(file)
 
 #%%
+def load_basis():
+    """ Load a pre-calculated CPAB basis. See transformer/setup_CPAB_transformer
+        for more information on this.
+    """
+    basis_loc = get_dir(__file__) + '/../cpab_basis'
+    try:
+        basis = load_obj(basis_loc)
+    except:
+        raise ValueError('call setup_CPAB.py first')
+    return basis
+
+#%%
 if __name__ == '__main__':
     pass    

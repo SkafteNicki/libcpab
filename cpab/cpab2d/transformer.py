@@ -10,8 +10,8 @@ Created on Mon Nov 20 09:30:10 2017
 from sys import platform as _platform
 import tensorflow as tf
 from tensorflow.python.framework import function
-from ddtn.helper.utility import load_basis, get_dir
-from ddtn.helper.tf_funcs import tf_repeat_matrix, tf_expm3x3_analytic, tf_findcellidx
+from ..helper.utility import load_basis, get_dir
+from ..helper.tf_funcs import tf_repeat_matrix, tf_expm3x3_analytic, tf_findcellidx
 
 #%% Load dynamic module
 def load_dynamic_modules():
@@ -153,7 +153,7 @@ def _calc_grad(op, grad): #grad: n_theta x 2 x nP
     
 #%%
 @function.Defun(tf.float32, tf.float32, func_name='tf_CPAB_transformer', python_grad_func=_calc_grad)
-def tf_cuda_CPAB_transformer(points, theta):
+def tf_cpab_transformer(points, theta):
     transformed_points = _calc_trans(points, theta)
     return transformed_points
 
