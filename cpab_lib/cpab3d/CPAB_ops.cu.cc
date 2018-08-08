@@ -69,7 +69,7 @@ __global__ void calcTrans_kernel(const int nP, const int batch_size,
         float point[3];
         point[0] = points[point_index];
         point[1] = points[point_index + nP];
-	point[2] = points[point_index + 2*nP];
+    	 point[2] = points[point_index + 2*nP];
     
         // Define start index for the matrices belonging to this batch
         // batch * num_elem * 4 triangles pr cell * cell in x * cell in y
@@ -90,15 +90,13 @@ __global__ void calcTrans_kernel(const int nP, const int batch_size,
 
             point[0] = point_updated[0];
             point[1] = point_updated[1];
-	    point[2] = point_updated[2];
-
-//	    index[nStepSolver[0]*nP*batch_index + nStepSolver[0]*point_index + n] = cellidx;
+    	     point[2] = point_updated[2];
         }
     
         // Copy to output
         newpoints[3 * nP * batch_index + point_index] = point[0];
         newpoints[3 * nP * batch_index + point_index + nP] = point[1];
-	newpoints[3 * nP * batch_index + point_index + 2 * nP] = point[2];    
+        newpoints[3 * nP * batch_index + point_index + 2 * nP] = point[2];    
     }
     return;                            
 }
@@ -144,12 +142,12 @@ __global__ void  calcGrad_kernel(dim3 nthreads, const int n_theta, const int d, 
                     // Initilize gradient to zero
                     grad[dim_index*boxsize + index] = 0;
                     grad[dim_index*boxsize + index + nP] = 0;
-		    grad[dim_index*boxsize + index + 2 * nP] = 0;
+        		      grad[dim_index*boxsize + index + 2 * nP] = 0;
 
                     // Get point
                     p[0] = points[point_index];
                     p[1] = points[point_index + nP];
-		    p[2] = points[point_index + 2 * nP];
+            		   p[2] = points[point_index + 2 * nP];
                     
                     // Step size for solver
                     double h = (1.0 / nStepSolver[0]);
@@ -173,7 +171,7 @@ __global__ void  calcGrad_kernel(dim3 nthreads, const int n_theta, const int d, 
                         // Compute midpoint
                         pMid[0] = p[0] + h*v[0]/2.0;
                         pMid[1] = p[1] + h*v[1]/2.0;
-			pMid[2] = p[2] + h*v[2]/2.0;
+                			pMid[2] = p[2] + h*v[2]/2.0;
                         
                         // Compute velocity at midpoint
                         A_times_b(vMid, Alocal, pMid);
@@ -189,7 +187,7 @@ __global__ void  calcGrad_kernel(dim3 nthreads, const int n_theta, const int d, 
                         // Copy q
                         q[0] = grad[dim_index*boxsize + index];
                         q[1] = grad[dim_index*boxsize + index + nP];
-			q[2] = grad[dim_index*boxsize + index + 2 * nP];
+                			q[2] = grad[dim_index*boxsize + index + 2 * nP];
                 
                         // Step 1: Compute u using the old location
                         // Find current RHS (term 1 + term 2)
@@ -199,12 +197,12 @@ __global__ void  calcGrad_kernel(dim3 nthreads, const int n_theta, const int d, 
                         // Sum both terms
                         u[0] = B_times_T[0] + A_times_dTdAlpha[0];
                         u[1] = B_times_T[1] + A_times_dTdAlpha[1];
-			u[2] = B_times_T[2] + A_times_dTdAlpha[2];
+                			u[2] = B_times_T[2] + A_times_dTdAlpha[2];
                 
                         // Step 2: Compute mid "point"
                         qMid[0] = q[0] + h * u[0]/2.0;
                         qMid[1] = q[1] + h * u[1]/2.0;
-			qMid[2] = q[2] + h * u[2]/2.0;
+                			qMid[2] = q[2] + h * u[2]/2.0;
                 
                         // Step 3: Compute uMid
                         A_times_b(B_times_T, Blocal, pMid); // Term 1
@@ -213,22 +211,22 @@ __global__ void  calcGrad_kernel(dim3 nthreads, const int n_theta, const int d, 
                         // Sum both terms
                         uMid[0] = B_times_T[0] + A_times_dTdAlpha[0];
                         uMid[1] = B_times_T[1] + A_times_dTdAlpha[1];
-			uMid[2] = B_times_T[2] + A_times_dTdAlpha[2];
+                			uMid[2] = B_times_T[2] + A_times_dTdAlpha[2];
 
                         // Update q
                         q[0] += uMid[0] * h;
                         q[1] += uMid[1] * h;
-			q[2] += uMid[2] * h;
+                			q[2] += uMid[2] * h;
                 
                         // Ubcpdate gradient
                         grad[dim_index * boxsize + index] = q[0];
                         grad[dim_index * boxsize + index + nP] = q[1];
-			grad[dim_index * boxsize + index + 2 * nP] = q[2];
+                			grad[dim_index * boxsize + index + 2 * nP] = q[2];
                         
                         // Update p
                         p[0] += vMid[0]*h;
                         p[1] += vMid[1]*h;
-			p[2] += vMid[2]*h;
+                    		p[2] += vMid[2]*h;
                     }
                 }
             }

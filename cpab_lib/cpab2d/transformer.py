@@ -152,53 +152,8 @@ def _calc_grad(op, grad): #grad: n_theta x 2 x nP
         return [None, gradient]
     
 #%%
-def _calc_grad_numeric(op, grad): #grad: n_theta x 2 x nP
-    """ Similar to the _calc_grad(...) function above. Only difference is that 
-        this function does a finite difference of the gradient by calling the
-        _calc_trans(...) again and again for small permutations of the input
-        theta vector, and then compare to the actual value of theta.
-        Arguments and output is the same _calc_grad(...).
-    """
-    points = op.inputs[0] # 2 x n
-    theta = op.inputs[1] # n_theta x d
-    
-    # Finite difference permutation size
-    h = tf.cast(0.01, tf.float32)
-    
-    # Base function evaluation
-    f0 = _calc_trans(points, theta) # n_theta x 2 x nP
-    
-    gradient = [ ]
-    for i in range(theta.get_shape()[1].value):
-        # Add small permutation to i element in theta
-        temp = tf.concat([theta[:,:i], tf.expand_dims(theta[:,i]+h,1), theta[:,(i+1):]], 1)
-        
-        # Calculate new function value
-        f1 = _calc_trans(points, temp) # n_theta x 2 x nP
-        
-        # Finite difference
-        diff = (f1 - f0) / h # n_theta x 2 x nP
-        
-        if i != 0:
-            # Gradient
-            gradient = tf.concat([gradient, tf.expand_dims(tf.reduce_sum(grad * diff, axis=[1,2]), 1)], 1)
-        else:
-            gradient = tf.expand_dims(tf.reduce_sum(grad * diff, axis=[1,2]), 1)
-
-    return [None, gradient]        
-
-#%%
 @function.Defun(tf.float32, tf.float32, func_name='tf_CPAB_transformer', python_grad_func=_calc_grad)
 def tf_cuda_CPAB_transformer(points, theta):
-    transformed_points = _calc_trans(points, theta)
-    return transformed_points
-
-#%%
-@function.Defun(tf.float32, tf.float32, func_name = 'tf_CPAB_transformer_numeric_grad', python_grad_func = _calc_grad_numeric)
-def tf_cuda_CPAB_transformer_numeric_grad(points, theta):
-    """ Similar to tf_CPAB_transformer(...) where the analytic gradient is have
-        been replaced with a numeric finite difference gradient
-    """
     transformed_points = _calc_trans(points, theta)
     return transformed_points
 
@@ -304,59 +259,5 @@ def tf_pure_CPAB_transformer(points, theta):
                                  (n_theta, 2, n_points))
         return trans_points
 
-#%%
-if __name__ == '__main__':
-    from ddtn.transformers.setup_CPAB_transformer import setup_CPAB_transformer
-    import numpy as np
-    import matplotlib.pyplot as plt
-    
-    
-    # Create basis
-    s = setup_CPAB_transformer(2, 2, 
-                               valid_outside=True, 
-                               zero_boundary=False, 
-                               override=True)
-    
-    # Sample parametrization and grid
-    theta = 0.5*s.sample_theta_without_prior(1)
-    points = s.sample_grid(20)
-    
-    # Convert to tf tensors
-    theta_tf = tf.cast(theta, tf.float32)    
-    points_tf = tf.cast(points, tf.float32)
-    
-    # Create computaitons
-    newpoints_ana_tf = tf_cuda_CPAB_transformer(points_tf, theta_tf)
-    newpoints_num_tf = tf_cuda_CPAB_transformer_numeric_grad(points_tf, theta_tf)
-    newpoints_pur_tf = tf_pure_CPAB_transformer(points_tf, theta_tf)
-    grad_ana_tf = tf.gradients(newpoints_ana_tf, [theta_tf])[0]
-    grad_num_tf = tf.gradients(newpoints_num_tf, [theta_tf])[0]
-    grad_pur_tf = tf.gradients(newpoints_pur_tf, [theta_tf])[0]
-    
-    sess = tf.Session()
-    p1, p2, p3, g1, g2, g3 = sess.run([newpoints_ana_tf, 
-                                       newpoints_num_tf, 
-                                       newpoints_pur_tf,
-                                       grad_ana_tf, 
-                                       grad_num_tf,
-                                       grad_pur_tf])
-    
-    # Print gradient res
-    print('Analytic gradient:')
-    print(g1.round(3))
-    print('Numeric gradient:')
-    print(g2.round(3))
-    print('Pure gradient:')
-    print(g3.round(3))
-    print('Difference ana-num:', (np.linalg.norm(g1 - g2) / np.linalg.norm(g1)).round(3))
-    print('Difference ana-pur:', (np.linalg.norm(g1 - g3) / np.linalg.norm(g1)).round(3))
-    
-    # Show deformation and velocity field
-    fig = plt.figure()
-    plt.plot(points[0], points[1], 'b.', label='original grid')
-    plt.plot(p1[0,0], p1[0,1], 'r.', label='deformed grid')
-    plt.plot(p3[0,0], p3[0,1], 'g.', label='deformed grid')
-    plt.legend(fontsize=15)
-    s.visualize_vectorfield_arrow(theta.flatten())
-    plt.show()
+
     

@@ -6,11 +6,16 @@ Created on Thu Jul 12 16:02:06 2018
 """
 #%%
 from .cpab1d.setup_constrains import get_constrain_matrix_1D
+from .cpab1d.transformer import tf_cpab_transformer as tf_cpab1d_transformer
 from .cpab2d.setup_constrains import get_constrain_matrix_2D
+from .cpab2d.transformer import tf_cpab_transformer as tf_cpab2d_transformer
 from .cpab3d.setup_constrains import get_constrain_matrix_3D
+from .cpab3d.transformer import tf_cpab_transformer as tf_cpab3d_transformer
 
 from .helper.utility import get_dir, save_obj, load_obj, create_dir, check_if_file_exist
 from .helper.math import null
+
+import numpy as np
 
 #%%
 class cpab:
@@ -53,19 +58,21 @@ class cpab:
         self._basis_file = get_dir(__file__) + '/basis/' + self._basis_name
         create_dir(get_dir(__file__) + '/basis/')
         
+        # Functions
+        if self.ndim == 1:
+            self.get_constrain_matrix_f = get_constrain_matrix_1D
+            self.transformer_f = tf_cpab1d_transformer
+        elif self.ndim == 2:
+            self.get_constrain_matrix_f = get_constrain_matrix_2D
+            self.transformer_f = tf_cpab2d_transformer
+        elif self.ndim == 3:
+            self.get_constrain_matrix_f = get_constrain_matrix_3D
+            self.transformer_f = tf_cpab3d_transformer
+            
         # Check if we have already created the basis
         if not check_if_file_exist(self._basis_file+'.pkl'):
             # Get constrain matrix
-            if self.ndim == 1:
-                L = get_constrain_matrix_1D(self.nc, self.domain_min, self.domain_max,
-                                            self.valid_outside, self.zero_boundary,
-                                            self.volume_perservation)
-            elif self.ndim == 2:
-                L = get_constrain_matrix_2D(self.nc, self.domain_min, self.domain_max,
-                                            self.valid_outside, self.zero_boundary,
-                                            self.volume_perservation)
-            elif self.ndim == 3:
-                L = get_constrain_matrix_3D(self.nc, self.domain_min, self.domain_max,
+            L = self.get_constrain_matrix_f(self.nc, self.domain_min, self.domain_max,
                                             self.valid_outside, self.zero_boundary,
                                             self.volume_perservation)
                 
@@ -89,11 +96,18 @@ class cpab:
             self.D = file['D']
             self.d = file['d']
         
-    def transform(self):
-        pass
+    def transform(self, points, theta):
+        assert theta.shape[0] == self.d, \
+            'Expects theta to have shape N x ' + self.d
+        assert points.shape[0] == self.ndim, \
+            'Expects a grid of ' + self.ndim + 'd points'
+            
+        # Call transformer
+        newpoints = self.transformer_f(points, theta)
+        return newpoints
     
-    def sample_grid(self):
-        pass
-    
-    def sample_transformation(self):
-        pass
+#    def sample_grid(self):
+#        pass
+#    
+    def sample_transformation(self, n_sample):
+        return np.random.normal(size=(n_sample, self.d))
