@@ -105,7 +105,7 @@ def get_constrain_matrix_3D(nc, domain_min, domain_max,
     # Setting up image boundary conditions
     if zero_boundary:
         ## Boundary points
-        #   xy-plane
+        # xy-plane
         sr = 0
         for i in [0,nz-1]:
             for j in range(ny+1):
@@ -119,7 +119,7 @@ def get_constrain_matrix_3D(nc, domain_min, domain_max,
 
                     L[c*9+sr:c*9+sr+1,c_idx*12:(c_idx+1)*12] = m
                     sr += 1
-        #   xz-plane
+        # xz-plane
         for j in [0,ny-1]:
             for i in range(nz+1):
                 for k in range(nx+1):
@@ -132,7 +132,7 @@ def get_constrain_matrix_3D(nc, domain_min, domain_max,
 
                     L[c*9+sr:c*9+sr+1,c_idx*12:(c_idx+1)*12] = m
                     sr += 1
-        #   yz-plane
+        # yz-plane
         for k in [0,nx-1]:
             for i in range(nz+1):
                 for j in range(ny+1):

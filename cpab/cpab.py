@@ -58,16 +58,19 @@ class cpab:
         self._basis_file = get_dir(__file__) + '/basis/' + self._basis_name
         create_dir(get_dir(__file__) + '/basis/')
         
-        # Functions
+        # Specific for the different dims
         if self.ndim == 1:
             self.get_constrain_matrix_f = get_constrain_matrix_1D
             self.transformer_f = tf_cpab1d_transformer
+            self.nC = self.nc[0]
         elif self.ndim == 2:
             self.get_constrain_matrix_f = get_constrain_matrix_2D
             self.transformer_f = tf_cpab2d_transformer
+            self.nC = 4*np.prod(self.nc)
         elif self.ndim == 3:
             self.get_constrain_matrix_f = get_constrain_matrix_3D
             self.transformer_f = tf_cpab3d_transformer
+            self.nC = 6*np.prod(self.nc)
             
         # Check if we have already created the basis
         if not check_if_file_exist(self._basis_file+'.pkl'):
@@ -105,7 +108,7 @@ class cpab:
             'Expects a grid of ' + self.ndim + 'd points'
             
         # Call transformer
-        newpoints = self.transformer_f(points, theta)
+        newpoints = self.transformer_f(points, theta, tess=self)
         return newpoints
     
     #%%
@@ -123,3 +126,7 @@ class cpab:
     def sample_transformation(self, n_sample):
         ''' '''
         return np.random.normal(size=(n_sample, self.d))
+    
+    #%%
+    def interpolate(self, data, transformed_points):
+        raise NotImplemented

@@ -6,5 +6,12 @@ derived from parametric, continuously-defined, velocity fields in Tensorflow.
 ```
     from cpab import cpab
     T = cpab(...)
+    # Important methods
+    T.sample_grid(...)
+    T.sample_transformation(...)
+    T.transform(...)
+    T.interpolate(...)
 ```
+
+
 
