@@ -66,14 +66,14 @@ def tf_cpab_transformer_2D_pure(points, theta, tess):
         B = tf_repeat_matrix(B, n_theta)
         
         # Calculate the row-flatted affine transformations Avees 
-        Avees = tf.matmul(B, tf.expand_dims(theta, *tess.Ashape))
+        Avees = tf.matmul(B, tf.expand_dims(theta, 2))
 		
-        # Reshape into (number of cells, 2, 3) tensor
+        # Reshape into (n_theta*number_of_cells, 2, 3) tensor
         As = tf.reshape(Avees, shape = (n_theta * nC, *tess.Ashape)) # format [n_theta * nC, 2, 3]
         
         # Multiply by the step size and do matrix exponential on each matrix
         Trels = tf_expm3x3(dT*As)
-        Trels = tf.concat([Trels, tf.cast(tf.reshape(tf.tile([0,0,1], 
+        Trels = tf.concat([Trels, tf.cast(tf.reshape(tf.tile([*(tess.ndim*[0]),1], 
                 [n_theta*nC]), (n_theta*nC, 1, tess.ndim+1)), tf.float32)], axis=1)
         
         # Batch index to add to correct for the batch effect
@@ -108,7 +108,7 @@ def tf_cpab_transformer_2D_pure(points, theta, tess):
         trans_points = tf.while_loop(cond, body, [tf.constant(0), newpoints],
                                      parallel_iterations=10, back_prop=True)[1]
         # Reshape to batch format
-        trans_points = tf.reshape(tf.transpose(trans_points[:,:2], perm=[1,0,2]), 
+        trans_points = tf.reshape(tf.transpose(trans_points[:,:tess.ndim], perm=[1,0,2]), 
                                  (n_theta, tess.ndim, n_points))
         return trans_points
 
@@ -146,6 +146,7 @@ def _calc_trans(points, theta, tess):
         
         # Multiply by the step size and do matrix exponential on each matrix
         Trels = tf_expm3x3(dT*As)
+        Trels = Trels[:,:tess.ndim,:] # extract important part
         Trels = tf.reshape(Trels, shape=(n_theta, nC, *tess.Ashape[0]))
         
         # Call the dynamic library
@@ -160,7 +161,7 @@ def _calc_grad(op, grad):
         # Grap input
         points = op.inputs[0] # 2 x nP
         theta = op.inputs[1] # n_theta x d
-        tess = op.inputs[2]
+        tess = op.inputs[2] # tessalation
         n_theta = tf.shape(theta)[0]
         
         # Tessalation information
@@ -186,14 +187,14 @@ def _calc_grad(op, grad):
         
         # Call cuda code
         with tf.name_scope('calc_grad_op'):
-            gradient = grad_op(points, As, Bs, nStepSolver,
-                               ncx, ncy, inc_x, inc_y) # gradient: d x n_theta x 2 x n
+            # gradient: d x n_theta x 2 x n
+            gradient = grad_op(points, As, Bs, nStepSolver, ncx, ncy, inc_x, inc_y) 
         
         # Reduce into: d x 1 vector
         gradient = tf.reduce_sum(grad * gradient, axis = [2,3])
         gradient = tf.transpose(gradient)
                                   
-        return [None, gradient]
+        return [None, gradient, None]
 
 #%% Wrapper to connect function to gradient
 @function.Defun(tf.float32, tf.float32, tf.variant, func_name='tf_CPAB_transformer_2D', python_grad_func=_calc_grad)
