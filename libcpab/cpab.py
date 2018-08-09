@@ -23,7 +23,7 @@ class cpab:
     
     '''
     def __init__(self, tess_size, 
-                 zero_boundary=False, 
+                 zero_boundary=True, 
                  volume_perservation=False,
                  save_basis=True):
         # Check input
@@ -43,33 +43,41 @@ class cpab:
         # Parameters
         self.nc = tess_size
         self.ndim = len(tess_size)
+        self.Ashape = [self.ndim, self.ndim+1]
         self.valid_outside = not(zero_boundary)
         self.zero_boundary = zero_boundary
         self.volume_perservation = volume_perservation
         self.domain_max = [1 for e in self.nc]
-        self.domain_min = [-1 for e in self.nc]
+        self.domain_min = [0 for e in self.nc]
         self.inc = [(self.domain_max[i] - self.domain_min[i]) / 
                     self.nc[i] for i in range(self.ndim)]
+        self.nstepsolver = 50
+        
+        # Special cases
+        assert not(self.ndim==3 and not zero_boundary), \
+            '''Non zero boundary is not implemented for 3D'''
+        
+        # For saving the basis
         self._basis_name = 'cpab_basis_dim' + str(self.ndim) + '_tess' + \
                           '_'.join([str(e) for e in self.nc]) + '_' + \
                           'vo' + str(int(self.valid_outside)) + '_' + \
                           'zb' + str(int(self.zero_boundary)) + '_' + \
                           'vp' + str(int(self.volume_perservation))
-        self._basis_file = get_dir(__file__) + '/basis/' + self._basis_name
-        create_dir(get_dir(__file__) + '/basis/')
+        self._basis_file = get_dir(__file__) + '/basis_files/' + self._basis_name
+        create_dir(get_dir(__file__) + '/basis_files/')
         
         # Specific for the different dims
         if self.ndim == 1:
             self.get_constrain_matrix_f = get_constrain_matrix_1D
-            self.transformer_f = tf_cpab_transformer_1D
+            #self.transformer_f = tf_cpab_transformer_1D
             self.nC = self.nc[0]
         elif self.ndim == 2:
             self.get_constrain_matrix_f = get_constrain_matrix_2D
-            self.transformer_f = tf_cpab_transformer_2D
-            self.nC = 4*np.prod(self.nc)
+            #self.transformer_f = tf_cpab_transformer_2D
+            self.n = 4*np.prod(self.nc)
         elif self.ndim == 3:
             self.get_constrain_matrix_f = get_constrain_matrix_3D
-            self.transformer_f = tf_cpab_transformer_3D
+            #self.transformer_f = None #tf_cpab_transformer_3D
             self.nC = 6*np.prod(self.nc)
             
         # Check if we have already created the basis
@@ -92,7 +100,7 @@ class cpab:
                           'D': self.D,
                           'd': self.d,
                           'nc': self.nc}, self._basis_file)
-        else:
+        else: # if it exist, just load it
             file = load_obj(self._basis_file)
             self.B = file['basis']
             self.constrains = file['constrains']
@@ -116,7 +124,7 @@ class cpab:
         ''' '''
         assert len(n_points) == self.ndim, \
             'n_points needs to be a list equal to the dimensionality of the transformation'
-        lin_p = [np.linspace(self.domain_min[i], self.domain_max[i], n_points)
+        lin_p = [np.linspace(self.domain_min[i], self.domain_max[i], n_points[i])
                 for i in range(self.ndim)]
         mesh_p = np.meshgrid(*lin_p)
         grid = np.vstack([array.flatten() for array in mesh_p])

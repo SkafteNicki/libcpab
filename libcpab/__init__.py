@@ -10,7 +10,7 @@ from .cpab import cpab
 from . import helper
 from . import cpab1d
 from . import cpab2d
-from . import cpab3d
+#from . import cpab3d
 from sys import platform as _platform
 from .helper.utility import gpu_support as _gpu_support
 
