@@ -17,7 +17,7 @@ using GPUDevice = Eigen::GpuDevice;
 REGISTER_OP("CalcTrans3")
     .Input("points: float")         // 3 x nP
     .Input("trels: float")          // n_theta x nC x 3 x 4
-    .Input("ntimestep1: int32")
+    .Input("ntimestep: int32")
     .Input("nx: int32")
     .Input("ny: int32")
     .Input("nz: int32")
@@ -43,9 +43,9 @@ class CalcTransCPU : public OpKernel {
             const Tensor& points_in = context->input(0);
             const Tensor& Trels_in = context->input(1);
             const Tensor& nStepSolver_in = context->input(2);
-            const Tensor& nx_in = context->input(3);
-            const Tensor& ny_in = context->input(4);
-	    const Tensor& nz_in = context->input(5);
+            const Tensor& ncx_in = context->input(3);
+            const Tensor& ncy_in = context->input(4);
+        	   const Tensor& ncz_in = context->input(5);
                 
             // Problem size
             const int nP = points_in.dim_size(1);
@@ -57,31 +57,26 @@ class CalcTransCPU : public OpKernel {
             std::initializer_list< int64 > s0 = {batch_size, 3, nP};
             OP_REQUIRES_OK(context, context->allocate_output(0, TensorShape(s0), &newpoints_out));            
             typename TTypes<float, NDIMS>::Tensor newpoints = newpoints_out->tensor<float, NDIMS>();
-            
-/*            Tensor* index_out = NULL;
-            std::initializer_list< int64 > s1 = {batch_size, nP, 50};
-            OP_REQUIRES_OK(context, context->allocate_output(1, TensorShape(s1), &index_out));
-            typename TTypes<int, NDIMS>::Tensor index = index_out->tensor<int, NDIMS>();
-*/                   
+                              
             // Setup data view
             typename TTypes<float>::ConstMatrix points = points_in.matrix<float>();
             const float* Trels = Trels_in.flat<float>().data();
             const int nStepSolver = nStepSolver_in.flat<int>()(0);
-            const int nx = nx_in.flat<int>()(0);
-            const int ny = ny_in.flat<int>()(0);
-	    const int nz = nz_in.flat<int>()(0);
+            const int ncx = ncx_in.flat<int>()(0);
+            const int ncy = ncy_in.flat<int>()(0);
+        	   const int ncz = ncz_in.flat<int>()(0);
         
             // Loop over all transformations and all points    
             for(int t = 0; t < batch_size; t++){
                 // Define start index for the matrices belonging to this batch
-                // batch * num_elem * 4 triangles pr cell * cell in x * cell in y
-                int start_idx = t * 12 * nx * ny * nz; 
+                // batch * 12 params pr cell * 6 3D-triangles pr cell * cell in x * cell in y * cell_z
+                int start_idx = t * 12 * 6 * nx * ny * nz; 
                 for(int i = 0; i < nP; i++){
                     // Current point
                     float point[3];
                     point[0] = points(0,i);
                     point[1] = points(1,i);
-		    point[2] = points(2,i);
+            		  point[2] = points(2,i);
                         
                     // Iterate in nStepSolver
                     int cellidx;
@@ -98,15 +93,13 @@ class CalcTransCPU : public OpKernel {
                         
                         point[0] = point_updated[0];
                         point[1] = point_updated[1];
-			point[2] = point_updated[2];
-
-//			index(t,i,n) = cellidx;
+                        point[2] = point_updated[2];
                     }
                         
                     // Copy to output
                     newpoints(t,0,i) = point[0];
                     newpoints(t,1,i) = point[1];
-		    newpoints(t,2,i) = point[2];
+            		  newpoints(t,2,i) = point[2];
                 }    
             } 
         } // end compute method
@@ -116,37 +109,37 @@ class CalcTransCPU : public OpKernel {
         }
     
         int findcellidx(const float* p, const int nx, const int ny, const int nz) {
-            // Move with respect to the lower bound
+            // Copy point
             double point[3];
             point[0] = p[0];
             point[1] = p[1];
-	    point[2] = p[2];
+        	   point[2] = p[2];
             
             // Find row, col, layer placement
             int p0 = mymin( nx - 1 , std::max(0.0, point[0]*nx) );
             int p1 = mymin( ny - 1 , std::max(0.0, point[1]*ny) );
-	    int p2 = mymin( nz - 1 , std::max(0.0, point[2]*nz) );
+        	   int p2 = mymin( nz - 1 , std::max(0.0, point[2]*nz) );
             
             int cell_idx = 6 * ( p0 + p1*nx + p2*nx*ny );
 
-	    const double x = point[0]*nx - p0;
-	    const double y = point[1]*ny - p1;
-	    const double z = point[2]*nz - p2;
+        	   const double x = point[0]*nx - p0;
+        	   const double y = point[1]*ny - p1;
+        	   const double z = point[2]*nz - p2;
 
-	    if( x<=y && 1-x>y && x<z && 1-x>=z ){ cell_idx += 0; }
-	    if( x>y && x<=1-y && y<z && 1-y>=z ){ cell_idx += 1; }
-	    if( x>=z && x<1-z && y>=z && y<1-z ){ cell_idx += 2; }
-	    if( x<=z && x>1-z && y<=z && y>1-z ){ cell_idx += 3; }
-	    if( x<y && x>=1-y && y>z && 1-y<=z ){ cell_idx += 4; }
-	    if( x>=y && 1-x<y && x>z && 1-x<=z ){ cell_idx += 5; }
+        	   if( x<=y && 1-x>y && x<z && 1-x>=z ){ cell_idx += 0; }
+        	   if( x>y && x<=1-y && y<z && 1-y>=z ){ cell_idx += 1; }
+            if( x>=z && x<1-z && y>=z && y<1-z ){ cell_idx += 2; }
+            if( x<=z && x>1-z && y<=z && y>1-z ){ cell_idx += 3; }
+            if( x<y && x>=1-y && y>z && 1-y<=z ){ cell_idx += 4; }
+            if( x>=y && 1-x<y && x>z && 1-x<=z ){ cell_idx += 5; }
 
             return cell_idx;
-	}
+        }
         
         void A_times_b(float x[], const float* A, float* b) {
             x[0] = A[0]*b[0] + A[1]*b[1] + A[2]*b[2] + A[3];
             x[1] = A[4]*b[0] + A[5]*b[1] + A[6]*b[2] + A[7];
-	    x[2] = A[8]*b[0] + A[9]*b[1] + A[10]*b[2] + A[11];
+            x[2] = A[8]*b[0] + A[9]*b[1] + A[10]*b[2] + A[11];
             return;
         }
 };

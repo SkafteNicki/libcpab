@@ -51,7 +51,6 @@ def tf_cpab_transformer_1D_pure(points, theta, tess):
         # Tessalation information
         nC = tf.cast(tess.nC, tf.int32)
         ncx = tf.cast(tess.nc[0], tf.int32)
-        inc_x = tf.cast(tess.inc[0], tf.float32)
         
         # Steps sizes
         nStepSolver = tess.nstepsolver
@@ -81,7 +80,7 @@ def tf_cpab_transformer_1D_pure(points, theta, tess):
         # Body function for while loop (executes the computation)
         def body(i, points):
             # Find cell index of each point
-            idx = tf_findcellidx_1D(points, ncx, inc_x)
+            idx = tf_findcellidx_1D(points, ncx)
             
             # Correct for batch
             corrected_idx = tf.cast(idx, tf.int32) + batch_idx
@@ -122,9 +121,6 @@ def _calc_trans(points, theta, tess):
         # Tessalation information
         nC = tf.cast(tess.nC, tf.int32)
         ncx = tf.cast(tess.nc[0], tf.int32)
-        ncy = tf.cast(tess.nc[1], tf.int32)
-        inc_x = tf.cast(tess.inc[0], tf.float32)
-        inc_y = tf.cast(tess.inc[1], tf.float32)
         
         # Steps sizes
         nStepSolver = tf.cast(tess.nstepsolver, dtype = tf.int32) 
@@ -149,7 +145,7 @@ def _calc_trans(points, theta, tess):
         
         # Call the dynamic library
         with tf.name_scope('calc_trans_op'):
-	        newpoints = transformer_op(points, Trels, nStepSolver, ncx, inc_x)
+	        newpoints = transformer_op(points, Trels, nStepSolver, ncx)
         return newpoints
 
 #%%        
@@ -165,7 +161,6 @@ def _calc_grad(op, grad):
         # Tessalation information
         nC = tf.cast(tess.nC, tf.int32)
         ncx = tf.cast(tess.nc[0], tf.int32)
-        inc_x = tf.cast(tess.inc[0], tf.float32)
         
         # Steps sizes
         nStepSolver = tf.cast(tess.nstepsolver, dtype = tf.int32)
@@ -184,7 +179,7 @@ def _calc_grad(op, grad):
         # Call cuda code
         with tf.name_scope('calc_grad_op'):
             # gradient: d x n_theta x 1 x n
-            gradient = grad_op(points, As, Bs, nStepSolver, ncx, inc_x)
+            gradient = grad_op(points, As, Bs, nStepSolver, ncx)
         
         # Reduce into: d x 1 vector
         gradient = tf.reduce_sum(grad * gradient, axis = [2,3])
@@ -195,7 +190,6 @@ def _calc_grad(op, grad):
 #%% Wrapper to connect function to gradient
 @function.Defun(tf.float32, tf.float32, tf.variant, func_name='tf_CPAB_transformer_1D', python_grad_func=_calc_grad)
 def tf_cpab_transformer_1D_cuda(points, theta, tess):
-    """ """
     return _calc_trans(points, theta, tess)
 
 #%% Find out which version to use

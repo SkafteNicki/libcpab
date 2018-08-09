@@ -17,11 +17,9 @@ using GPUDevice = Eigen::GpuDevice;
 REGISTER_OP("CalcTrans2")
     .Input("points: float")         // 2 x nP
     .Input("trels: float")          // n_theta x nC x 2 x 3
-    .Input("ntimestep1: int32")
+    .Input("ntimestep: int32")
     .Input("ncx: int32")
     .Input("ncy: int32")
-    .Input("inc_x: float")
-    .Input("inc_y: float")
     .Output("newpoints: float")     // n_theta x 2 x nP
     .Doc(R"doc(CPAB transformation implementation)doc");
     
@@ -32,10 +30,10 @@ REGISTER_OP("CalcGrad2")
     .Input("ntimestep: int32")    
     .Input("ncx: int32")
     .Input("ncy: int32")
-    .Input("inc_x: float")
-    .Input("inc_y: float")
     .Output("grad: float")         // d x n_theta x 2 x nP
     .Doc(R"doc(Gradient of CPAB transformation implementation)doc");
+    
+    
     
 class CalcTransCPU : public OpKernel {
     public:
@@ -47,8 +45,7 @@ class CalcTransCPU : public OpKernel {
             const Tensor& nStepSolver_in = context->input(2);
             const Tensor& ncx_in = context->input(3);
             const Tensor& ncy_in = context->input(4);
-            const Tensor& inc_x_in = context->input(5);
-            const Tensor& inc_y_in = context->input(6);
+                
                 
             // Problem size
             const int nP = points_in.dim_size(1);
@@ -67,13 +64,12 @@ class CalcTransCPU : public OpKernel {
             const int nStepSolver = nStepSolver_in.flat<int>()(0);
             const int ncx = ncx_in.flat<int>()(0);
             const int ncy = ncy_in.flat<int>()(0);
-            const float inc_x = inc_x_in.flat<float>()(0);
-            const float inc_y = inc_y_in.flat<float>()(0);
+        
         
             // Loop over all transformations and all points    
             for(int t = 0; t < batch_size; t++){
                 // Define start index for the matrices belonging to this batch
-                // batch * num_elem * 4 triangles pr cell * cell in x * cell in y
+                // batch * 6 param pr cell * 4 triangles pr cell * cell in x * cell in y
                 int start_idx = t * 6 * 4 * ncx * ncy; 
                 for(int i = 0; i < nP; i++){
                     // Current point
@@ -111,10 +107,10 @@ class CalcTransCPU : public OpKernel {
     
         int findcellidx(const float* p, const int ncx, const int ncy, 
                         const float inc_x, const float inc_y) {
-            // Move with respect to the lower bound
+            // Copy point                        
             double point[2];
-            point[0] = p[0] + 1;
-            point[1] = p[1] + 1;
+            point[0] = p[0];
+            point[1] = p[1];
             
             // Find initial row, col placement
             double p0 = std::min((ncx * inc_x - 0.000000001), std::max(0.0, point[0]));
@@ -141,7 +137,17 @@ class CalcTransCPU : public OpKernel {
             }
             
             // Out of bound (right)
-            if(point[0] >= ncx*inc_x){
+            if(point[0] >= ncx*inc_x){   """
+    with tf.name_scope('findcellidx_1D') :
+        p = points[:,0]
+        ncx = tf.cast(ncx, tf.float32)
+                
+        # Floor values to find cell
+        idx = tf.floor(p * ncx)
+
+        idx = tf.clip_by_value(idx, clip_value_min=0, clip_value_max=ncx)
+        idx = tf.cast(idx, tf.int32)
+        return idx
                 if(point[1]<=0 && -point[1]/inc_y > point[0]/inc_x - ncx){
                     // Nothing to do here
                 } else if(point[1] >= ncy*inc_y && point[1]/inc_y - ncy > point[0]/inc_x-ncx){
@@ -179,7 +185,7 @@ class CalcTransCPU : public OpKernel {
         
         void A_times_b(float x[], const float* A, float* b) {
             x[0] = A[0]*b[0] + A[1]*b[1] + A[2];
-              x[1] = A[3]*b[0] + A[4]*b[1] + A[5];
+            x[1] = A[3]*b[0] + A[4]*b[1] + A[5];
             return;
         }
 };

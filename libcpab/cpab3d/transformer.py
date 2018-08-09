@@ -53,9 +53,6 @@ def tf_cpab_transformer_3D_pure(points, theta, tess):
         ncx = tf.cast(tess.nc[0], tf.int32)
         ncy = tf.cast(tess.nc[1], tf.int32)
         ncz = tf.cast(tess.nc[2], tf.int32)
-        inc_x = tf.cast(tess.inc[0], tf.float32)
-        inc_y = tf.cast(tess.inc[1], tf.float32)
-        inc_z = tf.cast(tess.inc[2], tf.float32)
         
         # Steps sizes
         nStepSolver = tess.nstepsolver
@@ -85,7 +82,7 @@ def tf_cpab_transformer_3D_pure(points, theta, tess):
         # Body function for while loop (executes the computation)
         def body(i, points):
             # Find cell index of each point
-            idx = tf_findcellidx_3D(points, ncx, ncy, ncz, inc_x, inc_y, inc_z)
+            idx = tf_findcellidx_3D(points, ncx, ncy, ncz)
             
             # Correct for batch
             corrected_idx = tf.cast(idx, tf.int32) + batch_idx
@@ -128,9 +125,6 @@ def _calc_trans(points, theta, tess):
         ncx = tf.cast(tess.nc[0], tf.int32)
         ncy = tf.cast(tess.nc[1], tf.int32)
         ncz = tf.cast(tess.nc[2], tf.int32)
-        inc_x = tf.cast(tess.inc[0], tf.float32)
-        inc_y = tf.cast(tess.inc[1], tf.float32)
-        inc_z = tf.cast(tess.inc[2], tf.float32)
         
         # Steps sizes
         nStepSolver = tf.cast(tess.nstepsolver, dtype = tf.int32) 
@@ -155,7 +149,7 @@ def _calc_trans(points, theta, tess):
         
         # Call the dynamic library
         with tf.name_scope('calc_trans_op'):
-	        newpoints = transformer_op(points, Trels, nStepSolver, ncx, ncy, ncz, inc_x, inc_y, inc_z)
+	        newpoints = transformer_op(points, Trels, nStepSolver, ncx, ncy, ncz)
         return newpoints
 
 #%%        
@@ -172,8 +166,7 @@ def _calc_grad(op, grad):
         nC = tf.cast(tess.nC, tf.int32)
         ncx = tf.cast(tess.nc[0], tf.int32)
         ncy = tf.cast(tess.nc[1], tf.int32)
-        inc_x = tf.cast(tess.inc[0], tf.float32)
-        inc_y = tf.cast(tess.inc[1], tf.float32)
+        ncz = tf.cast(tess.nc[2], tf.int32)
         
         # Steps sizes
         nStepSolver = tf.cast(tess.nstepsolver, dtype = tf.int32)
@@ -192,7 +185,7 @@ def _calc_grad(op, grad):
         # Call cuda code
         with tf.name_scope('calc_grad_op'):
             # gradient: d x n_theta x 3 x n
-            gradient = grad_op(points, As, Bs, nStepSolver, ncx, ncy, inc_x, inc_y) 
+            gradient = grad_op(points, As, Bs, nStepSolver, ncx, ncy, ncz) 
         
         # Reduce into: d x 1 vector
         gradient = tf.reduce_sum(grad * gradient, axis = [2,3])
@@ -203,7 +196,6 @@ def _calc_grad(op, grad):
 #%% Wrapper to connect function to gradient
 @function.Defun(tf.float32, tf.float32, tf.variant, func_name='tf_CPAB_transformer_3D', python_grad_func=_calc_grad)
 def tf_cpab_transformer_3D_cuda(points, theta, tess):
-    """ """
     return _calc_trans(points, theta, tess)
 
 #%% Find out which version to use

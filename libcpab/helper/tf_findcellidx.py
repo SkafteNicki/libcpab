@@ -16,29 +16,29 @@ def tf_mymin(x, y):
         return tf.where(tf.less(x,y), x, tf.round(y))
 
 #%%
-def tf_findcellidx_1D(points, ncx, inc_x):
+def tf_findcellidx_1D(points, ncx):
     """  
     Arguments:
         points: [n_points, 2, 1]
     """
     with tf.name_scope('findcellidx_1D') :
         p = points[:,0]
-        ncx, inc_x = tf.cast(ncx, tf.float32), tf.cast(inc_x, tf.float32)
+        ncx = tf.cast(ncx, tf.float32)
                 
         # Floor values to find cell
-        idx = tf.floor(p / inc_x)
+        idx = tf.floor(p * ncx)
 
         idx = tf.clip_by_value(idx, clip_value_min=0, clip_value_max=ncx)
         idx = tf.cast(idx, tf.int32)
         return idx
 
 #%%
-def tf_findcellidx_2D(points, ncx, ncy, inc_x, inc_y):
+def tf_findcellidx_2D(points, ncx, ncy):
     """ """
     with tf.name_scope('findcellidx_2D'):
         p = tf.cast(tf.transpose(tf.squeeze(points)), tf.float32) # 3 x n_points
         ncx, ncy = tf.cast(ncx, tf.float32), tf.cast(ncy, tf.float32)
-        inc_x, inc_y = tf.cast(inc_x, tf.float32), tf.cast(inc_y, tf.float32)
+        inc_x, inc_y = 1.0/ncx, 1.0/ncy 
 
         # Determine inner coordinates        
         p0 = tf.minimum((ncx*inc_x - 1e-8), tf.maximum(0.0, p[0,:]))
@@ -86,11 +86,10 @@ def tf_findcellidx_2D(points, ncx, ncy, inc_x, inc_y):
         return idx
 
 #%%
-def tf_findcellidx_3D(points, ncx, ncy, ncz, inc_x, inc_y, inc_z):
+def tf_findcellidx_3D(points, ncx, ncy, ncz):
     with tf.name_scope('findcellidx_3D'):
         p = tf.cast(tf.transpose(tf.squeeze(points)), tf.float32) # 4 x n_points
         ncx, ncy, ncz = tf.cast(ncx, tf.float32), tf.cast(ncy, tf.float32), tf.cast(ncz, tf.float32)
-        inc_x, inc_y, inc_z = tf.cast(inc_x, tf.float32), tf.cast(inc_y, tf.float32), tf.cast(inc_z, tf.float32)
         
         # Initial row, col placement
         p0 = tf_mymin((ncx-1)*tf.ones_like(p[0,:]), tf.maximum(0.0, p[0,:]*ncx))
@@ -116,7 +115,8 @@ def tf_findcellidx_3D(points, ncx, ncy, ncz, inc_x, inc_y, inc_z):
                             cell_idx+5,cell_idx)
 
         return cell_idx
-    
+
+
 #%%
 if __name__ == '__main__':
     pass
