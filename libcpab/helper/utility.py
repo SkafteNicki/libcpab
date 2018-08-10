@@ -76,14 +76,12 @@ def check_if_file_exist(file):
 
 #%%
 def load_basis():
-    """ Load a pre-calculated CPAB basis. See transformer/setup_CPAB_transformer
-        for more information on this.
-    """
-    basis_loc = get_dir(__file__) + '/../cpab_basis'
+    """ Load the latest cpab basis created by cpab class """
+    basis_loc = get_dir(__file__) + '/../basis_files/current_basis'
     try:
         basis = load_obj(basis_loc)
     except:
-        raise ValueError('call setup_CPAB.py first')
+        raise ValueError('call the cpab class first to create basis')
     return basis
 
 #%%
