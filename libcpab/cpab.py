@@ -16,6 +16,7 @@ from .helper.utility import get_dir, save_obj, load_obj, create_dir, check_if_fi
 from .helper.math import null
 
 import numpy as np
+import tensorflow as tf
 
 #%%
 class cpab:
@@ -65,6 +66,10 @@ class cpab:
                           'vp' + str(int(self.volume_perservation))
         self._basis_file = get_dir(__file__) + '/basis_files/' + self._basis_name
         create_dir(get_dir(__file__) + '/basis_files/')
+        
+        # To run ternsorflow
+        self.sess = tf.Session()
+        self.sess.run(tf.global_variables_initializer())
         
         # Specific for the different dims
         if self.ndim == 1:
@@ -116,7 +121,7 @@ class cpab:
             'Expects a grid of ' + self.ndim + 'd points'
             
         # Call transformer
-        newpoints = self.transformer_f(points, theta, tess=self)
+        newpoints = self.sess.run(self.transformer_f(points, theta, tess=self))
         return newpoints
     
     #%%
