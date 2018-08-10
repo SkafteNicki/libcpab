@@ -11,6 +11,7 @@ from .cpab3d.setup_constrains import get_constrain_matrix_3D
 from .cpab1d.transformer import tf_cpab_transformer_1D
 from .cpab2d.transformer import tf_cpab_transformer_2D
 from .cpab3d.transformer import tf_cpab_transformer_3D
+from .helper.tf_interpolate import tf_interpolate_1D, tf_interpolate_2D, tf_interpolate_3D
 
 from .helper.utility import get_dir, save_obj, load_obj, create_dir, check_if_file_exist
 from .helper.math import null
@@ -74,15 +75,18 @@ class cpab:
         # Specific for the different dims
         if self.ndim == 1:
             self.get_constrain_matrix_f = get_constrain_matrix_1D
-            #self.transformer_f = tf_cpab_transformer_1D
+            self.transformer_f = tf_cpab_transformer_1D
+            self.interpolate_f = tf_interpolate_1D
             self.nC = self.nc[0]
         elif self.ndim == 2:
             self.get_constrain_matrix_f = get_constrain_matrix_2D
-            #self.transformer_f = tf_cpab_transformer_2D
+            self.transformer_f = tf_cpab_transformer_2D
+            self.interpolate_f = tf_interpolate_2D
             self.n = 4*np.prod(self.nc)
         elif self.ndim == 3:
             self.get_constrain_matrix_f = get_constrain_matrix_3D
-            #self.transformer_f = None #tf_cpab_transformer_3D
+            self.transformer_f = tf_cpab_transformer_3D
+            self.interpolate_f = tf_interpolate_3D
             self.nC = 6*np.prod(self.nc)
             
         # Check if we have already created the basis
@@ -142,4 +146,7 @@ class cpab:
     
     #%%
     def interpolate(self, data, transformed_points):
-        raise NotImplemented
+        # Call interpolator
+        interpolate = self.sess.run(self.interpolate_f(data, transformed_points))
+        return interpolate
+        
