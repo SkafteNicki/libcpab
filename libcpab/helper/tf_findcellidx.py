@@ -28,7 +28,7 @@ def tf_findcellidx_1D(points, ncx):
         # Floor values to find cell
         idx = tf.floor(p * ncx)
 
-        idx = tf.clip_by_value(idx, clip_value_min=0, clip_value_max=ncx)
+        idx = tf.clip_by_value(idx, clip_value_min=0, clip_value_max=ncx-1)
         idx = tf.cast(idx, tf.int32)
         return idx
 
@@ -82,7 +82,7 @@ def tf_findcellidx_2D(points, ncx, ncy):
               tf.where(cond4, cell_idx2,
               tf.where(cond5, tf.where(cond5_1, cell_idx2, cell_idx3), 
               tf.where(cond5_1, cell_idx1, cell_idx))))))
-    
+        idx = tf.cast(idx, tf.int32)
         return idx
 
 #%%
@@ -113,7 +113,7 @@ def tf_findcellidx_3D(points, ncx, ncy, ncz):
                             cell_idx+4,cell_idx)
         cell_idx = tf.where(tf.logical_and(tf.logical_and(tf.logical_and(x>=y,1-x<y),x>z),1-x<=z),
                             cell_idx+5,cell_idx)
-
+        cell_idx = tf.cast(cell_idx, tf.int32)
         return cell_idx
 
 

@@ -183,18 +183,17 @@ class cpab(object):
         # Construct the affine transformations
         Avees = self.theta2Avees(theta)
         As = self.Avees2As(Avees)
-        v = np.zeros_like(points)
         
         # Find cells and extract correct affine transformation
-        idx = self.sess.run(self.findcellidx_f(points, *self.nc))
+        idx = self.sess.run(self.findcellidx_f(points.T, *self.nc))
         Aidx = As[idx]
         
         # Make homogeneous coordinates
-        points = np.expand_dims(np.vstack((points, np.ones((1, points.shape[1])))),2)
+        points = np.expand_dims(np.vstack((points, np.ones((1, points.shape[1])))).T,2)
         
         # Do matrix-vector multiplication
         v = np.matmul(Aidx, points)
-        return v
+        return np.squeeze(v).T
     
     #%%
     def visualize_vector_field(self, theta, nb_points=10):
@@ -206,16 +205,23 @@ class cpab(object):
         if self.ndim==1:
             fig = plt.figure()
             ax = fig.add_subplot(111)
-            ax.quiver(points[0,:], points[1,:], v, np.zeros_like(v), scale=5)
+            ax.quiver(points[0,:], np.zeros_like(points), v, np.zeros_like(v))
+            ax.set_xlim(self.domain_min[0], self.domain_max[0])
         elif self.ndim==2:
             fig = plt.figure()
             ax = fig.add_subplot(111)
-            ax.quiver(points[0,:], points[1,:], v[0,:], v[1,:], scale=5)
+            ax.quiver(points[0,:], points[1,:], v[0,:], v[1,:])
+            ax.set_xlim(self.domain_min[0], self.domain_max[0])
+            ax.set_ylim(self.domain_min[1], self.domain_max[1])
         elif self.ndim==3:
             from mpl_toolkits.mplot3d import Axes3D
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
-            ax.quiver(points[0,:], points[1,:], points[2,:], v[0,:], v[1,:], v[2,:])
+            ax.quiver(points[0,:], points[1,:], points[2,:], v[0,:], v[1,:], v[2,:],
+                      length=0.3, arrow_length_ratio=0.5)
+            ax.set_xlim3d(self.domain_min[0], self.domain_max[0])
+            ax.set_ylim3d(self.domain_min[1], self.domain_max[1])
+            ax.set_zlim3d(self.domain_min[2], self.domain_max[2])
         plt.axis('equal')
         plt.title('Velocity field')
         plt.show()
