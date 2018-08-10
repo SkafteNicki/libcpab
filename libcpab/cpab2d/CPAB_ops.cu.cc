@@ -12,12 +12,15 @@ __device__ double cuda_fmod(double numer, double denom){
     return numer - tquou * denom;
 }
 
-__device__ int findcellidx(const float* p, const int ncx, const int ncy, 
-                            const float inc_x, const float inc_y) {
-    // Move with respect to the lower bound
+__device__ int findcellidx(const float* p, const int ncx, const int ncy) {
+    // Copy point
     double point[2];
-    point[0] = p[0] + 1;
-    point[1] = p[1] + 1;
+    point[0] = p[0];
+    point[1] = p[1];
+    
+    // Cell size
+    const float inc_x = 1.0 / ncx;
+    const float inc_y = 1.0 / ncy;
     
     // Find initial row, col placement
     double p0 = min((ncx * inc_x - 0.000000001), max(0.0, point[0]));
@@ -97,8 +100,7 @@ __device__ void A_times_b_linear(float x[], const float* A, float* b) {
 __global__ void calcTrans_kernel(const int nP, const int batch_size,
                                  float* newpoints, const float* points,
                                  const float* Trels, const int* nStepSolver,
-                                 const int* ncx, const int* ncy,
-                                 const float* inc_x, const float* inc_y) {
+                                 const int* ncx, const int* ncy) {
     
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
@@ -116,7 +118,7 @@ __global__ void calcTrans_kernel(const int nP, const int batch_size,
         int cellidx;
         for(int n = 0; n < nStepSolver[0]; n++){
             // Find cell idx
-            cellidx = findcellidx(point, ncx[0], ncy[0], inc_x[0], inc_y[0]);
+            cellidx = findcellidx(point, ncx[0], ncy[0]);
             
             // Extract the mapping in the cell
             const float* Trels_idx = Trels + 6*cellidx + start_idx;                
@@ -139,8 +141,7 @@ __global__ void calcTrans_kernel(const int nP, const int batch_size,
 void calcTrans_kernel_launcher(const GPUDevice& d, const int nP, const int batch_size,
                                float* newpoints, const float* points, 
                                const float* Trels, const int* nStepSolver, 
-                               const int* ncx, const int* ncy,
-                               const float* inc_x, const float* inc_y) {
+                               const int* ncx, const int* ncy) {
     
     // Get GPU 2D cuda configuration
     dim3 bc((int)ceil(nP/256.0), batch_size);
@@ -150,16 +151,15 @@ void calcTrans_kernel_launcher(const GPUDevice& d, const int nP, const int batch
     calcTrans_kernel<<<bc, tpb, 0, d.stream()>>>(nP, batch_size,
                                                  newpoints, 
                                                  points, Trels, nStepSolver,
-                                                 ncx, ncy, inc_x, inc_y);
+                                                 ncx, ncy);
     
     return;            
 }
 
 
 __global__ void  calcGrad_kernel(dim3 nthreads, const int n_theta, const int d, const int nP, const int nC,
-                                        float* grad, const float* points, const float* As, const float* Bs,
-                                        const int* nStepSolver, const int* ncx, const int* ncy,
-                                        const float* inc_x, const float* inc_y) {
+                                    float* grad, const float* points, const float* As, const float* Bs,
+                                    const int* nStepSolver, const int* ncx, const int* ncy) {
         
         // Allocate memory for computations
         float p[2], v[2], pMid[2], vMid[2], q[2], qMid[2];
@@ -191,7 +191,7 @@ __global__ void  calcGrad_kernel(dim3 nthreads, const int n_theta, const int d, 
                     // Iterate a number of times
                     for(int t=0; t<nStepSolver[0]; t++) {
                         // Get current cell
-                        cellidx = findcellidx(p, ncx[0], ncy[0], inc_x[0], inc_y[0]);
+                        cellidx = findcellidx(p, ncx[0], ncy[0]);
                         
                         // Get index of A
                         int As_idx = 6*cellidx;
@@ -266,8 +266,7 @@ __global__ void  calcGrad_kernel(dim3 nthreads, const int n_theta, const int d, 
 void calcGrad_kernel_launcher(const GPUDevice& device, 
                               const int n_theta, const int d, const int nP, const int nC,
                               float* grad, const float* points, const float* As, const float* Bs,
-                              const int* nStepSolver, const int* ncx, const int* ncy, 
-                              const float* inc_x, const float* inc_y){
+                              const int* nStepSolver, const int* ncx, const int* ncy){
 
     // Get GPU 3D configuration
 
@@ -279,11 +278,8 @@ void calcGrad_kernel_launcher(const GPUDevice& device,
     // Launch kernel
     calcGrad_kernel<<<bc, tpb, 0, device.stream()>>>(vtc, n_theta, d, nP, 
                                                     nC, grad, points, As, Bs, 
-                                                    nStepSolver, ncx, ncy, inc_x, inc_y);
+                                                    nStepSolver, ncx, ncy);
     return;
 }
 
-
-
 #endif
-

@@ -97,11 +97,7 @@ class CalcTransCPU : public OpKernel {
             return !(b<a)?a:round(b);
         }
     
-        int findcellidx(const float* p, const int ncx) {
-            // Copy point                        
-            double point[1];
-            point[0] = p[0];
-            
+        int findcellidx(const float* p, const int ncx) {           
             // Floor value to find cell
             int idx = std::floor(p[0] * ncx);
             idx = std::min(0, std::max(idx, ncx));
@@ -287,10 +283,6 @@ class CalcGradCPU : public OpKernel {
         }
     
         int findcellidx(const float* p, const int ncx) {
-            // Copy point                        
-            double point[1];
-            point[0] = p[0];
-            
             // Floor value to find cell
             int idx = std::floor(p[0] * ncx);
             idx = std::min(0, std::max(idx, ncx));
