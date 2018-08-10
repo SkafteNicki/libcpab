@@ -235,7 +235,7 @@ __global__ void  calcGrad_kernel(dim3 nthreads, const int n_theta, const int d, 
 }
 
 
-void calcT_batch_grad_kernel_launcher(const GPUDevice& device, 
+void calcGrad_kernel_launcher(const GPUDevice& device, 
                                       const int n_theta, const int d, const int nP, const int nC,
                                       float* grad, const float* points, const float* As, const float* Bs,
                                       const int* nStepSolver, const int* nx, const int* ny, const int* nz){

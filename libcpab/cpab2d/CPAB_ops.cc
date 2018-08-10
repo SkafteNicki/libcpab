@@ -81,7 +81,7 @@ class CalcTransCPU : public OpKernel {
                     int cellidx;
                     for(int n = 0; n < nStepSolver; n++){
                         // Find cell idx
-                        cellidx = findcellidx(point, ncx, ncy, inc_x, inc_y);
+                        cellidx = findcellidx(point, ncx, ncy);
     
                         // Extract the mapping in the cell
                         const float* Trels_idx = Trels + 6*cellidx + start_idx;                
@@ -105,12 +105,15 @@ class CalcTransCPU : public OpKernel {
             return !(b<a)?a:round(b);
         }
     
-        int findcellidx(const float* p, const int ncx, const int ncy, 
-                        const float inc_x, const float inc_y) {
+        int findcellidx(const float* p, const int ncx, const int ncy) {
             // Copy point                        
             double point[2];
             point[0] = p[0];
             point[1] = p[1];
+            
+            // Cell size
+            const float inc_x = 1.0 / ncx;
+            const float inc_y = 1.0 / ncy;
             
             // Find initial row, col placement
             double p0 = std::min((ncx * inc_x - 0.000000001), std::max(0.0, point[0]));
@@ -137,17 +140,7 @@ class CalcTransCPU : public OpKernel {
             }
             
             // Out of bound (right)
-            if(point[0] >= ncx*inc_x){   """
-    with tf.name_scope('findcellidx_1D') :
-        p = points[:,0]
-        ncx = tf.cast(ncx, tf.float32)
-                
-        # Floor values to find cell
-        idx = tf.floor(p * ncx)
-
-        idx = tf.clip_by_value(idx, clip_value_min=0, clip_value_max=ncx)
-        idx = tf.cast(idx, tf.int32)
-        return idx
+            if(point[0] >= ncx*inc_x){
                 if(point[1]<=0 && -point[1]/inc_y > point[0]/inc_x - ncx){
                     // Nothing to do here
                 } else if(point[1] >= ncy*inc_y && point[1]/inc_y - ncy > point[0]/inc_x-ncx){
@@ -194,8 +187,7 @@ class CalcTransCPU : public OpKernel {
 void calcTrans_kernel_launcher(const GPUDevice& device, const int nP, const int batch_size,
                                 float* newpoints, const float* points, 
                                 const float* Trels, const int* nStepSolver,
-                                const int* ncx, const int* ncy, 
-                                const float* inc_x, const float* inc_y);
+                                const int* ncx, const int* ncy);
 
 class CalcTransGPU : public OpKernel {
     public:
@@ -208,8 +200,6 @@ class CalcTransGPU : public OpKernel {
             const Tensor& nStepSolver_in = context->input(2);
             const Tensor& ncx_in = context->input(3);
             const Tensor& ncy_in = context->input(4);
-            const Tensor& inc_x_in = context->input(5);
-            const Tensor& inc_y_in = context->input(6);
             
             // Problem size
             const int nP = points_in.dim_size(1);
@@ -227,8 +217,6 @@ class CalcTransGPU : public OpKernel {
             const int* nStepSolver = nStepSolver_in.flat<int>().data();
             const int* ncx = ncx_in.flat<int>().data();
             const int* ncy = ncy_in.flat<int>().data();
-            const float* inc_x = inc_x_in.flat<float>().data();
-            const float* inc_y = inc_y_in.flat<float>().data();
             
             // Grap GPU device
             const GPUDevice& eigen_device = context->eigen_device<GPUDevice>();
@@ -236,7 +224,7 @@ class CalcTransGPU : public OpKernel {
             // Launch kernel
             calcTrans_kernel_launcher(eigen_device, nP, batch_size,
                                       newpoints, points, Trels,
-                                      nStepSolver, ncx, ncy, inc_x, inc_y);
+                                      nStepSolver, ncx, ncy);
             
             return;
         }
@@ -254,8 +242,6 @@ class CalcGradCPU : public OpKernel {
             const Tensor& nStepSolver_in = context->input(3);
             const Tensor& ncx_in = context->input(4);
             const Tensor& ncy_in = context->input(5);
-            const Tensor& inc_x_in = context->input(6);
-            const Tensor& inc_y_in = context->input(7);
                 
             // Create and allocate output tensor
             const int n_theta = As_in.dim_size(0);
@@ -275,8 +261,6 @@ class CalcGradCPU : public OpKernel {
             const int nStepSolver = nStepSolver_in.flat<int>()(0);
             const int ncx = ncx_in.flat<int>()(0);
             const int ncy = ncy_in.flat<int>()(0);
-            const float inc_x = inc_x_in.flat<float>()(0);
-            const float inc_y = inc_y_in.flat<float>()(0);
             
             // Allocate memory for computations
             float p[2], v[2], pMid[2], vMid[2], q[2], qMid[2];
@@ -311,7 +295,7 @@ class CalcGradCPU : public OpKernel {
                         // Iterate a number of times
                         for(int t=0; t<nStepSolver; t++) {
                             // Get current cell
-                            cellidx = findcellidx(p, ncx, ncy, inc_x, inc_y);
+                            cellidx = findcellidx(p, ncx, ncy);
                         
                             // Get index of A
                             int As_idx = 6*cellidx;
@@ -385,12 +369,15 @@ class CalcGradCPU : public OpKernel {
             return !(b<a)?a:round(b);
         }
     
-        int findcellidx(const float* p, const int ncx, const int ncy, 
-                        const float inc_x, const float inc_y) {
+        int findcellidx(const float* p, const int ncx, const int ncy) {
             // Move with respect to the lower bound
             double point[2];
             point[0] = p[0] + 1;
             point[1] = p[1] + 1;
+            
+            // Cell size
+            const float inc_x = 1.0 / ncx;
+            const float inc_y = 1.0 / ncy;
             
             // Find initial row, col placement
             double p0 = std::min((ncx * inc_x - 0.000000001), std::max(0.0, point[0]));
@@ -469,8 +456,7 @@ class CalcGradCPU : public OpKernel {
 void calcGrad_kernel_launcher(const GPUDevice& device, 
                               const int n_theta, const int d, const int nP, const int nC,
                               float* grad, const float* points, const float* As, const float* Bs,
-                              const int* nStepSolver, const int* ncx, const int* ncy, 
-                              const float* inc_x, const float* inc_y);
+                              const int* nStepSolver, const int* ncx, const int* ncy);
 
 class CalcGradGPU : public OpKernel {
     public:
@@ -484,8 +470,6 @@ class CalcGradGPU : public OpKernel {
             const Tensor& nStepSolver_in = context->input(3);
             const Tensor& ncx_in = context->input(4);
             const Tensor& ncy_in = context->input(5);
-            const Tensor& inc_x_in = context->input(6);
-            const Tensor& inc_y_in = context->input(7);
 
             // Create and allocate output tensor
             const int n_theta = As_in.dim_size(0);
@@ -505,8 +489,6 @@ class CalcGradGPU : public OpKernel {
             const int* nStepSolver = (nStepSolver_in.flat<int>()).data();            
             const int* ncx = (ncx_in.flat<int>()).data();            
             const int* ncy = (ncy_in.flat<int>()).data();            
-            const float* inc_x = (inc_x_in.flat<float>()).data();            
-            const float* inc_y = (inc_y_in.flat<float>()).data();
                        
             // Get GPU information
             const GPUDevice& eigen_device = context->eigen_device<GPUDevice>();
@@ -514,7 +496,7 @@ class CalcGradGPU : public OpKernel {
             // Launch kernel
             calcGrad_kernel_launcher(eigen_device, n_theta, d, nP, nC,
                                              grad, points, As, Bs,
-                                             nStepSolver, ncx, ncy, inc_x, inc_y);
+                                             nStepSolver, ncx, ncy);
             return;
         } // end compute method
 }; // end CalcGradGPU

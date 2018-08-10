@@ -10,6 +10,14 @@ Created on Mon Nov 20 09:46:23 2017
 import tensorflow as tf
 
 #%%
+def tf_img_normalize(im):
+    """ Normalize the image values to the 0..1 domain for each image in a batch"""
+    with tf.name_scope('img_normalize'):
+        im = im - tf.reduce_min(im, axis=[1,2,3], keepdims=True)
+        im = im / tf.reduce_max(im, axis=[1,2,3], keepdims=True)
+        return im
+
+#%%
 def tf_repeat_matrix(x_in, n_repeats):
     """ Concatenate n_repeats copyies of x_in by a new 0 axis """
     with tf.name_scope('repeat_matrix'):

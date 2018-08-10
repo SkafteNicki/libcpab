@@ -8,6 +8,7 @@ Created on Fri Aug 10 08:04:47 2018
 
 #%%
 import tensorflow as tf
+from .tf_funcs import tf_repeat, tf_img_normalize
 
 #%%
 def tf_interpolate_1D(x, x_trans, y, ts_length):
@@ -18,13 +19,13 @@ def tf_interpolate_1D(x, x_trans, y, ts_length):
         # Find index of interval in tessellation
         greater_than_zero = tf.cast(tf.greater_equal(dist, 0), tf.float32)
         idx = (ts_length-1) - tf.reduce_sum(greater_than_zero, axis=0)
-        idx = tf.clip_by_value(idx, clip_value_max=0, clip_value_max=ts_length-2)
+        idx = tf.clip_by_value(idx, clip_value_min=0, clip_value_max=ts_length-2)
         
         # Fetch values from x_trans and y
         x0 = tf.gather(x_trans, idx)
         x1 = tf.gather(x_trans, idx+1)
         y0 = tf.gather(y, idx)
-        y1 = tf.gather(y1, idx+1)    
+        y1 = tf.gather(y, idx+1)    
         
         # Linear interpolation
         y_interp = y0 + (x-x0) * ((y1-y0)/(x1-x0))
@@ -102,44 +103,35 @@ def tf_interpolate_2D(im, x, y, out_size):
         return newim
 
 #%%
-def tf_interpolate_3D(spine, trn):
+def tf_interpolate_3D(volume, trn):
     with tf.name_scope('interpolate'):
-        string = '../../../translated/' + spine + '.mat'
-        case = loadmat(string)
+        w, d, h = tf.shape(volume)[0] , tf.shape(volume)[1], tf.shape(volume)[2]
+        trn = tf.minimum(tf.maximum(trn, 1e-5), 1-1e-5)
+        c = tf.zeros(tf.shape(trn)[1])
         
-        if len(spine) > 8:
-            Im = case['T']
-        else:
-            Im = case['Im']
-        
-        w,d,h = np.shape(Im)
+        x = tf.cast((w-1)*trn[0], tf.float32)
+        y = tf.cast((d-1)*trn[1], tf.float32)
+        z = tf.cast((h-1)*trn[2], tf.float32)
     
-        trn = np.minimum( np.maximum(trn,0.00001), 0.99999) 
-        c = np.zeros(np.shape(trn)[1])
-    
-        x = (w-1)*trn[0]
-        y = (d-1)*trn[1]
-        z = (h-1)*trn[2]
-    
-        x0 = np.floor( x ).astype(int)
+        x0 = tf.floor(x)
         x1 = x0+1
-        y0 = np.floor( y ).astype(int)
+        y0 = tf.floor(y)
         y1 = y0+1
-        z0 = np.floor( z ).astype(int)
+        z0 = tf.floor(z)
         z1 = z0+1
     
         xd = (x-x0)/(x1-x0)
         yd = (y-y0)/(y1-y0)
         zd = (z-z0)/(z1-z0)
     
-        c000 = Im[x0,y0,z0]
-        c001 = Im[x0,y0,z1]
-        c010 = Im[x0,y1,z0]
-        c011 = Im[x0,y1,z1]
-        c100 = Im[x1,y0,z0]
-        c101 = Im[x1,y0,z1]
-        c110 = Im[x1,y1,z0]
-        c111 = Im[x1,y1,z1]
+        c000 = tf.gather_nd(volume, [x0,y0,z0])
+        c001 = tf.gather_nd(volume, [x0,y0,z1])
+        c010 = tf.gather_nd(volume, [x0,y1,z0])
+        c011 = tf.gather_nd(volume, [x0,y1,z1])
+        c100 = tf.gather_nd(volume, [x1,y0,z0])
+        c101 = tf.gather_nd(volume, [x1,y0,z1])
+        c110 = tf.gather_nd(volume, [x1,y1,z0])
+        c111 = tf.gather_nd(volume, [x1,y1,z1])
     
         c00 = c000*(1-xd) + c100*xd
         c01 = c001*(1-xd) + c101*xd
