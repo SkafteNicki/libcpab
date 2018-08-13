@@ -39,7 +39,10 @@ def tf_interpolate_2D(im, x, y, out_size):
         
         # Constants
         n_batch = tf.shape(im)[0] # (often) unknown size
-        _, height, width, n_channels = im.shape.as_list() # known sizes
+        #_, height, width, n_channels = im.shape.as_list() # known sizes
+        height = tf.shape(im)[1]
+        width = tf.shape(im)[2]
+        n_channels = tf.shape(im)[3]
 
         # Cast value to float dtype
         x = tf.cast(x, 'float32')
@@ -107,7 +110,6 @@ def tf_interpolate_3D(volume, trn):
     with tf.name_scope('interpolate'):
         w, d, h = tf.shape(volume)[0] , tf.shape(volume)[1], tf.shape(volume)[2]
         trn = tf.minimum(tf.maximum(trn, 1e-5), 1-1e-5)
-        c = tf.zeros(tf.shape(trn)[1])
         
         x = tf.cast((w-1)*trn[0], tf.float32)
         y = tf.cast((d-1)*trn[1], tf.float32)
