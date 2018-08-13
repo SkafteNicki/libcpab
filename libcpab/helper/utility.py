@@ -10,7 +10,7 @@ try:
     import cPickle as pkl
 except:
     import pickle as pkl
-import os
+import os, random
 import tensorflow as tf
 from tensorflow.python.client import device_lib 
 from sys import platform as _platform
@@ -83,6 +83,15 @@ def load_basis():
     except:
         raise ValueError('call the cpab class first to create basis')
     return basis
+
+#%%
+def uniqueid_generator(x):
+    """ Function to generate uniquely id of x bits """
+    seed = random.getrandbits(x)
+    while True:
+       yield str(seed)
+       seed += 1
+uniqueid = uniqueid_generator(12)
 
 #%%
 if __name__ == '__main__':

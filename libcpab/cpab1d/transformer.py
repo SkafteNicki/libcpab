@@ -11,7 +11,7 @@ from tensorflow.python.framework import function
 from ..helper.tf_funcs import tf_repeat_matrix
 from ..helper.tf_findcellidx import tf_findcellidx_1D
 from ..helper.tf_expm import tf_expm2x2
-from ..helper.utility import get_dir, load_basis
+from ..helper.utility import get_dir, load_basis, uniqueid
 from ..helper.utility import gpu_support as _gpu_support
 from sys import platform as _platform
 
@@ -192,7 +192,7 @@ def _calc_grad(op, grad):
         return [None, gradient]
 
 #%% Wrapper to connect function to gradient
-@function.Defun(tf.float32, tf.float32, func_name='tf_CPAB_transformer_1D', python_grad_func=_calc_grad)
+@function.Defun(tf.float32, tf.float32, func_name='tf_CPAB_transformer_1D_'+next(uniqueid), python_grad_func=_calc_grad)
 def tf_cpab_transformer_1D_cuda(points, theta):
     return _calc_trans(points, theta)
 

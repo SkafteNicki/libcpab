@@ -27,7 +27,8 @@ class cpab(object):
     '''
     def __init__(self, tess_size, 
                  zero_boundary=True, 
-                 volume_perservation=False):
+                 volume_perservation=False,
+                 return_tf_tensors=False):
         # Check input
         assert len(tess_size) > 0 and len(tess_size) <= 3, \
             '''Transformer only support 1D, 2D or 3D'''
@@ -123,6 +124,7 @@ class cpab(object):
             save_obj(obj, self._dir + 'current_basis')
             
         # To run tensorflow
+        self._return_tf_tensors = return_tf_tensors
         self._sess = tf.Session()
         self._sess.run(tf.global_variables_initializer())
         
@@ -164,35 +166,7 @@ class cpab(object):
                 'cell_increment': self._inc,
                 'theta_dim': self._d,
                 'original_dim': self._D}
-    
-    #%%
-    def transform_grid(self, points, theta):
-        ''' '''
-        assert theta.shape[1] == self._d, \
-            'Expects theta to have shape N x ' + str(self._d)
-        assert points.shape[0] == self._ndim, \
-            'Expects a grid of ' + str(self._ndim) + 'd points'
-            
-        # Call transformer
-        newpoints = self._transformer_np(points, theta)
-        return newpoints
-    
-    #%%
-    def interpolate(self, data, transformed_points):
-        ''' '''
-        # Call interpolator
-        interpolate = self._interpolate_np(data, transformed_points)
-        return interpolate
-    
-    #%%
-    def transform_data(self, data, theta):
-        ''' '''
-        # Create grid, call transformer, and interpolate
-        points = self.uniform_meshgrid(data.shape[1:])
-        new_points = self.transform(points, theta)
-        new_data = self.interpolate(data, new_points)
-        return new_data
-    
+
     #%%
     def uniform_meshgrid(self, n_points):
         ''' '''
@@ -202,29 +176,63 @@ class cpab(object):
                 for i in range(self._ndim)]
         mesh_p = np.meshgrid(*lin_p)
         grid = np.vstack([array.flatten() for array in mesh_p])
+        if self._return_tf_tensors: grid = tf.cast(grid, tf.float32)
         return grid
     
     #%%
     def sample_transformation(self, n_sample):
         ''' '''
-        return np.random.normal(size=(n_sample, self._d))
+        theta = np.random.normal(size=(n_sample, self._d))
+        if self._return_tf_tensors: theta = tf.cast(theta, tf.float32)
+        return theta
     
     #%%
-    def _theta2Avees(self, theta):
-        Avees = self._basis.dot(theta)
-        return Avees
+    def identity(self, n_sample):
+        theta = np.zeros(shape=(n_sample, self._d))
+        if self._return_tf_tensors: theta = tf.cast(theta, tf.float32)
+        return theta
+
+    #%%
+    def transform_grid(self, points, theta):
+        ''' '''
+        # Assert if numpy array, else trust the user
+        if not self._is_tf_tensor(points):
+            assert points.shape[0] == self._ndim, \
+             'Expects a grid of ' + str(self._ndim) + 'd points'            
+        if not self._is_tf_tensor(theta):
+            assert theta.shape[1] == self._d, \
+                 'Expects theta to have shape N x ' + str(self._d)
+        
+        # Call transformer
+        if self._return_tf_tensors:
+            points = tf.cast(points, tf.float32)
+            theta = tf.cast(theta, tf.float32)
+            newpoints = self._transformer_tf(points, theta)
+        else:
+            newpoints = self._transformer_np(points, theta)
+        return newpoints
+
+    #%%
+    def interpolate(self, data, transformed_points):
+        ''' '''
+        # Call interpolator
+        if self._return_tf_tensors:
+            data = tf.cast(data, tf.float32)
+            transformed_points = tf.cast(tf.float32)
+            new_data = self._interpolate_tf(data, transformed_points)
+        else:
+            new_data = self._interpolate_np(data, transformed_points)
+        return new_data
     
     #%%
-    def _Avees2As(self, Avees):
-        As = np.reshape(Avees, (self._nC, *self._Ashape))
-        return As
-    
-    #%%
-    def _As2squareAs(self, As):
-        squareAs = np.zeros(shape=(self._nC, self._ndim+1, self._ndim+1))
-        squareAs[:,:-1,:] = As
-        return squareAs
-    
+    def transform_data(self, data, theta):
+        ''' '''
+        # Create grid, call transformer, and interpolate
+        points = self.uniform_meshgrid(data.shape[1:])
+        new_points = self.transform(points, theta)
+        new_data = self.interpolate(data, new_points)
+        return new_data
+            
     #%%
     def calc_vectorfield(self, points, theta):
         # Construct the affine transformations
@@ -232,7 +240,7 @@ class cpab(object):
         As = self._Avees2As(Avees)
         
         # Find cells and extract correct affine transformation
-        idx = self.findcellidx_f(points.T)
+        idx = self._findcellidx_np(points.T)
         Aidx = As[idx]
         
         # Make homogeneous coordinates
@@ -245,7 +253,7 @@ class cpab(object):
     #%%
     def visualize_vectorfield(self, theta, nb_points=10):
         points = self.uniform_meshgrid([nb_points for i in range(self._ndim)])
-        v = self.calc_v(points, theta)
+        v = self.calc_vectorfield(points, theta)
         
         # Plot
         import matplotlib.pyplot as plt
@@ -272,4 +280,25 @@ class cpab(object):
         plt.axis('equal')
         plt.title('Velocity field')
         plt.show()
+
+    #%%
+    def _theta2Avees(self, theta):
+        Avees = self._basis.dot(theta)
+        return Avees
+    
+    #%%
+    def _Avees2As(self, Avees):
+        As = np.reshape(Avees, (self._nC, *self._Ashape))
+        return As
+    
+    #%%
+    def _As2squareAs(self, As):
+        squareAs = np.zeros(shape=(self._nC, self._ndim+1, self._ndim+1))
+        squareAs[:,:-1,:] = As
+        return squareAs
+    
+    #%%
+    def _is_tf_tensor(self, tensor):
+        return  isinstance(tensor, tf.Tensor) or \
+                isinstance(tensor, tf.Variable)
         
