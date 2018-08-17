@@ -6,7 +6,8 @@ continuously-defined, velocity fields in **Tensorflow**.
 The main idea behind this library is to offer a simple way to use and
 incorporate diffiomorphic transformations. The diffiomorphic transformations
 are based on the work of [Freifeld et al.](https://www.cs.bgu.ac.il/~orenfr/papers/freifeld_etal_PAMI_2017).
-The library supports diffiomorphic transformations in 1D, 2D and 3D. 
+The library supports diffiomorphic transformations in 1D (time series), 
+2D (images) and 3D (volumetric images).
 
 This code is based on the original implementation CPAB transformations by
 Oren Freifeld (Github repo: [cpabDiffeo](https://github.com/freifeld/cpabDiffeo)).
@@ -35,11 +36,11 @@ application ect.) we request you to cite [1].
 
 Clone this reposatory to a directory of your choice
 ```
-git clone https://github.com/SkafteNicki/ddtn
+git clone https://github.com/SkafteNicki/libcpab
 ```
 Add this directory to your PYTHONPATH
 ```
-export PYTHONPATH=$PYTHONPATH:$YOUR_FOLDER_PATH/ddtn
+export PYTHONPATH=$PYTHONPATH:$YOUR_FOLDER_PATH/libcpab
 ```
 
 ## How to use
@@ -63,11 +64,12 @@ get you started with diffiomorphic transformations.
 ```
 All these methods expects numpy arrays as input and returns numpy arrays. 
 If you want the method to output tf tensors instead, just set the `return_tf_tensor`
-argument in the `cpab` class to `True``
+argument in the `cpab` class to `True`.
 
 Additionally, we supply two case scrips:
 * case1.py: simple use of the library to transform data
 * case2.py: image registration by incorporating the library in a tensorflow optimization rutine
+
 For a specific use of the transformations in a greater context, 
 see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvpr_2018.pdf)  
 and this [github repo](https://github.com/SkafteNicki/ddtn).
@@ -89,5 +91,4 @@ and this [github repo](https://github.com/SkafteNicki/ddtn).
   year={2018},
   publisher={IEEE}
 }
-
 ```
