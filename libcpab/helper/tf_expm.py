@@ -102,7 +102,17 @@ def _limit_case3x3(a,b,c,d,e,f,x,y):
 
     E = tf.stack([tf.stack([Ea, Eb, Ec], axis=1),
                   tf.stack([Ed, Ee, Ef], axis=1)], axis=1)
-    return E    
+    return E
+
+#%%
+def _zero_case3x3(a,b,c,d,e,f,x,y):
+    ones = tf.ones_like(a)
+    zeros = tf.zeros_like(a)
+    Ea, Ee = ones, ones
+    Eb, Ec, Ed, Ef = zeros, zeros, zeros, zeros
+    E = tf.stack([tf.stack([Ea, Eb, Ec], axis=1),
+                  tf.stack([Ed, Ee, Ef], axis=1)], axis=1)
+    return E
 
 #%%
 def tf_expm3x3(A):
@@ -129,7 +139,10 @@ def tf_expm3x3(A):
         real_res = _real_case3x3(a,b,c,d,e,f,x,y)
         complex_res = _complex_case3x3(a,b,c,d,e,f,x,y)
         limit_res = _limit_case3x3(a,b,c,d,e,f,x,y)
-        E = tf.where(y > 0, real_res, tf.where(y < 0, complex_res, limit_res))
+        zero_res = _zero_case3x3(a,b,c,d,e,f,x,y)
+        E = tf.where(y > 0, real_res, tf.where(y < 0, complex_res, 
+                     tf.where(tf.logical_and(tf.equal(a,0), tf.equal(e,0)),
+                     zero_res, limit_res)))
         
         zero = tf.zeros(shape=(n_batch, 1, 2), dtype=E.dtype)
         ones = tf.ones(shape=(n_batch, 1, 1), dtype=E.dtype)

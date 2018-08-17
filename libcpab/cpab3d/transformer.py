@@ -8,7 +8,7 @@ Created on Wed Aug  8 14:28:55 2018
 #%%
 import tensorflow as tf
 from tensorflow.python.framework import function
-from ..helper.tf_funcs import tf_repeat_matrix
+from ..helper.tf_funcs import tf_repeat_matrix, tf_shape_i
 from ..helper.tf_findcellidx import tf_findcellidx_3D
 from ..helper.tf_expm import tf_expm
 from ..helper.utility import get_dir, load_basis, uniqueid
@@ -42,8 +42,8 @@ def tf_cpab_transformer_3D_pure(points, theta):
         # Make sure that both inputs are in float32 format
         points = tf.cast(points, tf.float32) # format [2, nb_points]
         theta = tf.cast(theta, tf.float32) # format [n_theta, dim]
-        n_theta = tf.shape(theta)[0]
-        n_points = tf.shape(points)[1]
+        n_theta = tf_shape_i(theta, 0)#tf.shape(theta)[0]
+        n_points = tf_shape_i(points, 1)#points.get_shape().as_list()[1]
         
         # Repeat point matrix, one for each theta
         newpoints = tf_repeat_matrix(points, n_theta) # [n_theta, 2, nb_points]
@@ -75,8 +75,6 @@ def tf_cpab_transformer_3D_pure(points, theta):
         # Multiply by the step size and do matrix exponential on each matrix
         Trels = tf_expm(dT*As)
         Trels = tf.cast(Trels, tf.float32)
-        Trels = tf.concat([Trels, tf.cast(tf.reshape(tf.tile([*(ndim*[0]),1], 
-                [n_theta*nC]), (n_theta*nC, 1, ndim+1)), tf.float32)], axis=1)
         
         # Batch index to add to correct for the batch effect
         batch_idx = nC * tf.reshape(tf.transpose(tf.ones((n_points, n_theta), 
@@ -131,7 +129,7 @@ def _calc_trans(points, theta):
         # Make sure that both inputs are in float32 format
         points = tf.cast(points, tf.float32) # format [3, nb_points]
         theta = tf.cast(theta, tf.float32) # format [n_theta, dim]
-        n_theta = tf.shape(theta)[0]
+        n_theta = tf_shape_i(theta, 0) # tf.shape(theta)[0]
         
         # Steps sizes
         dT = 1.0 / tf.cast(nStepSolver , tf.float32)
@@ -179,7 +177,7 @@ def _calc_grad(op, grad):
         # Grap input
         points = op.inputs[0] # 2 x nP
         theta = op.inputs[1] # n_theta x d
-        n_theta = tf.shape(theta)[0]
+        n_theta = tf_shape_i(theta, 0) # tf.shape(theta)[0]
         
         # Get cpab basis
         B = tf.cast(tess['basis'], tf.float32)

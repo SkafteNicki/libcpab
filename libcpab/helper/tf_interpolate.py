@@ -70,8 +70,8 @@ def tf_interpolate_2D(im, x, y, out_size):
         x1 = tf.clip_by_value(x1, zero, max_x)
         y0 = tf.clip_by_value(y0, zero, max_y)
         y1 = tf.clip_by_value(y1, zero, max_y)
-        dim2 = width
         dim1 = width*height
+        dim2 = width
         base = tf_repeat(tf.range(n_batch)*dim1, out_height*out_width)
         base_y0 = base + y0*dim2
         base_y1 = base + y1*dim2

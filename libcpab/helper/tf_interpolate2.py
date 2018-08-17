@@ -138,6 +138,7 @@ def tf_interpolate_2D(data, grid):
         new_data = wa*Ia + wb*Ib + wc*Ic + wd*Id
         
         # Reshape and return
+        new_data = tf.clip_by_value(new_data, tf.reduce_min(data), tf.reduce_max(data))
         new_data = tf.reshape(new_data, (n_batch, height, width, n_channels))
         return new_data
     

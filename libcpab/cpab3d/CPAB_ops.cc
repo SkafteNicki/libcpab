@@ -22,7 +22,11 @@ REGISTER_OP("CalcTrans3")
     .Input("ny: int32")
     .Input("nz: int32")
     .Output("newpoints: float")     // n_theta x 3 x nP
-    .Doc(R"doc(CPAB transformation implementation)doc");
+    .Doc(R"doc(CPAB transformation implementation)doc")
+    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c){
+        c->set_output(0, c->Tensor(c->Dim(c->input(1), 0), 3, c->Dim(c->input(0), 1)));
+        return Status::OK();
+    });
     
 REGISTER_OP("CalcGrad3")
     .Input("points: float")        // 3 x nP

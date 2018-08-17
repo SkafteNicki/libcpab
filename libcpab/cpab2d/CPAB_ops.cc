@@ -21,7 +21,11 @@ REGISTER_OP("CalcTrans2")
     .Input("ncx: int32")
     .Input("ncy: int32")
     .Output("newpoints: float")     // n_theta x 2 x nP
-    .Doc(R"doc(CPAB transformation implementation)doc");
+    .Doc(R"doc(CPAB transformation implementation)doc")
+    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c){
+        c->set_output(0, c->Tensor(c->Dim(c->input(1), 0), 2, c->Dim(c->input(0), 1)));
+        return Status::OK();
+    });
     
 REGISTER_OP("CalcGrad2")
     .Input("points: float")        // 2 x nP

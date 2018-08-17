@@ -74,21 +74,21 @@ class cpab(object):
         if self._ndim == 1:
             self._nC = self._nc[0]
             get_constrain_matrix_f = get_constrain_matrix_1D
-            self._transformer_tf = tf_cpab_transformer_1D
-            self._interpolate_tf = tf_interpolate_1D
-            self._findcellidx_tf = tf_findcellidx_1D            
+            self._transformer = tf_cpab_transformer_1D
+            self._interpolate = tf_interpolate_1D
+            self._findcellidx = tf_findcellidx_1D            
         elif self._ndim == 2:
             self._nC = 4*np.prod(self._nc)
             get_constrain_matrix_f = get_constrain_matrix_2D
-            self._transformer_tf = tf_cpab_transformer_2D
-            self._interpolate_tf = tf_interpolate_2D
-            self._findcellidx_tf = tf_findcellidx_2D
+            self._transformer = tf_cpab_transformer_2D
+            self._interpolate = tf_interpolate_2D
+            self._findcellidx = tf_findcellidx_2D
         elif self._ndim == 3:
             self._nC = 6*np.prod(self._nc)
             get_constrain_matrix_f = get_constrain_matrix_3D
-            self._transformer_tf = tf_cpab_transformer_3D
-            self._interpolate_tf = tf_interpolate_3D
-            self._findcellidx_tf = tf_findcellidx_3D
+            self._transformer = tf_cpab_transformer_3D
+            self._interpolate = tf_interpolate_3D
+            self._findcellidx = tf_findcellidx_3D
             
         # Check if we have already created the basis
         if not check_if_file_exist(self._basis_file+'.pkl'):
@@ -125,37 +125,19 @@ class cpab(object):
             
         # To run tensorflow
         self._return_tf_tensors = return_tf_tensors
+        self._fixed_data = False
         self._sess = tf.Session()
         self._sess.run(tf.global_variables_initializer())
         
-        # Make some placeholders
-        theta_p = tf.placeholder(tf.float32, shape=(None, self._d))
-        points_p = tf.placeholder(tf.float32)
-        if self._ndim == 1:
-            data_p = tf.placeholder(tf.float32, shape=(None, None))
-        else:
-            data_p = tf.placeholder(tf.float32, shape=(None, None, None, None))
-        
-        # Make numpy-callable tensorflow functions
-        self._transformer_np = self._sess.make_callable(self._transformer_tf(points_p, theta_p), 
-                                                     [points_p, theta_p])
-        self._interpolate_np = self._sess.make_callable(self._interpolate_tf(data_p, points_p), 
-                                                     [data_p, points_p])
-        self._findcellidx_np = self._sess.make_callable(self._findcellidx_tf(points_p, *self._nc), 
-                                                     [points_p])
-    
     #%%
-    @property
     def get_theta_dim(self):
         return self._d
     
     #%%
-    @property
     def get_basis(self):
         return self._basis
     
     #%%
-    @property
     def get_params(self):
         return {'valid_outside': self._valid_outside,
                 'zero_boundary': self._zero_boundary,
@@ -170,13 +152,21 @@ class cpab(object):
     #%%
     def uniform_meshgrid(self, n_points):
         ''' '''
-        assert len(n_points) == self._ndim, \
-            'n_points needs to be a list equal to the dimensionality of the transformation'
-        lin_p = [np.linspace(self._domain_min[i], self._domain_max[i], n_points[i])
-                for i in range(self._ndim)]
-        mesh_p = np.meshgrid(*lin_p)
-        grid = np.vstack([array.flatten() for array in mesh_p])
-        if self._return_tf_tensors: grid = tf.cast(grid, tf.float32)
+        if self._is_tf_tensor(n_points):
+            lin_p = [tf.linspace(tf.cast(self._domain_min[i], tf.float32), 
+                                 tf.cast(self._domain_max[i], tf.float32), n_points[i])
+                    for i in range(self._ndim)]
+            mesh_p = tf.meshgrid(*lin_p)                        
+            grid = tf.concat([tf.reshape(array, (1, -1)) for array in mesh_p], axis=0)
+            if not self._return_tf_tensors: grid = self._sess.run(grid)
+        else:
+            assert len(n_points) == self._ndim, \
+                'n_points needs to be a list equal to the dimensionality of the transformation'
+            lin_p = [np.linspace(self._domain_min[i], self._domain_max[i], n_points[i])
+                    for i in range(self._ndim)]
+            mesh_p = np.meshgrid(*lin_p)
+            grid = np.vstack([array.flatten() for array in mesh_p])
+            if self._return_tf_tensors: grid = tf.cast(grid, tf.float32)
         return grid
     
     #%%
@@ -207,32 +197,62 @@ class cpab(object):
         if self._return_tf_tensors:
             points = tf.cast(points, tf.float32)
             theta = tf.cast(theta, tf.float32)
-            newpoints = self._transformer_tf(points, theta)
+            newpoints = self._transformer(points, theta)
         else:
-            newpoints = self._transformer_np(points, theta)
+            if self._fixed_data:
+                newpoints = self._transformer_np(points, theta)    
+            else:
+                newpoints = self._sess.run(self._transformer(points, theta))
         return newpoints
 
     #%%
     def interpolate(self, data, transformed_points):
         ''' '''
-        # Call interpolator
+        # Call interpolator 
         if self._return_tf_tensors:
             data = tf.cast(data, tf.float32)
             transformed_points = tf.cast(tf.float32)
-            new_data = self._interpolate_tf(data, transformed_points)
+            new_data = self._interpolate(data, transformed_points)
         else:
-            new_data = self._interpolate_np(data, transformed_points)
+            if self._fixed_data:
+                new_data = self._interpolate_np(data, transformed_points)
+            else:
+                new_data = self._sess.run(self._interpolate(data, transformed_points))
         return new_data
     
     #%%
     def transform_data(self, data, theta):
         ''' '''
+        # Find grid size
+        if self._is_tf_tensor(data):
+            data_size = data.get_shape().as_list()[1:self._ndim+1]
+        else:
+            data_size = data.shape[1:self._ndim+1]
+        
         # Create grid, call transformer, and interpolate
-        points = self.uniform_meshgrid(data.shape[1:])
-        new_points = self.transform(points, theta)
+        points = self.uniform_meshgrid(data_size)
+        new_points = self.transform_grid(points, theta)
         new_data = self.interpolate(data, new_points)
         return new_data
-            
+    
+    #%%
+    def fix_data_size(self, data_size):
+        assert not self._return_tf_tensors, \
+            " Cannot fix data size with return_tf_tensors true "
+        data_p = tf.placeholder(tf.float32, (None, *data_size))
+        theta_p = tf.placeholder(tf.float32, (None, self._d))
+        if self._ndim==1 or self._ndim==3:
+            points1_p = tf.placeholder(tf.float32, (self._ndim, np.prod(data_size)))
+            points2_p = tf.placeholder(tf.float32, (None, self._ndim, np.prod(data_size)))
+        else:
+            points1_p = tf.placeholder(tf.float32, (self._ndim, np.prod(data_size[:2])))
+            points2_p = tf.placeholder(tf.float32, (None, self._ndim, np.prod(data_size[:2])))
+    
+        self._transformer_np = self._sess.make_callable(self._transformer(points1_p, theta_p), 
+                                                        [points1_p, theta_p])
+        self._interpolate_np = self._sess.make_callable(self._interpolate(data_p, points2_p), 
+                                                        [data_p, points2_p])
+        
     #%%
     def calc_vectorfield(self, points, theta):
         # Construct the affine transformations
@@ -240,7 +260,7 @@ class cpab(object):
         As = self._Avees2As(Avees)
         
         # Find cells and extract correct affine transformation
-        idx = self._findcellidx_np(points.T)
+        idx = self._sess.run(self._findcellidx(points.T, *self._nc))
         Aidx = As[idx]
         
         # Make homogeneous coordinates
