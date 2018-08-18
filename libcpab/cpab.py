@@ -211,7 +211,7 @@ class cpab(object):
         # Call interpolator 
         if self._return_tf_tensors:
             data = tf.cast(data, tf.float32)
-            transformed_points = tf.cast(tf.float32)
+            transformed_points = tf.cast(transformed_points, tf.float32)
             new_data = self._interpolate(data, transformed_points)
         else:
             if self._fixed_data:
