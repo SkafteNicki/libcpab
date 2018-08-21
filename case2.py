@@ -28,11 +28,11 @@ if __name__ == '__main__':
 
     # Now try to estimate the transformation
     T = cpab(tess_size=[3,3], return_tf_tensors=True)
-    theta_est = tf.Variable(initial_value=T.identity(1)+1e-4)
+    theta_est = tf.Variable(initial_value=1e-2*T.sample_transformation(1))
     trans_est = T.transform_data(data, theta_est)
     loss = tf.reduce_mean(tf.pow(transformed_data - trans_est, 2))
     
-    optimizer = tf.train.AdamOptimizer(learning_rate=1e-4)
+    optimizer = tf.train.AdamOptimizer(learning_rate=1e-2)
     trainer = optimizer.minimize(loss)
     
     maxiter = 100
@@ -40,5 +40,8 @@ if __name__ == '__main__':
     sess.run(tf.global_variables_initializer())
     for i in range(maxiter):
         _, l, t_est = sess.run([trainer, loss, theta_est])
-        print(i, l)
+        print('Iter: ', i, ', Loss: ', l, ', ||theta_true - theta_est||: ',
+              np.linalg.norm(theta_true - t_est))
+        
+    
     

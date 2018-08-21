@@ -72,6 +72,10 @@ def tf_cpab_transformer_3D_pure(points, theta):
         # Reshape into (n_theta*number_of_cells, 3, 4) tensor
         As = tf.reshape(Avees, shape = (n_theta * nC, *tess['Ashape'])) # format [n_theta * nC, 3, 4]
         
+        # Append zero row
+        As = tf.concat([As, tf.cast(tf.reshape(tf.tile([0,0,0,0], 
+                [n_theta*nC]), (n_theta*nC, 1, 4)), tf.float32)], axis=1)
+        
         # Multiply by the step size and do matrix exponential on each matrix
         Trels = tf_expm(dT*As)
         Trels = tf.cast(Trels, tf.float32)
@@ -108,8 +112,8 @@ def tf_cpab_transformer_3D_pure(points, theta):
         trans_points = tf.while_loop(cond, body, [tf.constant(0), newpoints],
                                      parallel_iterations=10, back_prop=True)[1]
         # Reshape to batch format
-        trans_points = tf.reshape(tf.transpose(trans_points[:,:ndim], perm=[1,0,2]), 
-                                 (n_theta, ndim, n_points))
+        trans_points = tf.transpose(tf.reshape(tf.squeeze(trans_points[:,:ndim]), 
+                                    (n_theta, n_points, ndim)), perm=[0,2,1])
         return trans_points
 
 #%%

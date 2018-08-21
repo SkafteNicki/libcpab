@@ -11,7 +11,7 @@ from .cpab3d.setup_constrains import get_constrain_matrix_3D
 from .cpab1d.transformer import tf_cpab_transformer_1D
 from .cpab2d.transformer import tf_cpab_transformer_2D
 from .cpab3d.transformer import tf_cpab_transformer_3D
-from .helper.tf_interpolate2 import tf_interpolate_1D, tf_interpolate_2D, tf_interpolate_3D
+from .helper.tf_interpolate import tf_interpolate_1D, tf_interpolate_2D, tf_interpolate_3D
 from .helper.tf_findcellidx import tf_findcellidx_1D, tf_findcellidx_2D, tf_findcellidx_3D
 
 from .helper.utility import get_dir, save_obj, load_obj, create_dir, check_if_file_exist
@@ -228,6 +228,10 @@ class cpab(object):
             data_size = data.get_shape().as_list()[1:self._ndim+1]
         else:
             data_size = data.shape[1:self._ndim+1]
+        
+        # Fix equal size interpolation for 2D
+        if self._ndim==2:
+            data_size = data_size[::-1]
         
         # Create grid, call transformer, and interpolate
         points = self.uniform_meshgrid(data_size)

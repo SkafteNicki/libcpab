@@ -105,8 +105,8 @@ def tf_cpab_transformer_1D_pure(points, theta):
         trans_points = tf.while_loop(cond, body, [tf.constant(0), newpoints],
                                      parallel_iterations=10, back_prop=True)[1]
         # Reshape to batch format
-        trans_points = tf.reshape(tf.transpose(trans_points[:,:ndim], perm=[1,0,2]), 
-                                 (n_theta, ndim, n_points))
+        trans_points = tf.transpose(tf.reshape(tf.squeeze(trans_points[:,:ndim]), 
+                            (n_theta, n_points, ndim)), perm=[0,2,1])
         return trans_points
 
 #%%

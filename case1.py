@@ -14,7 +14,7 @@ import numpy as np
 #%%
 if __name__ == '__main__':
     # Number of transformed samples 
-    N = 1
+    N = 9
     
     # Load some data
     data = plt.imread('data/cat.jpg') / 255
@@ -23,8 +23,8 @@ if __name__ == '__main__':
     # Define transformer class
     T = cpab(tess_size=[3,3])
     
-    # Sample 9 random transformation
-    theta = T.sample_transformation(N)
+    # Sample random transformation
+    theta = 0.5*T.sample_transformation(N)
     
     # Transform the images
     transformed_data = T.transform_data(data, theta)

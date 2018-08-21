@@ -107,7 +107,7 @@ def _limit_case3x3(a,b,c,d,e,f,x,y):
 #%%
 def _zero_case3x3(a,b,c,d,e,f,x,y):
     ones = tf.ones_like(a)
-    zeros = tf.zeros_like(a)
+    zeros = tf.zeros_like(a)*a
     Ea, Ee = ones, ones
     Eb, Ec, Ed, Ef = zeros, zeros, zeros, zeros
     E = tf.stack([tf.stack([Ea, Eb, Ec], axis=1),
