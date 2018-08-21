@@ -127,7 +127,6 @@ class cpab(object):
         self._return_tf_tensors = return_tf_tensors
         self._fixed_data = False
         self._sess = tf.Session()
-        self._sess.run(tf.global_variables_initializer())
         
     #%%
     def get_theta_dim(self):

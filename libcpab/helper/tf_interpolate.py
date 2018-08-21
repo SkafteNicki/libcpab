@@ -111,12 +111,12 @@ def tf_interpolate_2D(data, grid):
 
         # Use indices to lookup pixels in the flat image and restore
         # channels dim
-        im_flat = tf.reshape(data, (-1, n_channels))
-        im_flat = tf.cast(im_flat, tf.float32)
-        Ia = tf.gather(im_flat, idx_a)
-        Ib = tf.gather(im_flat, idx_b)
-        Ic = tf.gather(im_flat, idx_c)
-        Id = tf.gather(im_flat, idx_d)
+        data_flat = tf.reshape(data, (-1, n_channels))
+        data_flat = tf.cast(data_flat, tf.float32)
+        Ia = tf.gather(data_flat, idx_a)
+        Ib = tf.gather(data_flat, idx_b)
+        Ic = tf.gather(data_flat, idx_c)
+        Id = tf.gather(data_flat, idx_d)
 
         # And finally calculate interpolated values
         x0_f = tf.cast(x0, tf.float32)
@@ -177,22 +177,46 @@ def tf_interpolate_3D(data, grid):
         z1 = tf.clip_by_value(z1, 0, max_z)
         
         # Take care of batch effect
-        base = tf_repeat(tf.range(n_batch), width * height * depth)
+        dim1 = depth * height * width
+        dim2 = depth * height
+        dim3 = depth
+        base = tf_repeat(tf.range(n_batch) * dim1, dim1)
+        base_z0 = base + dim2 * z0
+        base_z1 = base + dim2 * z1
+        base_z0_y0 = base_z0 + dim3 * y0
+        base_z0_y1 = base_z0 + dim3 * y1
+        base_z1_y0 = base_z1 + dim3 * y0
+        base_z1_y1 = base_z1 + dim3 * y1
+        i1 = base_z0_y0 + x0
+        i2 = base_z0_y0 + x1
+        i3 = base_z0_y1 + x0
+        i4 = base_z0_y1 + x1
+        i5 = base_z1_y0 + x0
+        i6 = base_z1_y0 + x1
+        i7 = base_z1_y1 + x0
+        i8 = base_z1_y1 + x1
 
         # Lookup values
-        c000 = tf.gather_nd(data, [base,x0,y0,z0])
-        c001 = tf.gather_nd(data, [base,x0,y0,z1])
-        c010 = tf.gather_nd(data, [base,x0,y1,z0])
-        c011 = tf.gather_nd(data, [base,x0,y1,z1])
-        c100 = tf.gather_nd(data, [base,x1,y0,z0])
-        c101 = tf.gather_nd(data, [base,x1,y0,z1])
-        c110 = tf.gather_nd(data, [base,x1,y1,z0])
-        c111 = tf.gather_nd(data, [base,x1,y1,z1])
+        data_flat = tf.reshape(data, (-1, ))
+        c000 = tf.gather(data_flat, i1)
+        c001 = tf.gather(data_flat, i5)
+        c010 = tf.gather(data_flat, i2)
+        c011 = tf.gather(data_flat, i6)
+        c100 = tf.gather(data_flat, i3)
+        c101 = tf.gather(data_flat, i7)
+        c110 = tf.gather(data_flat, i4)
+        c111 = tf.gather(data_flat, i8)
+        
+        # Float casting
+        x0_f = tf.cast(x0, tf.float32)
+        y0_f = tf.cast(y0, tf.float32)
+        z0_f = tf.cast(z0, tf.float32)
+        
         
         # Interpolation weights
-        xd = (x-x0)/(x1-x0)
-        yd = (y-y0)/(y1-y0)
-        zd = (z-z0)/(z1-z0)
+        xd = (x-x0_f)
+        yd = (y-y0_f)
+        zd = (z-z0_f)
         
         # Do interpolation
         c00 = c000*(1-xd) + c100*xd
