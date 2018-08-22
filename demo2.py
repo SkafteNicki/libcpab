@@ -18,7 +18,7 @@ if __name__ == '__main__':
     data = np.expand_dims(data, 0) # create batch effect
     
     # Create transformer class
-    T = cpab(tess_size=[3,3])
+    T = cpab(tess_size=[2,2])
     
     # Sample 9 random transformation
     theta_true = T.sample_transformation(1)
@@ -27,12 +27,12 @@ if __name__ == '__main__':
     transformed_data = T.transform_data(data, theta_true)
 
     # Now try to estimate the transformation
-    T = cpab(tess_size=[3,3], return_tf_tensors=True)
+    T = cpab(tess_size=[2,2], return_tf_tensors=True)
     theta_est = tf.Variable(initial_value=1e-2*T.sample_transformation(1))
     trans_est = T.transform_data(data, theta_est)
     loss = tf.reduce_mean(tf.pow(transformed_data - trans_est, 2))
     
-    optimizer = tf.train.AdamOptimizer(learning_rate=1e-2)
+    optimizer = tf.train.AdamOptimizer(learning_rate=1)
     trainer = optimizer.minimize(loss)
     
     maxiter = 100
