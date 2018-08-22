@@ -54,13 +54,13 @@ get you started with diffiomorphic transformations.
     T = cpab(tess_size=[2,2])
     
     # Important methods
-    g = T.uniform_meshgrid(...) # sample uniform grid of points in transformer domain
-    theta = T.sample_transformation(...) # sample random normal transformation vectors
-    dim = T.get_theta_size() # get dimensionality of transformation parametrization
-    params = T.get_params() # get different transformer parameters
-    g_t = T.transform_grid(g, theta) # transform a grid of points using theta
-    data_t1 = T.interpolate(data, g_t) # interpolate some data using the transformed grid
-    data_t2 = T.transform_data(data, theta) # combination of the two last methods 
+    g = T.uniform_meshgrid(...)               # sample uniform grid of points in transformer domain
+    theta = T.sample_transformation(...)      # sample random normal transformation vectors
+    dim = T.get_theta_size()                  # get dimensionality of transformation parametrization
+    params = T.get_params()                   # get different transformer parameters
+    g_t = T.transform_grid(g, theta)          # transform a grid of points using theta
+    data_t1 = T.interpolate(data, g_t)        # interpolate some data using the transformed grid
+    data_t2 = T.transform_data(data, theta)   # combination of the two last methods 
 ```
 All these methods expects numpy arrays as input and returns numpy arrays. 
 If you want the method to output tf tensors instead, just set the `return_tf_tensor`
