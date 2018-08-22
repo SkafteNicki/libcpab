@@ -133,7 +133,7 @@ def _calc_trans(points, theta):
         # Make sure that both inputs are in float32 format
         points = tf.cast(points, tf.float32) # format [3, nb_points]
         theta = tf.cast(theta, tf.float32) # format [n_theta, dim]
-        n_theta = tf_shape_i(theta, 0) # tf.shape(theta)[0]
+        n_theta = tf.shape(theta)[0]
         
         # Steps sizes
         dT = 1.0 / tf.cast(nStepSolver , tf.float32)
