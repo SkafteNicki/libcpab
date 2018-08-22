@@ -88,6 +88,12 @@ def tf_cpab_transformer_1D_pure(points, theta):
             # Gether relevant matrices
             Tidx = tf.gather(Trels, corrected_idx)
             
+            print(Trels)
+            print(idx)
+            print(batch_idx)
+            print(corrected_idx)
+            print(Tidx)
+            
             # Transform points
             newpoints = tf.matmul(Tidx, points)
             

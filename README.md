@@ -67,8 +67,10 @@ If you want the method to output tf tensors instead, just set the `return_tf_ten
 argument in the `cpab` class to `True`.
 
 Additionally, we supply two case scrips:
-* case1.py: simple use of the library to transform data
-* case2.py: image registration by incorporating the library in a tensorflow optimization rutine
+* demo1.py: simple use of the library to transform data
+* demo2.py: image registration by incorporating the library in a tensorflow optimization rutine
+* demo3.py: time series alignment by sampling approch
+* demo4.py: time series spatial transformer nets
 
 For a specific use of the transformations in a greater context, 
 see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvpr_2018.pdf)  

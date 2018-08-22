@@ -29,7 +29,7 @@ def tf_findcellidx_1D(points, ncx):
         idx = tf.floor(p * ncx)
 
         idx = tf.clip_by_value(idx, clip_value_min=0, clip_value_max=ncx-1)
-        idx = tf.cast(idx, tf.int32)
+        idx = tf.reshape(tf.cast(idx, tf.int32), (-1, ))
         return idx
 
 #%%

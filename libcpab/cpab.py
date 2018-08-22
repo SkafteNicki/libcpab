@@ -169,9 +169,11 @@ class cpab(object):
         return grid
     
     #%%
-    def sample_transformation(self, n_sample):
+    def sample_transformation(self, n_sample, mean=None, cov=None):
         ''' '''
-        theta = np.random.normal(size=(n_sample, self._d))
+        mean = np.zeros((self._d,)) if mean is None else mean
+        cov = np.eye(self._d) if cov is None else cov
+        theta = np.random.multivariate_normal(mean, cov, size=n_sample)
         if self._return_tf_tensors: theta = tf.cast(theta, tf.float32)
         return theta
     
