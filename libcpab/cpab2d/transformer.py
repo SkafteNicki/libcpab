@@ -41,7 +41,7 @@ def tf_cpab_transformer_2D_pure(points, theta):
         # Make sure that both inputs are in float32 format
         points = tf.cast(points, tf.float32) # format [2, nb_points]
         theta = tf.cast(theta, tf.float32) # format [n_theta, dim]
-        n_theta = tf_shape_i(theta, 0)#tf.shape(theta)[0]
+        n_theta = tf.shape(theta)[0]
         n_points = tf_shape_i(points, 1)#points.get_shape().as_list()[1]
         
         # Repeat point matrix, one for each theta
