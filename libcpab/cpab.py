@@ -203,6 +203,8 @@ class cpab(object):
             if self._fixed_data:
                 newpoints = self._transformer_np(points, theta)    
             else:
+                points = tf.cast(points, tf.float32)
+                theta = tf.cast(theta, tf.float32)
                 newpoints = self._sess.run(self._transformer(points, theta))
         return newpoints
 
@@ -218,6 +220,8 @@ class cpab(object):
             if self._fixed_data:
                 new_data = self._interpolate_np(data, transformed_points)
             else:
+                data = tf.cast(data, tf.float32)
+                transformed_points = tf.cast(transformed_points, tf.float32)
                 new_data = self._sess.run(self._interpolate(data, transformed_points))
         return new_data
     

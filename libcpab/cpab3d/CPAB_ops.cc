@@ -24,7 +24,7 @@ REGISTER_OP("CalcTrans3")
     .Output("newpoints: float")     // n_theta x 3 x nP
     .Doc(R"doc(CPAB transformation implementation)doc")
     .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c){
-        c->set_output(0, c->Tensor(c->Dim(c->input(1), 0), 3, c->Dim(c->input(0), 1)));
+        c->set_output(0, c->MakeShape({c->Dim(c->input(1), 0), 3, c->Dim(c->input(0), 1)}));
         return Status::OK();
     });
     

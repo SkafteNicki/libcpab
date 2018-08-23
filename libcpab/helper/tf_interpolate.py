@@ -20,11 +20,11 @@ def tf_interpolate_1D(data, grid):
         # Constants
         n_batch = tf_shape_i(data,0)
         length_d = tf_shape_i(data,1)
-        length_g = tf_shape_i(data,2)
+        length_g = tf_shape_i(grid,2)
         max_x = tf.cast(length_d-1, tf.int32)
         
         # Extract points
-        x = tf.reshape(grid[:,0], (-1,))
+        x = tf.reshape(grid[:,0], (-1,)) # [n_theta x n_points]
         
         # Scale to domain
         x = x * length_d
@@ -35,7 +35,7 @@ def tf_interpolate_1D(data, grid):
         
         # Clip values
         x0 = tf.clip_by_value(x0, 0, max_x)
-        x1 = tf.clip_b_value(x1, 0, max_x)
+        x1 = tf.clip_by_value(x1, 0, max_x)
         
         # Take care of batch effect
         base = tf_repeat(tf.range(n_batch)*length_d, length_g)

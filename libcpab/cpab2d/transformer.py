@@ -151,8 +151,6 @@ def _calc_trans(points, theta):
         # Call the dynamic library
         with tf.name_scope('calc_trans_op'):
 	        newpoints = transformer_op(points, Trels, nStepSolver, ncx, ncy)
-        newpoints.set_shape((n_theta, 2, points.get_shape().as_list()[1]))
-        print(newpoints)
         return newpoints
 
 #%%
