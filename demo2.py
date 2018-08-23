@@ -32,7 +32,7 @@ if __name__ == '__main__':
     trans_est = T.transform_data(data, theta_est)
     loss = tf.reduce_mean(tf.pow(transformed_data - trans_est, 2))
     
-    optimizer = tf.train.AdamOptimizer(learning_rate=1)
+    optimizer = tf.train.AdamOptimizer(learning_rate=0.1)
     trainer = optimizer.minimize(loss)
     
     maxiter = 100
