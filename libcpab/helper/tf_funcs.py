@@ -23,7 +23,7 @@ def tf_repeat_matrix(x_in, n_repeats):
     with tf.name_scope('repeat_matrix'):
         x_out = tf.reshape(x_in, (-1,))
         x_out = tf.tile(x_out, [n_repeats])
-        x_out = tf.reshape(x_out, (n_repeats, tf.shape(x_in)[0], tf.shape(x_in)[1]))
+        x_out = tf.reshape(x_out, (n_repeats, tf_shape_i(x_in, 0), tf_shape_i(x_in, 1)))
         return x_out
 
 #%%

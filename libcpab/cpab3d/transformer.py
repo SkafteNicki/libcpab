@@ -63,11 +63,8 @@ def tf_cpab_transformer_3D_pure(points, theta):
         # Get cpab basis
         B = tf.cast(tess['basis'], tf.float32)
 
-        # Repeat basis for batch multiplication
-        B = tf_repeat_matrix(B, n_theta)
-        
         # Calculate the row-flatted affine transformations Avees 
-        Avees = tf.matmul(B, tf.expand_dims(theta, 2))
+        Avees = tf.transpose(tf.matmul(B, tf.transpose(theta)))
 		
         # Reshape into (n_theta*number_of_cells, 3, 4) tensor
         As = tf.reshape(Avees, shape = (n_theta * nC, *tess['Ashape'])) # format [n_theta * nC, 3, 4]
