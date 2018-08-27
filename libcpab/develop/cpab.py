@@ -157,9 +157,7 @@ class cpab(object):
     #%%    
     def interpolate(self, data, grid, outsize):
         grid = (grid*2) - 1 # [0,1] domain to [-1,1] domain
-        
         if self.params.ndim != 1:
-            grid = grid.reshape(data.shape[0], -1, *outsize)
             interpolated = torch.nn.functional.grid_sample(data, grid)
         else:
             interpolated = torch_interpolate_1D(data, grid)
