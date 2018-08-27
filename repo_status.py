@@ -5,14 +5,6 @@ Created on Tue Aug  7 13:50:53 2018
 @author: nsde
 """
 
-# TODO: find and fix the sparse tensor -> tensor consume lots of memory error
-# TODO: check the gradient at the identity 
-#       only seems to be a problem for the pure transformer case
-# TODO: fix the problem in the 1D pure transformer shape mismatch between Trels 
-#       and points - shape is maybe changed in in the loop?
-# TODO: get demo3 to work
-# TODO: get demo4 to work
-# TODO: test interpolation for 1D
 # TODO: test interpolation for 3D
 
 #%%
@@ -83,12 +75,6 @@ if __name__ == '__main__':
         # Gether relevant matrices
         Tidx = tf.gather(Trels, corrected_idx)
         
-        print(Trels)
-        print(idx)
-        print(batch_idx)
-        print(corrected_idx)
-        print(Tidx)
-        
         # Transform points
         newpoints = tf.matmul(Tidx, points)
         
@@ -108,7 +94,6 @@ if __name__ == '__main__':
     # Reshape to batch format
     trans_points = tf.transpose(tf.reshape(tf.squeeze(trans_points[:,:ndim]), 
                         (n_theta, n_points, ndim)), perm=[0,2,1])
-    return trans_points
 
 
     
