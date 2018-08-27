@@ -70,7 +70,6 @@ Additionally, we supply two case scrips:
 * demo1.py: simple use of the library to transform data
 * demo2.py: image registration by incorporating the library in a tensorflow optimization rutine
 * demo3.py: time series alignment by sampling approch
-* demo4.py: time series spatial transformer nets
 
 For a specific use of the transformations in a greater context, 
 see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvpr_2018.pdf)  
