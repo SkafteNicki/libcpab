@@ -116,14 +116,16 @@ def torch_findcellidx_2D(points, ncx, ncy):
           torch.where(cond5_1, cell_idx1, cell_idx))))))
     idx = idx.type(torch.int64)
     return idx
+
 #%%
 def torch_findcellidx_3D(points, ncx, ncy, ncz):
     p = points.squeeze().t() # [4, n_points]
     
     # Initial row, col placement
-    p0 = torch_mymin((ncx-1)*torch.ones_like(p[0,:]), torch.max(0.0, p[0,:]*ncx))
-    p1 = torch_mymin((ncy-1)*torch.ones_like(p[1,:]), torch.max(0.0, p[1,:]*ncy))
-    p2 = torch_mymin((ncz-1)*torch.ones_like(p[2,:]), torch.max(0.0, p[2,:]*ncz))
+    zero = torch.Tensor([0.0])
+    p0 = torch_mymin((ncx-1)*torch.ones_like(p[0,:]), torch.max(zero, p[0,:]*ncx))
+    p1 = torch_mymin((ncy-1)*torch.ones_like(p[1,:]), torch.max(zero, p[1,:]*ncy))
+    p2 = torch_mymin((ncz-1)*torch.ones_like(p[2,:]), torch.max(zero, p[2,:]*ncz))
 
     # Initial cell index
     cell_idx = 6*(p0 + p1*ncx + p2*ncx*ncy)
@@ -132,16 +134,11 @@ def torch_findcellidx_3D(points, ncx, ncy, ncz):
     z = p[2,:]*ncz - p2
         
     # Find inner thetrahedron
-    cell_idx = torch.where(torch.eq(torch.eq(torch.eq(x>y,x<=1-y),y<z),1-y>=z),
-                        cell_idx+1,cell_idx)
-    cell_idx = torch.where(torch.eq(torch.eq(torch.eq(x>=z,x<1-z),y>=z),y<1-z),
-                        cell_idx+2,cell_idx)
-    cell_idx = torch.where(torch.eq(torch.eq(torch.eq(x<=z,x>1-z),y<=z),y>1-z),
-                        cell_idx+3,cell_idx)
-    cell_idx = torch.where(torch.eq(torch.eq(torch.eq(x<y,x>=1-y),y>z),1-y<=z),
-                        cell_idx+4,cell_idx)
-    cell_idx = torch.where(torch.eq(torch.eq(torch.eq(x>=y,1-x<y),x>z),1-x<=z),
-                        cell_idx+5,cell_idx)
+    cell_idx = torch.where((x>y) & (x<=1-y) & (y<z) & (1-y>=z), cell_idx+1, cell_idx)
+    cell_idx = torch.where((x>=z) & (x<1-z) & (y>=z) & (y<1-z), cell_idx+2, cell_idx)
+    cell_idx = torch.where((x<=z) & (x>1-z) & (y<=z) & (y>1-z), cell_idx+3, cell_idx)
+    cell_idx = torch.where((x<y) & (x>=1-y) & (y>z) & (1-y<=z), cell_idx+4, cell_idx)
+    cell_idx = torch.where((x>=y) & (1-x<y) & (x>z) & (1-x<=z), cell_idx+5, cell_idx)
     cell_idx = cell_idx.type(torch.int64)
     return cell_idx
 

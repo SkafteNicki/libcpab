@@ -261,6 +261,7 @@ class cpab(object):
                                                         [points1_p, theta_p])
         self._interpolate_np = self._sess.make_callable(self._interpolate(data_p, points2_p), 
                                                         [data_p, points2_p])
+        self._fixed_data = True
         
     #%%
     def calc_vectorfield(self, points, theta):

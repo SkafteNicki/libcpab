@@ -82,7 +82,7 @@ class cpab(object):
             get_constrain_matrix_f = get_constrain_matrix_2D
             self.findcellidx = torch_findcellidx_2D
         elif self.params.ndim == 3:
-            self._nC = 6*np.prod(self.params.nc)
+            self.params.nC = 6*np.prod(self.params.nc)
             get_constrain_matrix_f = get_constrain_matrix_3D
             self.findcellidx = torch_findcellidx_3D
             

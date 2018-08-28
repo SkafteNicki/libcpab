@@ -137,7 +137,7 @@ class CalcTransGPU : public OpKernel {
             
             // Create and allocate output tensor
             Tensor* newpoints_out = NULL;
-            std::initializer_list< int64 > s = {batch_size, 2, nP};
+            std::initializer_list< int64 > s = {batch_size, 1, nP};
             OP_REQUIRES_OK(context, context->allocate_output(0, TensorShape(s), &newpoints_out));            
             float* newpoints = newpoints_out->flat<float>().data();
                         
