@@ -1,7 +1,7 @@
 # libcpab
 CPAB Transformations [1]: finite-dimensional spaces of simple, fast, and 
 highly-expressive diffeomorphisms derived from parametric, 
-continuously-defined, velocity fields in **Tensorflow**.
+continuously-defined, velocity fields in **Tensorflow** and **Pytorch**.
 
 The main idea behind this library is to offer a simple way to use and
 incorporate diffiomorphic transformations. The diffiomorphic transformations
@@ -66,14 +66,13 @@ All these methods expects numpy arrays as input and returns numpy arrays.
 If you want the method to output tf tensors instead, just set the `return_tf_tensor`
 argument in the `cpab` class to `True`.
 
-Additionally, we supply two case scrips:
+Additionally, we supply some case scrips:
 * demo1.py: simple use of the library to transform data
 * demo2.py: image registration by incorporating the library in a tensorflow optimization rutine
 * demo3.py: time series alignment by sampling approch
 
 For a specific use of the transformations in a greater context, 
-see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvpr_2018.pdf)  
-and this [github repo](https://github.com/SkafteNicki/ddtn).
+see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvpr_2018.pdf) and this [github repo](https://github.com/SkafteNicki/ddtn).
 
 ## References
 ```
