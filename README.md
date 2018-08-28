@@ -22,7 +22,7 @@ for the 1D and 3D cases.
 This software is released under the MIT License (included with the software). 
 Note, however, that using this code (and/or the results of running it) to support
 any form of publication (e.g., a book, a journal paper, a conference papar, a patent
-application ect.) we request you to cite [1].
+application ect.) we request you to cite [1] and [2].
 
 ## Requirements
 
@@ -72,7 +72,7 @@ Additionally, we supply some case scrips:
 * demo3.py: time series alignment by sampling approch
 
 For a specific use of the transformations in a greater context, 
-see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvpr_2018.pdf) and this [github repo](https://github.com/SkafteNicki/ddtn).
+see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvpr_2018.pdf)[3] and this [github repo](https://github.com/SkafteNicki/ddtn).
 
 ## References
 ```
@@ -84,11 +84,21 @@ see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvp
   publisher={IEEE}
 }
 
-[2] @article{detlefsen2018transformations,
+[2] @misc{detlefsen2018,
+  author = {Detlefsen, Nicki S.},
+  title = {libcpab},
+  year = {2018},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/SkafteNicki/libcpab}},
+}
+
+[3] @article{detlefsen2018transformations,
   title = {Deep Diffeomorphic Transformer Networks},
   author = {Nicki Skafte Detlefsen and Oren Freifeld and S{\o}ren Hauberg},
   journal = {Conference on Computer Vision and Pattern Recognition (CVPR)},
   year={2018},
   publisher={IEEE}
 }
+
 ```
