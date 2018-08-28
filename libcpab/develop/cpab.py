@@ -157,10 +157,14 @@ class cpab(object):
     #%%    
     def interpolate(self, data, grid, outsize):
         grid = (grid*2) - 1 # [0,1] domain to [-1,1] domain
-        if self.params.ndim != 1:
-            interpolated = torch.nn.functional.grid_sample(data, grid)
-        else:
+        if self.params.ndim == 1:
             interpolated = torch_interpolate_1D(data, grid)
+        elif self.params.ndim == 2:
+            grid = grid.permute(0,2,1).reshape(data.shape[0], *outsize, 2).permute(0,2,1,3)
+            interpolated = torch.nn.functional.grid_sample(data, grid)
+        elif self.params.ndim == 3:
+            grid = grid.permute(0,2,1).reshape(data.shape[0], *outsize, 3).permute(0,3,2,1,4)
+            interpolated = torch.nn.functional.grid_sample(data, grid)
         return interpolated
         
     #%%
@@ -168,7 +172,7 @@ class cpab(object):
         ''' '''
         points = self.uniform_meshgrid(outsize)
         transformed_points = self.transform_grid(points, theta)
-        transformed_data = self.interpolate(data, transformed_points)
+        transformed_data = self.interpolate(data, transformed_points, outsize)
         return transformed_data
    
     #%%
