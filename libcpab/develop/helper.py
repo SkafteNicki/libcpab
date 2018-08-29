@@ -20,12 +20,11 @@ def torch_repeat_matrix(A, n):
 def torch_expm(A):
     ''' '''
     n_A = A.shape[0]
-    A = A.type(torch.float64) # for precision
     A_fro = torch.sqrt(A.abs().pow(2).sum(dim=(1,2), keepdim=True))
     
     # Scaling step
-    maxnorm = torch.Tensor([5.371920351148152]).type(torch.float64)
-    zero = torch.Tensor([0.0]).type(torch.float64)
+    maxnorm = torch.Tensor([5.371920351148152]).type(A.dtype).to(A.device)
+    zero = torch.Tensor([0.0]).type(A.dtype).to(A.device)
     n_squarings = torch.max(zero, torch.ceil(torch_log2(A_fro / maxnorm)))
     Ascaled = A / 2.0**n_squarings    
     n_squarings = n_squarings.flatten().type(torch.int32)
@@ -45,16 +44,16 @@ def torch_expm(A):
 
 #%%
 def torch_log2(x):
-    return torch.log(x) / torch.log(torch.Tensor([2.0])).type(torch.float64)
+    return torch.log(x) / torch.log(torch.Tensor([2.0])).type(x.dtype).to(x.device)
 
 #%%    
 def torch_pade13(A):
     b = torch.Tensor([64764752532480000., 32382376266240000., 7771770303897600.,
                       1187353796428800., 129060195264000., 10559470521600.,
                       670442572800., 33522128640., 1323241920., 40840800.,
-                      960960., 16380., 182., 1.]).type(torch.float64)
+                      960960., 16380., 182., 1.]).type(A.dtype).to(A.device)
         
-    ident = torch.eye(A.shape[1], dtype=A.dtype)
+    ident = torch.eye(A.shape[1], dtype=A.dtype).to(A.device)
     A2 = torch.matmul(A,A)
     A4 = torch.matmul(A2,A2)
     A6 = torch.matmul(A4,A2)
@@ -78,9 +77,9 @@ def torch_findcellidx_2D(points, ncx, ncy):
     inc_x, inc_y = 1.0/ncx, 1.0/ncy 
 
     # Determine inner coordinates
-    zero = torch.Tensor([0.0])
-    p0 = torch.min(torch.Tensor([ncx*inc_x - 1e-8]), torch.max(zero, p[0,:]))
-    p1 = torch.min(torch.Tensor([ncy*inc_y - 1e-8]), torch.max(zero, p[1,:]))            
+    zero = torch.Tensor([0.0]).to(points.device)
+    p0 = torch.min(torch.Tensor([ncx*inc_x - 1e-8]).to(points.device), torch.max(zero, p[0,:]))
+    p1 = torch.min(torch.Tensor([ncy*inc_y - 1e-8]).to(points.device), torch.max(zero, p[1,:]))            
     xmod = torch.fmod(p0, inc_x)
     ymod = torch.fmod(p1, inc_y)            
     x = xmod / inc_x
@@ -122,10 +121,10 @@ def torch_findcellidx_3D(points, ncx, ncy, ncz):
     p = points.squeeze().t() # [4, n_points]
     
     # Initial row, col placement
-    zero = torch.Tensor([0.0])
-    p0 = torch_mymin((ncx-1)*torch.ones_like(p[0,:]), torch.max(zero, p[0,:]*ncx))
-    p1 = torch_mymin((ncy-1)*torch.ones_like(p[1,:]), torch.max(zero, p[1,:]*ncy))
-    p2 = torch_mymin((ncz-1)*torch.ones_like(p[2,:]), torch.max(zero, p[2,:]*ncz))
+    zero = torch.Tensor([0.0]).to(points.device)
+    p0 = torch_mymin((ncx-1)*torch.ones_like(p[0,:]).to(points.device), torch.max(zero, p[0,:]*ncx))
+    p1 = torch_mymin((ncy-1)*torch.ones_like(p[1,:]).to(points.device), torch.max(zero, p[1,:]*ncy))
+    p2 = torch_mymin((ncz-1)*torch.ones_like(p[2,:]).to(points.device), torch.max(zero, p[2,:]*ncz))
 
     # Initial cell index
     cell_idx = 6*(p0 + p1*ncx + p2*ncx*ncy)

@@ -14,9 +14,9 @@ from ..cpab1d.setup_constrains import get_constrain_matrix_1D
 from ..cpab2d.setup_constrains import get_constrain_matrix_2D
 from ..cpab3d.setup_constrains import get_constrain_matrix_3D
 
-from .helper import torch_repeat_matrix, torch_expm, torch_interpolate_1D
+from .helper import torch_interpolate_1D
 from .helper import torch_findcellidx_1D, torch_findcellidx_2D, torch_findcellidx_3D
-
+from .transformer import CPAB_transformer
 #%%
 class params:
     pass # just for saving parameters
@@ -29,7 +29,8 @@ class cpab(object):
     def __init__(self, tess_size, 
                  zero_boundary=True, 
                  volume_perservation=False,
-                 return_tf_tensors=False):
+                 return_tf_tensors=False,
+                 device='gpu'):
         # Check input
         assert len(tess_size) > 0 and len(tess_size) <= 3, \
             '''Transformer only support 1D, 2D or 3D'''
@@ -43,7 +44,10 @@ class cpab(object):
             '''Argument zero_boundary must be True or False'''
         assert type(volume_perservation) == bool, \
             '''Argument volume_perservation must be True or False'''
-        
+        if device=='gpu':
+            assert torch.cuda.is_available(), \
+                '''Cannot use gpu because cuda is not availble'''
+            
         # Parameters
         self.params = params()
         self.params.nc = tess_size
@@ -61,6 +65,9 @@ class cpab(object):
         # Special cases
         assert not(self.params.ndim==3 and not zero_boundary), \
             '''Non zero boundary is not implemented for 3D'''
+        
+        # Device settings
+        self.device = torch.device('cuda') if device == 'gpu' else torch.device('cpu')
         
         # For saving the basis
         self._dir = get_dir(__file__) + '/basis_files/'
@@ -116,6 +123,12 @@ class cpab(object):
             self.params.D = file['D']
             self.params.d = file['d']
             
+        # Create transformer
+        self._transformer = CPAB_transformer(params = self.params,
+                                             findcellidx_func = self.findcellidx,
+                                             device = self.device)
+        self._transformer.to(self.device)
+        
     #%%
     def get_theta_dim(self):
         return self.params.d
@@ -136,26 +149,29 @@ class cpab(object):
                              n_points[i]) for i in range(self.params.ndim)]
         mg = torch.meshgrid(ls)
         grid = torch.cat([g.reshape(1,-1) for g in mg], dim=0)
-        return grid
+        return grid.to(self.device)
         
     #%%
     def sample_transformation(self, n_sample, mean=None, cov=None):
         mean = torch.zeros((self.params.d,)) if mean is None else mean
         cov = torch.eye(self.params.d) if cov is None else cov
         distribution = torch.distributions.MultivariateNormal(mean, cov)
-        return distribution.sample((n_sample,))
+        return distribution.sample((n_sample,)).to(self.device)
         
     #%%
     def identity(self, n_sample):
-        return torch.zeros((n_sample, self.params.d))
+        return torch.zeros((n_sample, self.params.d)).to(self.device)
         
     #%%
     def transform_grid(self, points, theta):
-        transformed_points = self._cpab_transformer(points, theta)
+        transformed_points = self._transformer(points.to(self.device), 
+                                               theta.to(self.device))
         return transformed_points
     
     #%%    
     def interpolate(self, data, grid, outsize):
+        data = data.to(self.device)
+        grid = grid.to(self.device)
         grid = (grid*2) - 1 # [0,1] domain to [-1,1] domain
         if self.params.ndim == 1:
             interpolated = torch_interpolate_1D(data, grid)
@@ -174,52 +190,5 @@ class cpab(object):
         transformed_points = self.transform_grid(points, theta)
         transformed_data = self.interpolate(data, transformed_points, outsize)
         return transformed_data
-   
-    #%%
-    def _cpab_transformer(self, points, theta):
-        # Problem sizes
-        n_points = points.shape[1]
-        n_theta = theta.shape[0]
-        
-        # Transform points
-        newpoints = torch_repeat_matrix(points, n_theta) # [n_theta, ndim, n_points]
-        newpoints = torch.cat([newpoints, torch.ones(n_theta, 1, n_points)], dim=1)
-        newpoints = newpoints.permute(0, 2, 1).reshape(-1, self.params.ndim+1)
-        newpoints = newpoints[:,:,None] # [n_theta * ndim, ndim+1, 1]
-     
-        # Get velocity fields
-        B = torch.Tensor(self.params.basis)
-        Avees = torch.matmul(B, theta.t())
-        As = Avees.t().reshape(n_theta*self.params.nC, *self.params.Ashape)
-        AsSquare = torch.cat([As, torch.zeros(n_theta*self.params.nC, 
-                                              1, self.params.ndim+1)], dim=1)
-        
-        # Take matrix exponential
-        dT = 1.0 / self.params.nstepsolver
-        Trels = torch_expm(dT*AsSquare).type(torch.float32)
-
-        # Batch index to add to correct for the batch effect
-        batch_idx = self.params.nC * (torch.ones(n_points, n_theta, dtype=torch.int64) * 
-                                      torch.arange(n_theta)).t().flatten()
-        
-        # Intergrate velocity field
-        for i in range(self.params.nstepsolver):
-            # Find cell index and correct for batching effect
-            idx = self.findcellidx(newpoints, *self.params.nc) + batch_idx
-            
-            # Gather the correct transformations
-            Tidx = Trels[idx]
-            
-            # Transform points
-            newpoints = torch.matmul(Tidx, newpoints)
-        
-        # Reshape to the right format
-        newpoints = newpoints[:,:self.params.ndim].squeeze().t()
-        newpoints = newpoints.reshape(self.params.ndim, n_theta, n_points).permute(1,0,2)
-        return newpoints
-            
-    #%%
-    def _gpu_support():
-        return torch.cuda.is_available()
             
 #%%
