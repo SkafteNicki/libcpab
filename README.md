@@ -3,9 +3,10 @@ CPAB Transformations [1]: finite-dimensional spaces of simple, fast, and
 highly-expressive diffeomorphisms derived from parametric, 
 continuously-defined, velocity fields in **Tensorflow** and **Pytorch**.
 
-The main idea behind this library is to offer a simple way to use and
-incorporate diffiomorphic transformations. The diffiomorphic transformations
-are based on the work of [Freifeld et al.](https://www.cs.bgu.ac.il/~orenfr/papers/freifeld_etal_PAMI_2017).
+The main idea behind this library is to offer a simple way to use diffiomorphic 
+transformations and incorporate them into existing software. 
+The diffiomorphic transformations are based on the work of 
+[Freifeld et al.](https://www.cs.bgu.ac.il/~orenfr/papers/freifeld_etal_PAMI_2017).
 The library supports diffiomorphic transformations in 1D (time series), 
 2D (images) and 3D (volumetric images).
 
@@ -27,10 +28,11 @@ application ect.) we request you to cite [1] and [2].
 ## Requirements
 
 * Generic python packages: numpy, scipy, matplotlib
-* Tensorflow
-* To use the GPU implementation, you need a nvidia GPU and CUDA + cuDNN installed. 
-  See [Tensorflows GPU installation instructions](https://www.tensorflow.org/install/) 
-  for more details
+* Tensorflow or Pytorch
+
+To use the GPU implementation (both backends), you need a nvidia GPU and CUDA + cuDNN installed.
+I recommend going through these [installation instructions](https://www.tensorflow.org/install/)
+for tensorflow. If you can get tensorflow working on your machine, pytorch should also work.
 
 ## Installation
 
@@ -54,7 +56,6 @@ between a tensorflow or pytorch backend:
     
     # Import library with pytorch backend
     from libcpab import cpab_torch as cpab
-
 ```
 
 Both class share the same the same interface
@@ -82,7 +83,7 @@ There are small differences between using the two backends. Please see this
 
 We supply 3 case scripts for each backend:
 * *_demo1.py: simple use of the library to transform data
-* *_demo2.py: image registration by incorporating the library in a tensorflow optimization rutine
+* *_demo2.py: image registration by incorporating the library in a tensorflow/pytorch optimization rutine
 * *_demo3.py: time series alignment by sampling approch
 
 For a specific use of the transformations in a greater context, 
@@ -124,3 +125,4 @@ and this [github repo](https://github.com/SkafteNicki/ddtn).
   procedures will fail in both tensorflow and pytorch. Therefore, if you plan 
   to initialize the transformations to the identity and calculate gradients of 
   this, use T.identity(n_sample, epsilon) and set epsilon to a small number.
+  I will look into this at some points in the future.
