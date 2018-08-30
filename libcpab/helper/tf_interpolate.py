@@ -230,3 +230,7 @@ def tf_interpolate_3D(data, grid):
         # Reshape and return
         new_data = tf.reshape(c, (n_batch, width, height, depth))
         return new_data
+    
+#%%
+if __name__ == '__main__':
+    pass

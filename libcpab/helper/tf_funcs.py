@@ -48,4 +48,8 @@ def tf_shape_i(tensor, i):
     else:
         return tf.shape(tensor)[i]
     
+#%%
+if __name__ == '__main__':
+    pass
+    
     

@@ -167,3 +167,7 @@ def set_continuity_constraint(p1,p2,p3,c_idx_1,c_idx_2,L,c):
 
     c += 1
     return L, c
+
+#%%
+if __name__ == '__main__':
+    pass

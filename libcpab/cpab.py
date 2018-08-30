@@ -331,4 +331,7 @@ class cpab(object):
     def _is_tf_tensor(self, tensor):
         return  isinstance(tensor, tf.Tensor) or \
                 isinstance(tensor, tf.Variable)
-        
+
+#%%
+if __name__ == '__main__':
+    pass

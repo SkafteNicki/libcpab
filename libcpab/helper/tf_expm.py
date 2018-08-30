@@ -233,3 +233,7 @@ def tf_expm(A):
         elems = (R, n_squarings)
         expA = tf.map_fn(_tf_squaring, elems, dtype=(tf.float64))
         return expA
+    
+#%%
+if __name__ == '__main__':
+    pass

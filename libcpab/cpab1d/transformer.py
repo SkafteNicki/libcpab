@@ -198,4 +198,6 @@ if _gpu:
 else:
     tf_cpab_transformer_1D = tf_cpab_transformer_1D_pure
             
-        
+#%%
+if __name__ == '__main__':
+    pass

@@ -50,3 +50,7 @@ def create_grid(minbound, maxbound, nb_points):
     points = np.asarray([xx.flatten(), yy.flatten()])
     return points
 
+#%%
+if __name__ == '__main__':
+    pass
+

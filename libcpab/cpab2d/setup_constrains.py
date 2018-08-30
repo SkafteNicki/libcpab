@@ -238,4 +238,7 @@ def create_zero_trace_constrains(nC):
         Ltemp[c,(6*c):(6*(c+1))] = np.array([1,0,0,0,1,0])
     return Ltemp
 
+#%%
+if __name__ == '__main__':
+    pass
 

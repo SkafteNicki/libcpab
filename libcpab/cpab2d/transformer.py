@@ -200,3 +200,7 @@ if _gpu:
     tf_cpab_transformer_2D = tf_cpab_transformer_2D_cuda
 else:
     tf_cpab_transformer_2D = tf_cpab_transformer_2D_pure
+
+#%%
+if __name__ == '__main__':
+    pass

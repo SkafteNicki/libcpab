@@ -47,3 +47,7 @@ def create_zero_trace_constrains(ncx):
     for c in range(ncx):
         Ltemp[c,2*c] = 1
     return Ltemp
+
+#%%
+if __name__ == '__main__':
+    pass
