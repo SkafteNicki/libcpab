@@ -30,7 +30,7 @@ class cpab(object):
                  zero_boundary=True, 
                  volume_perservation=False,
                  return_tf_tensors=False,
-                 device='gpu'):
+                 device='cpu'):
         # Check input
         assert len(tess_size) > 0 and len(tess_size) <= 3, \
             '''Transformer only support 1D, 2D or 3D'''
@@ -152,15 +152,16 @@ class cpab(object):
         return grid.to(self.device)
         
     #%%
-    def sample_transformation(self, n_sample, mean=None, cov=None):
+    def sample_transformation(self, n_sample=1, mean=None, cov=None):
         mean = torch.zeros((self.params.d,)) if mean is None else mean
         cov = torch.eye(self.params.d) if cov is None else cov
         distribution = torch.distributions.MultivariateNormal(mean, cov)
         return distribution.sample((n_sample,)).to(self.device)
         
     #%%
-    def identity(self, n_sample):
-        return torch.zeros((n_sample, self.params.d)).to(self.device)
+    def identity(self, n_sample=1, epsilon=0):
+        iden = torch.zeros((n_sample, self.params.d)) + epsilon
+        return iden.to(self.device)
         
     #%%
     def transform_grid(self, points, theta):

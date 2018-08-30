@@ -56,6 +56,7 @@ get you started with diffiomorphic transformations.
     # Important methods
     g = T.uniform_meshgrid(...)               # sample uniform grid of points in transformer domain
     theta = T.sample_transformation(...)      # sample random normal transformation vectors
+    theta = T.identity(...)                   # get the identity transformation
     dim = T.get_theta_size()                  # get dimensionality of transformation parametrization
     params = T.get_params()                   # get different transformer parameters
     g_t = T.transform_grid(g, theta)          # transform a grid of points using theta
@@ -72,7 +73,8 @@ Additionally, we supply some case scrips:
 * demo3.py: time series alignment by sampling approch
 
 For a specific use of the transformations in a greater context, 
-see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvpr_2018.pdf)[3] and this [github repo](https://github.com/SkafteNicki/ddtn).
+see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvpr_2018.pdf)[3] 
+and this [github repo](https://github.com/SkafteNicki/ddtn).
 
 ## References
 ```
@@ -102,3 +104,10 @@ see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvp
 }
 
 ```
+
+## Known bugs
+* It seems that the identity transformation theta=0, is somewhat degenerate case
+  that results in the gradient being `Nan`. This means that most optimization
+  procedures will fail in both tensorflow and pytorch. Therefore, if you plan 
+  to initialize the transformations to the identity and calculate gradients of 
+  this, use T.identity(n_sample, epsilon) and set epsilon to a small number.

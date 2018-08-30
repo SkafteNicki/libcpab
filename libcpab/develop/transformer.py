@@ -57,7 +57,7 @@ class CPAB_transformer(torch.nn.Module):
             newpoints = torch.matmul(Tidx, newpoints)
         
         # Reshape to the right format
-        newpoints = newpoints[:,:self.params.ndim].squeeze().t()
+        newpoints = newpoints.squeeze()[:,:self.params.ndim].t()
         newpoints = newpoints.reshape(self.params.ndim, n_theta, n_points).permute(1,0,2)
         return newpoints
     
