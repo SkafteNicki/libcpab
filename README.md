@@ -44,11 +44,24 @@ export PYTHONPATH=$PYTHONPATH:$YOUR_FOLDER_PATH/libcpab
 ```
 
 ## How to use
-The interface is simple to use and only have 7 different methods that should
-get you started with diffiomorphic transformations. 
+The interface is simple to use and only have a couple of different methods that should
+get you started with diffiomorphic transformations. You have the choice to choose
+between a tensorflow or pytorch backend:
+
+```
+    # Import library with tensorflow backend
+    from libcpab import cpab_tf as cpab
+    
+    # Import library with pytorch backend
+    from libcpab import cpab_torch as cpab
+
+```
+
+Both class share the same the same interface
+
 ```
     # Import library
-    from libcpab import cpab
+    from libcpab import ... as cpab
  
     # Define a 2x2 transformation class
     T = cpab(tess_size=[2,2])
@@ -63,14 +76,14 @@ get you started with diffiomorphic transformations.
     data_t1 = T.interpolate(data, g_t)        # interpolate some data using the transformed grid
     data_t2 = T.transform_data(data, theta)   # combination of the two last methods 
 ```
-All these methods expects numpy arrays as input and returns numpy arrays. 
-If you want the method to output tf tensors instead, just set the `return_tf_tensor`
-argument in the `cpab` class to `True`.
 
-Additionally, we supply some case scrips:
-* demo1.py: simple use of the library to transform data
-* demo2.py: image registration by incorporating the library in a tensorflow optimization rutine
-* demo3.py: time series alignment by sampling approch
+There are small differences between using the two backends. Please see this
+[file](libcpab/README.md) for the specific differences.
+
+We supply 3 case scripts for each backend:
+* *_demo1.py: simple use of the library to transform data
+* *_demo2.py: image registration by incorporating the library in a tensorflow optimization rutine
+* *_demo3.py: time series alignment by sampling approch
 
 For a specific use of the transformations in a greater context, 
 see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvpr_2018.pdf)[3] 

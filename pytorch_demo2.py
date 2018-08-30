@@ -7,7 +7,7 @@ Created on Thu Aug 30 08:20:29 2018
 """
 
 #%%
-from libcpab.develop.cpab import cpab
+from libcpab import cpab_torch as cpab
 import torch
 import matplotlib.pyplot as plt
 import numpy as np
@@ -45,7 +45,7 @@ if __name__ == '__main__':
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        print('Iter', i, ', Loss', loss.item().round(4), ', ||theta_true - theta_est||: ',
+        print('Iter', i, ', Loss', np.round(loss.item(), 4), ', ||theta_true - theta_est||: ',
               np.linalg.norm((theta_true-theta_est).detach().numpy()).round(4))
         
     

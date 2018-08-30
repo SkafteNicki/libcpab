@@ -8,15 +8,17 @@ Created on Mon Aug 27 09:33:24 2018
 #%%
 import torch
 import numpy as np
+
 from ..helper.utility import get_dir, create_dir, save_obj, load_obj, check_if_file_exist
 from ..helper.math import null
-from ..cpab1d.setup_constrains import get_constrain_matrix_1D
-from ..cpab2d.setup_constrains import get_constrain_matrix_2D
-from ..cpab3d.setup_constrains import get_constrain_matrix_3D
+from ..helper.setup_constrains_1d import get_constrain_matrix_1D
+from ..helper.setup_constrains_2d import get_constrain_matrix_2D
+from ..helper.setup_constrains_3d import get_constrain_matrix_3D
 
-from .helper import torch_interpolate_1D
-from .helper import torch_findcellidx_1D, torch_findcellidx_2D, torch_findcellidx_3D
+from .torch_funcs import torch_interpolate_1D
+from .torch_funcs import torch_findcellidx_1D, torch_findcellidx_2D, torch_findcellidx_3D
 from .transformer import CPAB_transformer
+
 #%%
 class params:
     pass # just for saving parameters
@@ -70,7 +72,7 @@ class cpab(object):
         self.device = torch.device('cuda') if device == 'gpu' else torch.device('cpu')
         
         # For saving the basis
-        self._dir = get_dir(__file__) + '/basis_files/'
+        self._dir = get_dir(__file__) + '/../basis_files/'
         self._basis_name = 'cpab_basis_dim' + str(self.params.ndim) + '_tess' + \
                           '_'.join([str(e) for e in self.params.nc]) + '_' + \
                           'vo' + str(int(self.params.valid_outside)) + '_' + \

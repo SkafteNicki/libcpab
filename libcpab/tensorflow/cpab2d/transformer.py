@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Created on Wed Aug  8 14:28:55 2018
+Created on Wed Aug  8 14:28:54 2018
 
 @author: nsde
 """
@@ -9,25 +9,25 @@ Created on Wed Aug  8 14:28:55 2018
 import tensorflow as tf
 from tensorflow.python.framework import function
 from ..helper.tf_funcs import tf_repeat_matrix, tf_shape_i
-from ..helper.tf_findcellidx import tf_findcellidx_3D
-from ..helper.tf_expm import tf_expm
-from ..helper.utility import get_dir, load_basis, uniqueid
-from ..helper.utility import gpu_support as _gpu_support
+from ..helper.tf_findcellidx import tf_findcellidx_2D
+from ..helper.tf_expm import tf_expm3x3
+from ...helper.utility import get_dir, load_basis, uniqueid
+from ...helper.utility import gpu_support as _gpu_support
 from sys import platform as _platform
 
 #%% Load dynamic module
 def load_dynamic_modules():
     dir_path = get_dir(__file__)
     transformer_module = tf.load_op_library(dir_path + '/./CPAB_ops.so')
-    transformer_op = transformer_module.calc_trans3
-    grad_op = transformer_module.calc_grad3
+    transformer_op = transformer_module.calc_trans2
+    grad_op = transformer_module.calc_grad2
     return transformer_op, grad_op
 
 if _platform == "linux" or _platform == "linux2" or _platform == "darwin":    
     transformer_op, grad_op = load_dynamic_modules()
 
 #%%
-def tf_cpab_transformer_3D_pure(points, theta):
+def tf_cpab_transformer_2D_pure(points, theta):
     """ """
     with tf.name_scope('CPAB_transformer'):
         # Tessalation information
@@ -36,7 +36,6 @@ def tf_cpab_transformer_3D_pure(points, theta):
         nC = tf.cast(tess['nC'], tf.int32)
         ncx = tf.cast(tess['nc'][0], tf.int32)
         ncy = tf.cast(tess['nc'][1], tf.int32)
-        ncz = tf.cast(tess['nc'][2], tf.int32)
         nStepSolver = tf.cast(tess['nstepsolver'], tf.int32)
         
         # Make sure that both inputs are in float32 format
@@ -48,13 +47,13 @@ def tf_cpab_transformer_3D_pure(points, theta):
         # Repeat point matrix, one for each theta
         newpoints = tf_repeat_matrix(points, n_theta) # [n_theta, 2, nb_points]
         
-        # Reshape into a [nb_points*n_theta, 3] matrix
+        # Reshape into a [nb_points*n_theta, 2] matrix
         newpoints = tf.reshape(tf.transpose(newpoints, perm=[0,2,1]), (-1, ndim))
         
-        # Add a row of ones, creating a [nb_points*n_theta, 4] matrix
+        # Add a row of ones, creating a [nb_points*n_theta, 3] matrix
         newpoints = tf.concat([newpoints, tf.ones((n_theta*n_points, 1))], axis=1)
         
-        # Expand dims for matrix multiplication later -> [nb_points*n_theta, 4, 1] tensor
+        # Expand dims for matrix multiplication later -> [nb_points*n_theta, 3, 1] tensor
         newpoints = tf.expand_dims(newpoints, axis=2)
         
         # Steps sizes
@@ -66,17 +65,12 @@ def tf_cpab_transformer_3D_pure(points, theta):
         # Calculate the row-flatted affine transformations Avees 
         Avees = tf.transpose(tf.matmul(B, tf.transpose(theta)))
 		
-        # Reshape into (n_theta*number_of_cells, 3, 4) tensor
-        As = tf.reshape(Avees, shape = (n_theta * nC, *tess['Ashape'])) # format [n_theta * nC, 3, 4]
-        
-        # Append zero row
-        As = tf.concat([As, tf.cast(tf.reshape(tf.tile([0,0,0,0], 
-                [n_theta*nC]), (n_theta*nC, 1, 4)), tf.float32)], axis=1)
+        # Reshape into (n_theta*number_of_cells, 2, 3) tensor
+        As = tf.reshape(Avees, shape = (n_theta * nC, *tess['Ashape'])) # format [n_theta * nC, 2, 3]
         
         # Multiply by the step size and do matrix exponential on each matrix
-        Trels = tf_expm(dT*As)
-        Trels = tf.cast(Trels, tf.float32)
-        
+        Trels = tf_expm3x3(dT*As)
+
         # Batch index to add to correct for the batch effect
         batch_idx = nC * tf.reshape(tf.transpose(tf.ones((n_points, n_theta), 
                     dtype=tf.int32)*tf.cast(tf.range(n_theta), tf.int32)),(-1,))
@@ -84,7 +78,7 @@ def tf_cpab_transformer_3D_pure(points, theta):
         # Body function for while loop (executes the computation)
         def body(i, points):
             # Find cell index of each point
-            idx = tf_findcellidx_3D(points, ncx, ncy, ncz)
+            idx = tf_findcellidx_2D(points, ncx, ncy)
             
             # Correct for batch
             corrected_idx = tf.cast(idx, tf.int32) + batch_idx
@@ -110,7 +104,7 @@ def tf_cpab_transformer_3D_pure(points, theta):
                                      parallel_iterations=10, back_prop=True)[1]
         # Reshape to batch format
         trans_points = tf.transpose(tf.reshape(tf.squeeze(trans_points[:,:ndim]), 
-                                    (n_theta, n_points, ndim)), perm=[0,2,1])
+                            (n_theta, n_points, ndim)), perm=[0,2,1])
         return trans_points
 
 #%%
@@ -124,17 +118,16 @@ def _calc_trans(points, theta):
         nC = tf.cast(tess['nC'], tf.int32)
         ncx = tf.cast(tess['nc'][0], tf.int32)
         ncy = tf.cast(tess['nc'][1], tf.int32)
-        ncz = tf.cast(tess['nc'][2], tf.int32)
         nStepSolver = tf.cast(tess['nstepsolver'], tf.int32)
         
         # Make sure that both inputs are in float32 format
-        points = tf.cast(points, tf.float32) # format [3, nb_points]
+        points = tf.cast(points, tf.float32) # format [2, nb_points]
         theta = tf.cast(theta, tf.float32) # format [n_theta, dim]
         n_theta = tf.shape(theta)[0]
         
         # Steps sizes
         dT = 1.0 / tf.cast(nStepSolver , tf.float32)
-
+        
         # Get cpab basis
         B = tf.cast(tess['basis'], tf.float32)
 
@@ -147,22 +140,17 @@ def _calc_trans(points, theta):
         # Reshape into (number of cells, 2, 3) tensor
         As = tf.reshape(Avees, shape = (n_theta * nC, *Ashape)) # format [n_theta * nC, 2, 3]
         
-        # Append zero row
-        As = tf.concat([As, tf.cast(tf.reshape(tf.tile([0,0,0,0], 
-                [n_theta*nC]), (n_theta*nC, 1, 4)), tf.float32)], axis=1)
-    
         # Multiply by the step size and do matrix exponential on each matrix
-        Trels = tf_expm(dT*As)
-        Trels = tf.cast(Trels, tf.float32)
+        Trels = tf_expm3x3(dT*As)
         Trels = Trels[:,:ndim,:] # extract important part
         Trels = tf.reshape(Trels, shape=(n_theta, nC, *Ashape))
         
         # Call the dynamic library
         with tf.name_scope('calc_trans_op'):
-	        newpoints = transformer_op(points, Trels, nStepSolver, ncx, ncy, ncz)
+	        newpoints = transformer_op(points, Trels, nStepSolver, ncx, ncy)
         return newpoints
 
-#%%        
+#%%
 def _calc_grad(op, grad):
     """ """
     with tf.name_scope('calc_grad'):
@@ -172,14 +160,13 @@ def _calc_grad(op, grad):
         nC = tf.cast(tess['nC'], tf.int32)
         ncx = tf.cast(tess['nc'][0], tf.int32)
         ncy = tf.cast(tess['nc'][1], tf.int32)
-        ncz = tf.cast(tess['nc'][2], tf.int32)
         nStepSolver = tf.cast(tess['nstepsolver'], tf.int32)
         
         # Grap input
         points = op.inputs[0] # 2 x nP
         theta = op.inputs[1] # n_theta x d
         n_theta = tf_shape_i(theta, 0) # tf.shape(theta)[0]
-        
+    
         # Get cpab basis
         B = tf.cast(tess['basis'], tf.float32)
         Bs = tf.reshape(tf.transpose(B), (-1, nC, *Ashape))
@@ -188,13 +175,13 @@ def _calc_grad(op, grad):
         # Calculate the row-flatted affine transformations Avees 
         Avees = tf.matmul(B, tf.expand_dims(theta, 2))
         
-        # Reshape into (ntheta, number of cells, 3, 4) tensor
-        As = tf.reshape(Avees, shape = (n_theta, nC, *Ashape)) # n_theta x nC x 3 x 4
+        # Reshape into (ntheta, number of cells, 2, 3) tensor
+        As = tf.reshape(Avees, shape = (n_theta, nC, *Ashape)) # n_theta x nC x 2 x 3
         
         # Call cuda code
         with tf.name_scope('calc_grad_op'):
-            # gradient: d x n_theta x 3 x n
-            gradient = grad_op(points, As, Bs, nStepSolver, ncx, ncy, ncz) 
+            # gradient: d x n_theta x 2 x n
+            gradient = grad_op(points, As, Bs, nStepSolver, ncx, ncy) 
         
         # Reduce into: d x 1 vector
         gradient = tf.reduce_sum(grad * gradient, axis = [2,3])
@@ -203,17 +190,17 @@ def _calc_grad(op, grad):
         return [None, gradient]
 
 #%% Wrapper to connect function to gradient
-@function.Defun(tf.float32, tf.float32, func_name='tf_CPAB_transformer_3D_'+next(uniqueid), python_grad_func=_calc_grad)
-def tf_cpab_transformer_3D_cuda(points, theta):
+@function.Defun(tf.float32, tf.float32, func_name='tf_CPAB_transformer_2D_'+next(uniqueid), python_grad_func=_calc_grad)
+def tf_cpab_transformer_2D_cuda(points, theta):
     return _calc_trans(points, theta)
 
 #%% Find out which version to use
 _gpu = _gpu_support()
 if _gpu:
-    tf_cpab_transformer_3D = tf_cpab_transformer_3D_cuda
+    tf_cpab_transformer_2D = tf_cpab_transformer_2D_cuda
 else:
-    tf_cpab_transformer_3D = tf_cpab_transformer_3D_pure
-    
+    tf_cpab_transformer_2D = tf_cpab_transformer_2D_pure
+
 #%%
 if __name__ == '__main__':
     pass

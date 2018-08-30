@@ -7,7 +7,7 @@ Created on Wed Aug 29 10:37:45 2018
 
 #%%
 import torch
-from .helper import torch_repeat_matrix, torch_expm
+from .torch_funcs import torch_repeat_matrix, torch_expm
 
 #%%
 class CPAB_transformer(torch.nn.Module):

@@ -5,20 +5,20 @@ Created on Thu Jul 12 16:02:06 2018
 @author: nsde
 """
 #%%
-from .cpab1d.setup_constrains import get_constrain_matrix_1D
-from .cpab2d.setup_constrains import get_constrain_matrix_2D
-from .cpab3d.setup_constrains import get_constrain_matrix_3D
+import numpy as np
+import tensorflow as tf
+
+from ..helper.setup_constrains_1d import get_constrain_matrix_1D
+from ..helper.setup_constrains_2d import get_constrain_matrix_2D
+from ..helper.setup_constrains_3d import get_constrain_matrix_3D
+from ..helper.utility import get_dir, save_obj, load_obj, create_dir, check_if_file_exist
+from ..helper.math import null
+
 from .cpab1d.transformer import tf_cpab_transformer_1D
 from .cpab2d.transformer import tf_cpab_transformer_2D
 from .cpab3d.transformer import tf_cpab_transformer_3D
 from .helper.tf_interpolate import tf_interpolate_1D, tf_interpolate_2D, tf_interpolate_3D
 from .helper.tf_findcellidx import tf_findcellidx_1D, tf_findcellidx_2D, tf_findcellidx_3D
-
-from .helper.utility import get_dir, save_obj, load_obj, create_dir, check_if_file_exist
-from .helper.math import null
-
-import numpy as np
-import tensorflow as tf
 
 #%%
 class cpab(object):
@@ -61,7 +61,7 @@ class cpab(object):
             '''Non zero boundary is not implemented for 3D'''
         
         # For saving the basis
-        self._dir = get_dir(__file__) + '/basis_files/'
+        self._dir = get_dir(__file__) + '/../basis_files/'
         self._basis_name = 'cpab_basis_dim' + str(self._ndim) + '_tess' + \
                           '_'.join([str(e) for e in self._nc]) + '_' + \
                           'vo' + str(int(self._valid_outside)) + '_' + \

@@ -1,17 +1,14 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Aug 30 10:24:55 2018
+Created on Wed Aug 22 09:57:26 2018
 
 @author: nsde
 """
-
 #%%
-from libcpab.develop.cpab import cpab
+from libcpab import cpab_tf as cpab
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-import torch
 
 #%%
 if __name__ == '__main__':
@@ -23,6 +20,8 @@ if __name__ == '__main__':
     
     # Create transformer
     T = cpab(tess_size=[30,])
+    T.fix_data_size([N,]) # fix the data size for speed
+    
     
     # Lets do some sampling
     maxiter = 100
@@ -32,10 +31,10 @@ if __name__ == '__main__':
     for i in tqdm(range(maxiter), desc='mcmc sampling'):
         # Sample random transformations and transform y1
         theta = T.sample_transformation(1, mean=np.squeeze(current_sample))
-        y1_trans = T.transform_data(torch.Tensor(y1[None,:]), theta, outsize=(N,))
+        y1_trans = T.transform_data(np.expand_dims(y1,0), theta)
 
         # Calculate error 
-        new_error = np.linalg.norm(y1_trans[0].numpy() - y2)
+        new_error = np.linalg.norm(y1_trans - y2)
         
         # Update rule
         if new_error < current_error:
@@ -45,9 +44,9 @@ if __name__ == '__main__':
     print('Acceptence ratio: ', accept_ratio / maxiter * 100, '%')
         
     # Show result
-    y1_transform = T.transform_data(torch.Tensor(y1[None,:]), current_sample, outsize=(N,))
+    y1_transform = T.transform_data(np.expand_dims(y1, 0), current_sample)
     plt.plot(y1, '-r', label='source')
     plt.plot(y2, 'g-', label='target')
-    plt.plot(y1_transform[0].numpy(), 'b-', label='transformed')
+    plt.plot(y1_transform[0], 'b-', label='transformed')
     plt.legend()
     plt.show()
