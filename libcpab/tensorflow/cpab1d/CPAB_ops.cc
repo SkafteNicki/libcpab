@@ -32,7 +32,6 @@ REGISTER_OP("CalcGrad1")
     .Input("bs: float")            // d x nC x 1 x 2
     .Input("ntimestep: int32")    
     .Input("ncx: int32")
-    .Input("inc_x: float")
     .Output("grad: float")         // d x n_theta x 1 x nP
     .Doc(R"doc(Gradient of CPAB transformation implementation)doc");
     

@@ -19,6 +19,7 @@ from .cpab2d.transformer import tf_cpab_transformer_2D
 from .cpab3d.transformer import tf_cpab_transformer_3D
 from .helper.tf_interpolate import tf_interpolate_1D, tf_interpolate_2D, tf_interpolate_3D
 from .helper.tf_findcellidx import tf_findcellidx_1D, tf_findcellidx_2D, tf_findcellidx_3D
+from .helper.tf_funcs import tf_shape_i
 
 #%%
 class cpab(object):
@@ -199,6 +200,7 @@ class cpab(object):
             points = tf.cast(points, tf.float32)
             theta = tf.cast(theta, tf.float32)
             newpoints = self._transformer(points, theta)
+            newpoints.set_shape((None, self._ndim, tf_shape_i(points, 1)))
         else:
             if self._fixed_data:
                 newpoints = self._transformer_np(points, theta)    
