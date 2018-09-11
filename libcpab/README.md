@@ -3,12 +3,13 @@
 ## Tensorflow interface
 * For this version I have written both a fast c++/cuda version of the transformation
   and a version running pure tensorflow. As default it will try to use the fast
-  version, however on windows it defaults to the slow pure version. This library
-  will let you know.
+  version, however on windows it defaults to the slow pure version. If you are in
+  doubt which version the library is using, call this function: 
+  `libcpab.tensorflow.tf_cpab_version()`
   
 * I have precompiled the c++/cuda versions into dynamic libraries. If they do not
-  work you may have to recompile them for your system. Please inspect the files
-  the different makefiles.
+  work you may have to recompile them for your system. Please inspect the different 
+  makefiles.
 
 * As default will all the methods expect numpy arrays as input and output numpy.
   However, if you want to incorporate the transformations in a larger tensorflow
