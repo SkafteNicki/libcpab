@@ -23,7 +23,7 @@ def load_dynamic_modules():
     grad_op = transformer_module.calc_grad1
     return transformer_op, grad_op
 
-if _platform == "linux" or _platform == "linux2" or _platform == "darwin":    
+if _platform == "linux" or _platform == "linux2":    
     transformer_op, grad_op = load_dynamic_modules()
 
 #%%

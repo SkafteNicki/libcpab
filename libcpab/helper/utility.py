@@ -20,8 +20,7 @@ from sys import platform as _platform
 #%%
 def gpu_support():
     gpu = check_for_gpu() and check_cuda_support()
-    if (_platform == "linux" or _platform == "linux2" \
-        or _platform == "darwin") and gpu: # linux or MAC OS X
+    if (_platform == "linux" or _platform == "linux2") and gpu: # linux or MAC OS X
         return True
     else: # Windows 32 or 64-bit or no GPU
         return False
