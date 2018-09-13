@@ -6,7 +6,7 @@ Created on Fri Aug 17 10:45:45 2018
 """
 
 #%%
-from libcpab import cpab_tf as cpab
+from libcpab.tensorflow import cpab
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np

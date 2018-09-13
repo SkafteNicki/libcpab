@@ -155,8 +155,8 @@ class cpab(object):
         
     #%%
     def sample_transformation(self, n_sample=1, mean=None, cov=None):
-        mean = torch.zeros((self.params.d,)) if mean is None else mean
-        cov = torch.eye(self.params.d) if cov is None else cov
+        mean = torch.zeros((self.params.d,)) if mean is None else mean.cpu()
+        cov = torch.eye(self.params.d) if cov is None else cov.cpu()
         distribution = torch.distributions.MultivariateNormal(mean, cov)
         return distribution.sample((n_sample,)).to(self.device)
         

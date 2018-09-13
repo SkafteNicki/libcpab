@@ -164,6 +164,7 @@ def torch_interpolate_1D(data, points):
     
     # Take care of batch effect
     base = (torch.arange(n_batch)*in_size).repeat(out_size,1).t().flatten()
+    base = base.to(points.device)
     idx1 = base + x0
     idx2 = base + x1
     

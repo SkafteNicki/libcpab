@@ -7,7 +7,7 @@ Created on Thu Aug 30 10:24:55 2018
 """
 
 #%%
-from libcpab import cpab_torch as cpab
+from libcpab.pytorch import cpab
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
@@ -22,7 +22,7 @@ if __name__ == '__main__':
     y2 = 1.0/np.sqrt(2*np.pi*0.1**2)*np.exp(-(x-0.4)**2/(2*0.1**2))
     
     # Create transformer
-    T = cpab(tess_size=[30,])
+    T = cpab(tess_size=[30,], device='gpu')
     
     # Lets do some sampling
     maxiter = 100
@@ -35,7 +35,7 @@ if __name__ == '__main__':
         y1_trans = T.transform_data(torch.Tensor(y1[None,:]), theta, outsize=(N,))
 
         # Calculate error 
-        new_error = np.linalg.norm(y1_trans[0].numpy() - y2)
+        new_error = np.linalg.norm(y1_trans[0].cpu().numpy() - y2)
         
         # Update rule
         if new_error < current_error:
@@ -48,6 +48,6 @@ if __name__ == '__main__':
     y1_transform = T.transform_data(torch.Tensor(y1[None,:]), current_sample, outsize=(N,))
     plt.plot(y1, '-r', label='source')
     plt.plot(y2, 'g-', label='target')
-    plt.plot(y1_transform[0].numpy(), 'b-', label='transformed')
+    plt.plot(y1_transform[0].cpu().numpy(), 'b-', label='transformed')
     plt.legend()
     plt.show()

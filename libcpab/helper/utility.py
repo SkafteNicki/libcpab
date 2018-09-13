@@ -11,40 +11,8 @@ try:
 except:
     import pickle as pkl
 import os, random
-import tensorflow as tf
 import matplotlib.pyplot as plt
 import numpy as np
-from tensorflow.python.client import device_lib 
-from sys import platform as _platform
-import torch
-import gc
-
-#%%
-def gpu_support():
-    gpu = check_for_gpu() and check_cuda_support()
-    if (_platform == "linux" or _platform == "linux2") and gpu: # linux or MAC OS X
-        return True
-    else: # Windows 32 or 64-bit or no GPU
-        return False
-
-#%%
-def check_for_gpu():
-    devices = device_lib.list_local_devices()
-    gpu = False
-    for d in devices:
-        if d.device_type == "GPU": gpu=True
-    return gpu
-
-#%%
-def check_cuda_support():
-    return tf.test.is_built_with_cuda()
-
-#%%
-def memReport():
-    """ Get which tensors are taking up memory in pytorch """
-    for obj in gc.get_objects():
-        if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
-            print(type(obj), obj.size())
 
 #%%
 def make_hashable(arr):

@@ -7,10 +7,10 @@ Created on Thu Aug 30 08:20:29 2018
 """
 
 #%%
-from libcpab import cpab_torch as cpab
-import torch
+from libcpab.pytorch import cpab
 import matplotlib.pyplot as plt
 import numpy as np
+import torch
 
 #%%
 if __name__ == '__main__':
@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     # Now, create pytorch procedure that enables us to estimate the transformation
     # we have just used for transforming the data
-    T2 = cpab(tess_size=[3,3])
+    T2 = cpab(tess_size=[3,3], device='cpu')
     theta_est = T2.identity(1, epsilon=1e-4)
     theta_est.requires_grad = True
     
@@ -38,16 +38,15 @@ if __name__ == '__main__':
     optimizer = torch.optim.Adam([theta_est], lr=0.1)
     
     # Optimization loop
-    maxiter = 100    
+    maxiter = 100
     for i in range(maxiter):
         trans_est = T2.transform_data(data, theta_est, outsize=(350, 350))
-        loss = (transformed_data - trans_est).pow(2).mean()
+        loss = (transformed_data.to(trans_est.device) - trans_est).pow(2).mean()
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
         print('Iter', i, ', Loss', np.round(loss.item(), 4), ', ||theta_true - theta_est||: ',
-              np.linalg.norm((theta_true-theta_est).detach().numpy()).round(4))
-        
+              np.linalg.norm((theta_true-theta_est.cpu().detach()).numpy().round(4)))
     
     # Show the results
     plt.subplots(1,3, figsize=(10, 15))
@@ -60,6 +59,6 @@ if __name__ == '__main__':
     plt.axis('off')
     plt.title('Target')
     plt.subplot(1,3,3)
-    plt.imshow(trans_est.permute(0,2,3,1).cpu().numpy()[0])
+    plt.imshow(trans_est.permute(0,2,3,1).cpu().detach().numpy()[0])
     plt.axis('off')
     plt.title('Estimate')

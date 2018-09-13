@@ -11,8 +11,8 @@ from tensorflow.python.framework import function
 from ..helper.tf_funcs import tf_repeat_matrix, tf_shape_i
 from ..helper.tf_findcellidx import tf_findcellidx_1D
 from ..helper.tf_expm import tf_expm2x2
+from ..helper.gpu_support import gpu_support
 from ...helper.utility import get_dir, load_basis, uniqueid
-from ...helper.utility import gpu_support as _gpu_support
 from sys import platform as _platform
 
 #%% Load dynamic module
@@ -192,7 +192,7 @@ def tf_cpab_transformer_1D_cuda(points, theta):
     return _calc_trans(points, theta)
 
 #%% Find out which version to use
-_gpu = _gpu_support()
+_gpu = gpu_support()
 if _gpu:
     tf_cpab_transformer_1D = tf_cpab_transformer_1D_cuda
 else:

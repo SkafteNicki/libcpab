@@ -5,7 +5,7 @@ Created on Wed Aug 22 09:57:26 2018
 @author: nsde
 """
 #%%
-from libcpab import cpab_tf as cpab
+from libcpab.tensorflow import cpab
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm

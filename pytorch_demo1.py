@@ -7,7 +7,7 @@ Created on Thu Aug 30 07:54:48 2018
 """
 
 #%%
-from libcpab import cpab_torch as cpab
+from libcpab.pytorch import cpab
 from libcpab.helper.utility import show_images
 import matplotlib.pyplot as plt
 import numpy as np
