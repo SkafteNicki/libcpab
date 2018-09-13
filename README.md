@@ -52,17 +52,17 @@ between a tensorflow or pytorch backend:
 
 ```
     # Import library with tensorflow backend
-    from libcpab import cpab_tf as cpab
+    from libcpab.tensorflow import cpab
     
     # Import library with pytorch backend
-    from libcpab import cpab_torch as cpab
+    from libcpab.pytorch import cpab
 ```
 
 Both class share the same the same interface
 
 ```
     # Import library
-    from libcpab import ... as cpab
+    from libcpab."framework" import cpab
  
     # Define a 2x2 transformation class
     T = cpab(tess_size=[2,2])
@@ -126,6 +126,7 @@ and this [github repo](https://github.com/SkafteNicki/ddtn).
   to initialize the transformations to the identity and calculate gradients of 
   this, use T.identity(n_sample, epsilon) and set epsilon to a small number.
   I will look into this at some points in the future.
+  
 * There seems to be something wrong with the garbage cleaning in Pytorch on
   windows. I was unable to feed even small images through the transformer,
   without running out of GPU memory. Therefore, it seems that on windows, if you

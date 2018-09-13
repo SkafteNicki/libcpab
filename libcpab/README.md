@@ -3,9 +3,8 @@
 ## Tensorflow interface
 * For this version I have written both a fast c++/cuda version of the transformation
   and a version running pure tensorflow. As default it will try to use the fast
-  version, however on windows it defaults to the slow pure version. If you are in
-  doubt which version the library is using, call this function: 
-  `libcpab.tensorflow.tf_cpab_version()`
+  version, however on windows and mac it defaults to the slow pure version. The 
+  library will let you know which version it uses.
   
 * I have precompiled the c++/cuda versions into dynamic libraries. If they do not
   work you may have to recompile them for your system. Please inspect the different 
