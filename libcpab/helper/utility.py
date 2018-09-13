@@ -16,6 +16,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tensorflow.python.client import device_lib 
 from sys import platform as _platform
+import torch
+import gc
 
 #%%
 def gpu_support():
@@ -36,6 +38,13 @@ def check_for_gpu():
 #%%
 def check_cuda_support():
     return tf.test.is_built_with_cuda()
+
+#%%
+def memReport():
+    """ Get which tensors are taking up memory in pytorch """
+    for obj in gc.get_objects():
+        if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+            print(type(obj), obj.size())
 
 #%%
 def make_hashable(arr):

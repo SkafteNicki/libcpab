@@ -35,7 +35,7 @@ if __name__ == '__main__':
     transformed_data = T.transform_data(data, theta, outsize=(350, 350))
 
     # Get the corresponding numpy arrays in correct format
-    transformed_data = transformed_data.permute(0, 2, 3, 1).numpy()
+    transformed_data = transformed_data.permute(0, 2, 3, 1).cpu().numpy()
 
     # Show transformed samples
     show_images(transformed_data)

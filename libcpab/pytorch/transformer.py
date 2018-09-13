@@ -28,7 +28,7 @@ class CPAB_transformer(torch.nn.Module):
         newpoints = torch.cat([newpoints, ones], dim=1)
         newpoints = newpoints.permute(0, 2, 1).reshape(-1, self.params.ndim+1)
         newpoints = newpoints[:,:,None] # [n_theta * ndim, ndim+1, 1]
-     
+        
         # Get velocity fields
         B = torch.Tensor(self.params.basis).to(self.device)
         Avees = torch.matmul(B, theta.t())
@@ -55,6 +55,7 @@ class CPAB_transformer(torch.nn.Module):
             
             # Transform points
             newpoints = torch.matmul(Tidx, newpoints)
+            del idx, Tidx
         
         # Reshape to the right format
         newpoints = newpoints.squeeze()[:,:self.params.ndim].t()

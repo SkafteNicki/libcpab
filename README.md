@@ -126,3 +126,8 @@ and this [github repo](https://github.com/SkafteNicki/ddtn).
   to initialize the transformations to the identity and calculate gradients of 
   this, use T.identity(n_sample, epsilon) and set epsilon to a small number.
   I will look into this at some points in the future.
+* There seems to be something wrong with the garbage cleaning in Pytorch on
+  windows. I was unable to feed even small images through the transformer,
+  without running out of GPU memory. Therefore, it seems that on windows, if you
+  want to use the pytorch framework, you have to settle for the CPU.
+  
