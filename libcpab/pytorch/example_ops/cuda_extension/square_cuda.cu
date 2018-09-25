@@ -4,7 +4,10 @@
 
 // Kernel declaration
 namespace {
-__global__ void square_kernel_forward(float *output, float *input, const int N){
+
+__global__ void square_kernel_forward(float* __restrict__ output, 
+                                      const float* __restrict__ input, 
+                                      size_t N){
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     if(i < N){
         output[i] = input[i] * input[i];
@@ -12,14 +15,17 @@ __global__ void square_kernel_forward(float *output, float *input, const int N){
     return;
 }
 
-__global__ void square_kernel_backward(float *output, float *input, const int N){
+__global__ void square_kernel_backward(float* __restrict__ output, 
+                                       const float* __restrict__ input, 
+                                       size_t N){
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     if(i < N){
         output[i] = 2.0 * input[i];
     }
     return;
 }
-}
+
+} // end namespace
 
 // Kernel launcher declaration
 at::Tensor square_cuda_forward(at::Tensor input){
