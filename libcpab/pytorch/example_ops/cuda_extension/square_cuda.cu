@@ -3,6 +3,7 @@
 #include <cuda_runtime.h>
 
 // Kernel declaration
+namespace {
 __global__ void square_kernel_forward(float *output, float *input, const int N){
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     if(i < N){
@@ -17,6 +18,7 @@ __global__ void square_kernel_backward(float *output, float *input, const int N)
         output[i] = 2.0 * input[i];
     }
     return;
+}
 }
 
 // Kernel launcher declaration
