@@ -2,3 +2,6 @@
 __pycache__
 basis_files/
 for_ron.py
+build
+dist
+*.egg-info
