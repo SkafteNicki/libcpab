@@ -22,6 +22,6 @@ at::Tensor square_backward(at::Tensor input){
 
 // Binding
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("forward", &square_forward, "Square forward");
-    m.def("backward", &square_backward, "Square backward");
+    m.def("forward", &square_forward, "Square forward (CUDA)");
+    m.def("backward", &square_backward, "Square backward (CUDA)");
 }
