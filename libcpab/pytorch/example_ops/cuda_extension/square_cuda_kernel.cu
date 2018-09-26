@@ -4,22 +4,19 @@
 #include <vector>
 
 // Kernel declaration
-namespace {
-
-template <typename scalar_t>
-__global__ void square_kernel_forward(scalar_t* __restrict__ output, 
-                                      const scalar_t* __restrict__ input, 
+__global__ void square_kernel_forward(float* __restrict__ output, 
+                                      const float* __restrict__ input, 
                                       size_t N){
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     if(i < N){
+
         output[i] = input[i] * input[i];
     }
     return;
 }
 
-template <typename scalar_t>
-__global__ void square_kernel_backward(scalar_t* __restrict__ output, 
-                                       const scalar_t* __restrict__ input, 
+__global__ void square_kernel_backward(float* __restrict__ output, 
+                                       const float* __restrict__ input, 
                                        size_t N){
     const int i = blockIdx.x*blockDim.x + threadIdx.x;
     if(i < N){
@@ -28,35 +25,25 @@ __global__ void square_kernel_backward(scalar_t* __restrict__ output,
     return;
 }
 
-} // end namespace
-
 // Kernel launcher declaration
-std::vector<at::Tensor> square_cuda_forward(at::Tensor input){
+at::Tensor square_cuda_forward(at::Tensor input){
     const auto N = input.numel();
     auto output = at::zeros_like(input);    
-    const int blockSize = 512;
-    const int numBlocks = (N + blockSize - 1) / blockSize;
-    
-    AT_DISPATCH_FLOATING_TYPES(input.type(), "square_cuda_forward", ([&] {
-        square_kernel_forward<scalar_t><<<numBlocks, blockSize>>>(
-            output.data<scalar_t>(),
-            input.data<scalar_t>(),
-            N);
-    }));
-    
-    return {output};
+    const int blockSize = 256;
+    const int numBlocks = ceil((N + blockSize - 1) / blockSize);
+    square_kernel_forward<<<numBlocks, blockSize>>>(output.data<float>(),
+                                                    input.data<float>(),
+                                                    N);
+    return output;
 }
 
-std::vector<at::Tensor> square_cuda_backward(at::Tensor input){
+at::Tensor square_cuda_backward(at::Tensor input){
     const auto N = input.numel();
     auto output = at::zeros_like(input);
-    const int blockSize = 512;
-    const int numBlocks = (N + blockSize - 1) / blockSize;
-    AT_DISPATCH_FLOATING_TYPES(input.type(), "square_cuda_forward", ([&] {
-        square_kernel_backward<scalar_t><<<numBlocks, blockSize>>>(
-            output.data<scalar_t>(),
-            input.data<scalar_t>(),
-            N);
-    }));
-    return {output};
+    const int blockSize = 256;
+    const int numBlocks = ceil((N + blockSize - 1) / blockSize);
+	square_kernel_backward<<<numBlocks, blockSize>>>(output.data<float>(),
+                                                     input.data<float>(),
+                                                     N);
+    return output;
 }

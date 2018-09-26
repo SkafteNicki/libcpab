@@ -9,8 +9,11 @@ from setuptools import setup
 from torch.utils.cpp_extension import BuildExtension, CUDAExtension
 
 setup(
-    name='square_gpu',
-    ext_modules=[CUDAExtension('square_gpu', ['square_cuda.cpp',
-                                              'square_cuda_kernel.cu'])],
+    name='square_gpu', 
+		ext_modules=[
+			CUDAExtension(
+				name='square_gpu', 
+				sources=['square_cuda.cpp', 'square_cuda_kernel.cu'])
+		],
     cmdclass={'build_ext': BuildExtension}
     )
