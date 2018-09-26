@@ -1,5 +1,4 @@
 #include <torch/torch.h>
-#include <vector>
 
 // Cuda forward declaration
 at::Tensor square_cuda_forward(at::Tensor input);
