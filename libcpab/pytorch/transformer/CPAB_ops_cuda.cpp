@@ -24,8 +24,7 @@ at::Tensor cpab_forward(at::Tensor points_in, //[ndim, n_points]
     CHECK_INPUT(nc_in);
     
     // Call kernel launcher
-    output = cpab_cuda_forward(input);
-    return output;
+    return cpab_cuda_forward(points_in, trels_in, nstepsolver_in, nc_in);
 }
 
 at::Tensor cpab_backward(at::Tensor points_in, // [ndim, nP]
@@ -41,8 +40,7 @@ at::Tensor cpab_backward(at::Tensor points_in, // [ndim, nP]
     CHECK_INPUT(nc);
     
     // Call kernel launcher
-    output = cpab_cuda_backward(input);
-    return output;
+    return cpab_cuda_backward(points_in, As_in, Bs_in, nstepsolver_in, nc);
 }
 
 // Binding

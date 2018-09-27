@@ -17,7 +17,7 @@ from ..helper.setup_constrains_3d import get_constrain_matrix_3D
 
 from .torch_funcs import torch_interpolate_1D
 from .torch_funcs import torch_findcellidx_1D, torch_findcellidx_2D, torch_findcellidx_3D
-from .transformer import CPAB_transformer
+from .transformer_old import CPAB_transformer
 
 #%%
 class params:

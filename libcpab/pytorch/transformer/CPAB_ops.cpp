@@ -155,6 +155,21 @@ void A_times_b(int ndim, float x[], const float* A, float* b){
     return;
 }
 
+void A_times_b_linear(int ndim, float x[], const float* A, float* b){
+    switch(ndim) {
+        case 1: 
+            x[0] = A[0]*b[0];
+        case 2: 
+            x[0] = A[0]*b[0] + A[1]*b[1];
+            x[1] = A[3]*b[0] + A[4]*b[1];
+        case 3:
+            x[0] = A[0]*b[0] + A[1]*b[1] + A[2]*b[2];
+            x[1] = A[4]*b[0] + A[5]*b[1] + A[6]*b[2];
+            x[2] = A[8]*b[0] + A[9]*b[1] + A[10]*b[2];
+    }
+    return;
+}
+
 // Function declaration
 at::Tensor cpab_forward(at::Tensor points_in, //[ndim, n_points]
                         at::Tensor trels_in,  //[batch_size, nC, ndim, ndim+1]
@@ -168,16 +183,19 @@ at::Tensor cpab_forward(at::Tensor points_in, //[ndim, n_points]
 
     // Allocate output
     auto output = at::CPU(at::kFloat).zeros({batch_size, ndim, nP}); // [batch_size, ndim, nP]
+    auto newpoints = output.data<float>();
     
     // Convert to pointers
-    auto points = points_in.data<float>();
-    auto trels = trels_in.data<float>();
-    auto nstepsolver = nstepsolver_in.data<int>();
-    auto nc = nc_in.data<int>();
+    const auto points = points_in.data<float>();
+    const auto trels = trels_in.data<float>();
+    const auto nstepsolver = nstepsolver_in.data<int>();
+    const auto nc = nc_in.data<int>();
     
-    // Make pointers
+    // Make data structures for calculations
     float point[ndim], newpoint[ndim];
     int t, i, j, n, idx, start_idx;
+    
+    // Main loop
     for(t = 0; t < batch_size; t++) { // for all batches
         start_idx = t * stride(ndim, nc);
         for(i = 0; i < nP; i++) { // for all points
@@ -201,7 +219,7 @@ at::Tensor cpab_forward(at::Tensor points_in, //[ndim, n_points]
             }
             // Update output
             for(j = 0; j < ndim; j++){
-                output[t * ndim * nP + i * ndim + j * nP] = point[j]; 
+                newpoints[t * ndim * nP + i * ndim + j * nP] = point[j]; 
             }
         }
     }
@@ -212,7 +230,7 @@ at::Tensor cpab_backward(at::Tensor points_in, // [ndim, nP]
                          at::Tensor As_in, // [n_theta, nC, ndim, ndim+1]
                          at::Tensor Bs_in, // [d, nC, ndim, ndim+1]
                          at::Tensor nstepsolver_in, // scalar
-                         at::Tensor nc){ // ndim length tensor
+                         at::Tensor nc_in){ // ndim length tensor
     // Problem size
     const auto n_theta = As_in.size(0);
     const auto d = Bs_in.size(0);
@@ -222,7 +240,120 @@ at::Tensor cpab_backward(at::Tensor points_in, // [ndim, nP]
     
     // Allocate output
     auto output = at::CPU(at::kFloat).zeros({d, n_theta, ndim, nP});
+    auto grad = output.data<float>();
     
+    // Convert to pointers
+    const auto points = points_in.data<float>();
+    const auto As = As_in.data<float>();
+    const auto Bs = Bs_in.data<float>();
+    const auto nstepsolver = nstepsolver_in.data<int>();
+    const auto nc = nc_in.data<int>();
+    
+    // Make data structures for calculations
+    float p[ndim], v[ndim], pMid[ndim], vMid[ndim], q[ndim], qMid[ndim];
+    float B_times_T[ndim], A_times_dTdAlpha[ndim], u[ndim], uMid[ndim];
+    float Alocal[ndim*(ndim+1)], Blocal[ndim*(ndim+1)];
+
+    // Loop over all transformations
+    for(int batch_index = 0; batch_index < n_theta; batch_index++){
+        // For all points
+        for(int point_index = 0; point_index < nP; point_index++){
+            // For all parameters in the transformations
+            for(int dim_index = 0; dim_index < d; dim_index++){
+                int index = 2 * nP * batch_index + point_index;
+                int boxsize = 2 * nP * n_theta;
+                
+                // Define start index for the matrices belonging to this batch
+                int start_idx = batch_index * stride(ndim, nc);
+                
+                // Get point
+                for(int j = 0; j < ndim; j++){
+                    p[j] = points[point_index + j*index];
+                }
+                
+                double h = (1.0 / nstepsolver[0]);
+                
+                // Integrate velocity field
+                for(int t = 0; t < nstepsolver[0]; t++){
+                    // Get current cell
+                    int cellidx = findcellidx(ndim, p, nc);
+                    
+                    // Get index of A
+                    int params_size = param_pr_cell(ndim);
+                    int As_idx = params_size*cellidx;
+                    
+                    // Extract local A
+                    for(int i = 0; i < params_size; i++){
+                        Alocal[i] = (As + As_idx + start_idx)[i];
+                    }
+                    
+                    // Compute velocity at current location
+                    A_times_b(ndim, v, Alocal, p);
+                    
+                    // Compute midpoint
+                    for(int j = 0; j < ndim; j++){
+                        pMid[j] = p[j] + h*v[j]/2.0;
+                    }
+                    
+                    // Compute velocity at midpoint
+                    A_times_b(ndim, vMid, Alocal, pMid);
+                    
+                    // Get index of B
+                    int Bs_idx = params_size * dim_index * nC + As_idx;
+                    
+                    // Get local B
+                    for(int i = 0; i < params_size; i++){
+                        Blocal[i] = (Bs + Bs_idx)[i];
+                    }
+                    
+                    // Copy q
+                    for(int j = 0; j < ndim; j++){
+                        q[j] = grad[dim_index*boxsize + index + j*nP];
+                    }
+                    
+                    // Step 1: Compute u using the old location
+                    // Find current RHS (term 1 + trem 2)
+                    A_times_b(ndim, B_times_T, Blocal, p); // term 1
+                    A_times_b_linear(ndim, A_times_dTdAlpha, Alocal, q); // term 2
+                    
+                    // Sum both terms
+                    for(int j = 0; j < ndim; j++){
+                        u[j] = B_times_T[j] + A_times_dTdAlpha[j];
+                    }
+                    
+                    // Step 2: Compute mid point
+                    for(int j = 0; j < ndim; j++){
+                        qMid[j] = q[j] + h * u[j]/2.0;
+                    }
+                    
+                    // Step 3: Compute uMid
+                    A_times_b(ndim, B_times_T, Blocal, pMid);
+                    A_times_b_linear(ndim, A_times_dTdAlpha, Alocal, qMid);
+                    
+                    // Sum both terms
+                    for(int j = 0; j < ndim; j++){
+                        uMid[j] = B_times_T[j] + A_times_dTdAlpha[j];
+                    }
+                    
+                    // Update q
+                    for(int j = 0; j < ndim; j++){
+                        q[j] += uMid[j] * h;
+                    }
+                    
+                    // Update gradient
+                    for(int j = 0; j < ndim; j++){
+                        grad[dim_index * boxsize + index + j*nP] = q[j];
+                    }
+                    
+                    // Update p
+                    for(int j = 0; j < ndim; j++){
+                        p[j] += vMid[j]*h;
+                    }
+                    
+                }
+            }
+        }
+    }
     return output;
 }
             

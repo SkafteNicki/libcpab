@@ -11,7 +11,8 @@ import torch
 from torch.utils.cpp_extension import load
 import warnings
 
-from ..torch_funcs import torch_repeat_matrix, torch_expm
+#from ..torch_funcs import torch_repeat_matrix, torch_expm
+from libcpab.pytorch.torch_funcs import torch_repeat_matrix, torch_expm
 
 #%%
 class _notcompiled:
@@ -29,6 +30,10 @@ class _notcompiled:
 #    with warnings.catch_warnings(record=True) as w:
 cpab_cpu = load(name = 'cpab_cpu',
                 sources = ['CPAB_ops.cpp'],
+                verbose=True)
+
+cpab_gpu = load(name = 'cpab_gpu',
+                sources = ['CPAB_ops_cuda.cpp', 'CPAB_ops_cuda_kernel.cu'],
                 verbose=True)
 #    cpu_succes = True
 #except:
