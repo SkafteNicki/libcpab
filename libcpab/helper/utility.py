@@ -64,6 +64,20 @@ def load_basis():
     return basis
 
 #%%
+def load_basis_as_struct():
+    file = load_basis()
+    class struct:
+        pass
+    params = struct()
+    params.basis = file['basis']
+    params.ndim = file['ndim']
+    params.Ashape = file['Ashape']
+    params.nC = file['nC']
+    params.nc = file['nc']
+    params.nstepsolver = file['nstepsolver']
+    return params
+
+#%%
 def uniqueid_generator(x):
     """ Function to generate uniquely id of x bits """
     seed = random.getrandbits(x)

@@ -17,7 +17,8 @@ from ..helper.setup_constrains_3d import get_constrain_matrix_3D
 
 from .torch_funcs import torch_interpolate_1D
 from .torch_funcs import torch_findcellidx_1D, torch_findcellidx_2D, torch_findcellidx_3D
-from .transformer_old import CPAB_transformer
+#from .transformer_old import CPAB_transformer
+from .transformer.transformer import CPAB_transformer
 
 #%%
 class params:
@@ -117,20 +118,16 @@ class cpab(object):
                    'nc': self.params.nc, 'nC': self.params.nC, 'Ashape': self.params.Ashape, 
                    'nstepsolver': self.params.nstepsolver}
             save_obj(obj, self._basis_file)
+            save_obj(obj, self._dir + 'current_basis')
             
-        else: # if it exist, just load it
+        else: # if it exist, just load it and save as current basis
             file = load_obj(self._basis_file)
             self.params.basis = file['basis']
             self.params.constrain_mat = file['constrains']
             self.params.D = file['D']
             self.params.d = file['d']
+            save_obj(file, self._dir + 'current_basis')
             
-        # Create transformer
-        self._transformer = CPAB_transformer(params = self.params,
-                                             findcellidx_func = self.findcellidx,
-                                             device = self.device)
-        self._transformer.to(self.device)
-        
     #%%
     def get_theta_dim(self):
         return self.params.d
@@ -167,8 +164,8 @@ class cpab(object):
         
     #%%
     def transform_grid(self, points, theta):
-        transformed_points = self._transformer(points.to(self.device), 
-                                               theta.to(self.device))
+        transformed_points = CPAB_transformer(points.to(self.device), 
+                                              theta.to(self.device))
         return transformed_points
     
     #%%    
@@ -193,5 +190,3 @@ class cpab(object):
         transformed_points = self.transform_grid(points, theta)
         transformed_data = self.interpolate(data, transformed_points, outsize)
         return transformed_data
-            
-#%%

@@ -142,6 +142,17 @@ def torch_findcellidx_3D(points, ncx, ncy, ncz):
     return cell_idx
 
 #%%
+def torch_findcellidx(ndim, points, nc):
+    if(ndim==1):
+        return torch_findcellidx_1D(points, *nc)
+    elif(ndim==2):
+        return torch_findcellidx_2D(points, *nc)
+    elif(ndim==3):
+        return torch_findcellidx_3D(points, *nc)
+    else:
+        ValueError('What the heck! ndim should only be 1, 2 or 3')
+
+#%%
 def torch_interpolate_1D(data, points):
     n_batch = data.shape[0]
     in_size = data.shape[1]

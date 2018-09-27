@@ -1,4 +1,5 @@
 #include <torch/torch.h>
+#include <iostream>
 
 // Support functions
 int stride(int ndim, const int* nc){
@@ -180,9 +181,9 @@ at::Tensor cpab_forward(at::Tensor points_in, //[ndim, n_points]
     const auto ndim = points_in.size(0);
     const auto nP = points_in.size(1);
     const auto batch_size = trels_in.size(0);
-
+    
     // Allocate output
-    auto output = at::CPU(at::kFloat).zeros({batch_size, ndim, nP}); // [batch_size, ndim, nP]
+    auto output = at::zeros(torch::CPU(at::kFloat), {batch_size, ndim, nP}); // [batch_size, ndim, nP]
     auto newpoints = output.data<float>();
     
     // Convert to pointers
@@ -190,39 +191,40 @@ at::Tensor cpab_forward(at::Tensor points_in, //[ndim, n_points]
     const auto trels = trels_in.data<float>();
     const auto nstepsolver = nstepsolver_in.data<int>();
     const auto nc = nc_in.data<int>();
-    
-    // Make data structures for calculations
-    float point[ndim], newpoint[ndim];
-    int t, i, j, n, idx, start_idx;
-    
+
     // Main loop
-    for(t = 0; t < batch_size; t++) { // for all batches
-        start_idx = t * stride(ndim, nc);
-        for(i = 0; i < nP; i++) { // for all points
-            // Current point            
-            for(j = 0; j < ndim; j++){
+    for(int t = 0; t < batch_size; t++) { // for all batches
+        // Start index for batch
+        int start_idx = t * stride(ndim, nc);
+        
+        for(int i = 0; i < nP; i++) { // for all points
+            // Current point
+            float point[ndim];
+            for(int j = 0; j < ndim; j++){
                 point[j] = points[i + j*nP];
             }
             // Iterate in nStepSolver
-            for(n = 0; n < nstepsolver[0]; n++){
+            for(int n = 0; n < nstepsolver[0]; n++){
                 // Find cell index
-                idx = findcellidx(ndim, point, nc);
+                int idx = findcellidx(ndim, point, nc);
                 
                 // Get mapping
                 const float* tidx = trels + param_pr_cell(ndim)*idx + start_idx;  
                                
                 // Update points
+                float newpoint[ndim];
                 A_times_b(ndim, newpoint, tidx, point);
-                for(j = 0; j < ndim; j++){
+                for(int j = 0; j < ndim; j++){
                     point[j] = newpoint[j];
                 }
             }
             // Update output
-            for(j = 0; j < ndim; j++){
-                newpoints[t * ndim * nP + i * ndim + j * nP] = point[j]; 
-            }
+            for(int j = 0; j < ndim; j++){
+                newpoints[t * ndim * nP + i + j * nP] = point[j]; 
+            }            
         }
     }
+    
     return output;
 }
 

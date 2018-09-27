@@ -66,8 +66,8 @@ __global__ void calcTrans_kernel(const int nP, const int batch_size,
         point[2] = points[point_index + 2*nP];
     
         // Define start index for the matrices belonging to this batch
-        // batch * 12 params pr cell * 8 triangles pr cell * cell in x * cell in y * cell in z
-        int start_idx = batch_index * 12 * 8 * ncx[0] * ncy[0] * ncz[0]; 
+        // batch * 12 params pr cell * 6 triangles pr cell * cell in x * cell in y * cell in z
+        int start_idx = batch_index * 12 * 6 * ncx[0] * ncy[0] * ncz[0]; 
     
         // Iterate in nStepSolver
         int cellidx;
@@ -130,8 +130,8 @@ __global__ void  calcGrad_kernel(dim3 nthreads, const int n_theta, const int d, 
                     int boxsize = 3 * nP * n_theta;
                 
                     // Define start index for the matrices belonging to this batch
-                    // batch * 12 params pr cell * 8 triangles pr cell * cell in x * cell in y * cell in z
-                    int start_idx = batch_index * 12 * 8 * ncx[0] * ncy[0] * ncz[0]; 
+                    // batch * 12 params pr cell * 6 triangles pr cell * cell in x * cell in y * cell in z
+                    int start_idx = batch_index * 12 * 6 * ncx[0] * ncy[0] * ncz[0]; 
                     
                     // Initilize gradient to zero
                     grad[dim_index*boxsize + index] = 0;

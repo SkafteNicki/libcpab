@@ -68,7 +68,7 @@ class CalcTransCPU : public OpKernel {
             const int nStepSolver = nStepSolver_in.flat<int>()(0);
             const int ncx = ncx_in.flat<int>()(0);
             const int ncy = ncy_in.flat<int>()(0);
-        	   const int ncz = ncz_in.flat<int>()(0);
+        	const int ncz = ncz_in.flat<int>()(0);
         
             // Loop over all transformations and all points    
             for(int t = 0; t < batch_size; t++){
@@ -80,7 +80,7 @@ class CalcTransCPU : public OpKernel {
                     float point[3];
                     point[0] = points(0,i);
                     point[1] = points(1,i);
-            		  point[2] = points(2,i);
+            		point[2] = points(2,i);
                         
                     // Iterate in nStepSolver
                     int cellidx;
@@ -103,7 +103,7 @@ class CalcTransCPU : public OpKernel {
                     // Copy to output
                     newpoints(t,0,i) = point[0];
                     newpoints(t,1,i) = point[1];
-            		  newpoints(t,2,i) = point[2];
+            		newpoints(t,2,i) = point[2];
                 }    
             } 
         } // end compute method
