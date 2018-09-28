@@ -47,7 +47,7 @@ class cpab(object):
             '''Argument zero_boundary must be True or False'''
         assert type(volume_perservation) == bool, \
             '''Argument volume_perservation must be True or False'''
-        if device=='gpu':
+        if device=='gpu' or device=='cuda':
             assert torch.cuda.is_available(), \
                 '''Cannot use gpu because cuda is not availble'''
             
@@ -70,7 +70,8 @@ class cpab(object):
             '''Non zero boundary is not implemented for 3D'''
         
         # Device settings
-        self.device = torch.device('cuda') if device == 'gpu' else torch.device('cpu')
+        self.device = torch.device('cuda') if (device == 'gpu' or device == 'cuda') \
+											else torch.device('cpu')
         
         # For saving the basis
         self._dir = get_dir(__file__) + '/../basis_files/'

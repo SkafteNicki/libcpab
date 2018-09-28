@@ -48,7 +48,7 @@ try:
                         sources = [_dir + '/CPAB_ops_cuda.cpp', 
                                    _dir + '/CPAB_ops_cuda_kernel.cu'],
                         verbose=True)
-    cpab_gpu = True
+    gpu_succes = True
     print('succesfully compiled gpu source')    
 except:
     cpab_gpu = _notcompiled()
@@ -87,9 +87,15 @@ class _IntegrationFunction(torch.autograd.Function):
         
         # Call integrator
         if points.is_cuda:
-            newpoints = cpab_gpu.forward(points, Trels, nstepsolver, nc)
+            newpoints = cpab_gpu.forward(points.contiguous(), 
+																				 Trels.contiguous(), 
+																				 nstepsolver.contiguous(), 
+																				 nc.contiguous())
         else:            
-            newpoints = cpab_cpu.forward(points, Trels, nstepsolver, nc)
+            newpoints = cpab_cpu.forward(points.contiguous(), 
+																				 Trels.contiguous(), 
+																				 nstepsolver.contiguous(), 
+																				 nc.contiguous())
             
         # Save of backward
         Bs = B.t().view(-1, params.nC, *params.Ashape)
@@ -106,9 +112,17 @@ class _IntegrationFunction(torch.autograd.Function):
         
         # Call integrator, gradient: [d, n_theta, ndim, n]
         if points.is_cuda:
-            gradient = cpab_gpu.backward(points, As, Bs, nstepsolver, nc)
+            gradient = cpab_gpu.backward(points.contiguous(), 
+																				 As.contiguous(), 
+																				 Bs.contiguous(), 
+																				 nstepsolver.contiguous(), 
+																				 nc.contiguous())
         else:
-            gradient = cpab_cpu.backward(points, As, Bs, nstepsolver, nc)
+            gradient = cpab_cpu.backward(points.contiguous(), 
+																				 As.contiguous(), 
+																				 Bs.contiguous(), 
+																				 nstepsolver.contiguous(), 
+																				 nc.contiguous())
             
         # Backpropagate and reduce to [d,1] vector
         gradient = torch.sum(grad * gradient, dim=(2,3)) 
