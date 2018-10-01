@@ -33,35 +33,33 @@ _dir = get_dir(__file__)
 
 # Jit compile cpu source
 try:
-    with warnings.catch_warnings(record=True) as w:        
+    with warnings.catch_warnings(record=True):        
         cpab_cpu = load(name = 'cpab_cpu',
                         sources = [_dir + '/CPAB_ops.cpp'],
                         verbose=_verbose)
     _cpu_succes = True
     if _verbose:
-        print(w)
         print('succesfully compiled cpu source')    
 except:
     cpab_cpu = _notcompiled()
     _cpu_succes = False
-    if _verbose(w):
+    if _verbose:
         print('Unsuccesfully compiled cpu source')
 
 # Jit compile gpu source
 try:
-    with warnings.catch_warnings(record=True) as w:
+    with warnings.catch_warnings(record=True):
         cpab_gpu = load(name = 'cpab_gpu',
                         sources = [_dir + '/CPAB_ops_cuda.cpp', 
                                    _dir + '/CPAB_ops_cuda_kernel.cu'],
                         verbose=_verbose)
     _gpu_succes = True
     if _verbose:
-        print(w)
         print('succesfully compiled gpu source')    
 except:
     cpab_gpu = _notcompiled()
     _gpu_succes = False
-    if _verbose(w):
+    if _verbose:
         print('Unsuccesfully compiled gpu source')
 
 #%%
