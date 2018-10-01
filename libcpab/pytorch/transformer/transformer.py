@@ -27,19 +27,25 @@ class _notcompiled:
 # Try to compile the cpu and gpu version. The warning statement will fix 
 # ABI-incompatible warning I am getting. Is not nessesary with a newer version
 # of gcc compiler. The try-statement makes sure that we default to a slower
-# version if we fail to compile one of the versions        
+# version if we fail to compile one of the versions     
+_verbose = False
 _dir = get_dir(__file__)        
+
 # Jit compile cpu source
 try:
     with warnings.catch_warnings(record=True) as w:        
         cpab_cpu = load(name = 'cpab_cpu',
                         sources = [_dir + '/CPAB_ops.cpp'],
-                        verbose=True)
-    cpu_succes = True
-    print('succesfully compiled cpu source')    
+                        verbose=_verbose)
+    _cpu_succes = True
+    if _verbose:
+        print(w)
+        print('succesfully compiled cpu source')    
 except:
     cpab_cpu = _notcompiled()
-    cpu_succes = False
+    _cpu_succes = False
+    if _verbose(w):
+        print('Unsuccesfully compiled cpu source')
 
 # Jit compile gpu source
 try:
@@ -47,15 +53,19 @@ try:
         cpab_gpu = load(name = 'cpab_gpu',
                         sources = [_dir + '/CPAB_ops_cuda.cpp', 
                                    _dir + '/CPAB_ops_cuda_kernel.cu'],
-                        verbose=True)
-    gpu_succes = True
-    print('succesfully compiled gpu source')    
+                        verbose=_verbose)
+    _gpu_succes = True
+    if _verbose:
+        print(w)
+        print('succesfully compiled gpu source')    
 except:
     cpab_gpu = _notcompiled()
-    gpu_succes = False
+    _gpu_succes = False
+    if _verbose(w):
+        print('Unsuccesfully compiled gpu source')
 
 #%%
-class _IntegrationFunction(torch.autograd.Function):
+class _CPABFunction(torch.autograd.Function):
     # Function that connects the forward pass to the backward pass
     @staticmethod
     def forward(ctx, points, theta):
@@ -88,14 +98,14 @@ class _IntegrationFunction(torch.autograd.Function):
         # Call integrator
         if points.is_cuda:
             newpoints = cpab_gpu.forward(points.contiguous(), 
-																				 Trels.contiguous(), 
-																				 nstepsolver.contiguous(), 
-																				 nc.contiguous())
+												Trels.contiguous(), 
+												nstepsolver.contiguous(), 
+												nc.contiguous())
         else:            
             newpoints = cpab_cpu.forward(points.contiguous(), 
-																				 Trels.contiguous(), 
-																				 nstepsolver.contiguous(), 
-																				 nc.contiguous())
+												Trels.contiguous(), 
+												nstepsolver.contiguous(), 
+												nc.contiguous())
             
         # Save of backward
         Bs = B.t().view(-1, params.nC, *params.Ashape)
@@ -113,16 +123,16 @@ class _IntegrationFunction(torch.autograd.Function):
         # Call integrator, gradient: [d, n_theta, ndim, n]
         if points.is_cuda:
             gradient = cpab_gpu.backward(points.contiguous(), 
-																				 As.contiguous(), 
-																				 Bs.contiguous(), 
-																				 nstepsolver.contiguous(), 
-																				 nc.contiguous())
+												As.contiguous(), 
+												Bs.contiguous(), 
+												nstepsolver.contiguous(), 
+												nc.contiguous())
         else:
             gradient = cpab_cpu.backward(points.contiguous(), 
-																				 As.contiguous(), 
-																				 Bs.contiguous(), 
-																				 nstepsolver.contiguous(), 
-																				 nc.contiguous())
+												As.contiguous(), 
+												Bs.contiguous(), 
+												nstepsolver.contiguous(), 
+												nc.contiguous())
             
         # Backpropagate and reduce to [d,1] vector
         gradient = torch.sum(grad * gradient, dim=(2,3)) 
@@ -130,7 +140,7 @@ class _IntegrationFunction(torch.autograd.Function):
 
 #%%
 def _fast_transformer(points, theta):
-    return _IntegrationFunction.apply(points, theta)
+    return _CPABFunction.apply(points, theta)
 
 #%%
 def _slow_transformer(points, theta):
@@ -190,17 +200,21 @@ def CPAB_transformer(points, theta):
         function. If the fast versions have been successfully compiled, then these
         will be used, else default to the slow versions '''
     if points.is_cuda and theta.is_cuda:
-        if gpu_succes:
-            print('fast gpu version')
+        if _gpu_succes:
+            if _verbose: print('fast gpu version')
             newpoints = _fast_transformer(points, theta)
         else:
-            print('slow gpu version')
+            if _verbose: print('slow gpu version')
             newpoints = _slow_transformer(points, theta)
     else:
-        if cpu_succes:
-            print('fast cpu version')
+        if _cpu_succes:
+            if _verbose: print('fast cpu version')
             newpoints = _fast_transformer(points, theta)
         else:
-            print('slow cpu version')
+            if _verbose: print('slow cpu version')
             newpoints = _slow_transformer(points, theta)
     return newpoints       
+
+#%%
+if __name__ == '__main__':
+    pass
