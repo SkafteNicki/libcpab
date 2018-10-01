@@ -107,33 +107,33 @@ class _CPABFunction(torch.autograd.Function):
             
         # Save of backward
         Bs = B.t().view(-1, params.nC, *params.Ashape)
+        As = As.view(n_theta, params.nC, *params.Ashape)
         ctx.save_for_backward(points, theta, As, Bs, nstepsolver, nc)
         # Output result
         return newpoints
 
     @staticmethod
     @torch.autograd.function.once_differentiable
-    def backward(ctx, grad): # grad [d, n_theta, ndim, n]
+    def backward(ctx, grad): # grad [n_theta, ndim, n]
         # Grap input
-        saved_tensors, = ctx.saved_tensors
-        points, theta, As, Bs, nstepsolver, nc = saved_tensors
+        points, theta, As, Bs, nstepsolver, nc = ctx.saved_tensors
         
         # Call integrator, gradient: [d, n_theta, ndim, n]
         if points.is_cuda:
             gradient = cpab_gpu.backward(points.contiguous(), 
-												As.contiguous(), 
-												Bs.contiguous(), 
-												nstepsolver.contiguous(), 
-												nc.contiguous())
+                                         As.contiguous(), 
+                                         Bs.contiguous(), 
+                                         nstepsolver.contiguous(), 
+                                         nc.contiguous())
         else:
             gradient = cpab_cpu.backward(points.contiguous(), 
-												As.contiguous(), 
-												Bs.contiguous(), 
-												nstepsolver.contiguous(), 
-												nc.contiguous())
+                                         As.contiguous(), 
+                                         Bs.contiguous(), 
+                                         nstepsolver.contiguous(), 
+                                         nc.contiguous())
             
-        # Backpropagate and reduce to [d,1] vector
-        gradient = torch.sum(grad * gradient, dim=(2,3)) 
+        # Backpropagate and reduce to [n_theta, d] vector
+        gradient = torch.sum(grad * gradient, dim=(2,3)).t()
         return None, gradient
 
 #%%
