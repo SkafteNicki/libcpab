@@ -29,6 +29,7 @@ class _notcompiled:
 # of gcc compiler. The try-statement makes sure that we default to a slower
 # version if we fail to compile one of the versions     
 _verbose = False
+_use_slow = False
 _dir = get_dir(__file__)        
 
 # Jit compile cpu source
@@ -198,14 +199,14 @@ def CPAB_transformer(points, theta):
         function. If the fast versions have been successfully compiled, then these
         will be used, else default to the slow versions '''
     if points.is_cuda and theta.is_cuda:
-        if _gpu_succes:
+        if _gpu_succes and not _use_slow:
             if _verbose: print('fast gpu version')
             newpoints = _fast_transformer(points, theta)
         else:
             if _verbose: print('slow gpu version')
             newpoints = _slow_transformer(points, theta)
     else:
-        if _cpu_succes:
+        if _cpu_succes and not _use_slow:
             if _verbose: print('fast cpu version')
             newpoints = _fast_transformer(points, theta)
         else:
