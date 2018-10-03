@@ -9,6 +9,30 @@ Created on Mon Aug 27 10:55:31 2018
 import torch
 
 #%%
+def memconsumption():
+    """ Report the memory consumption """
+    import gc
+    import numpy as np
+    total = 0
+    for obj in gc.get_objects():
+        try:
+             if torch.is_tensor(obj) or (hasattr(obj, 'data') and torch.is_tensor(obj.data)):
+                if len(obj.size()) > 0:
+#                    print(type(obj), obj.size(), obj.dtype, obj.device)
+                    print('{:22s} {:40s} {:15s} {:10s}'.format(str(type(obj)), str(obj.size()), str(obj.dtype), str(obj.device)))
+                    if obj.type() == 'torch.cuda.FloatTensor':
+                        total += np.prod(obj.size()) * 32
+                    elif obj.type() == 'torch.cuda.LongTensor':
+                        total += np.prod(obj.size()) * 64
+                    elif obj.type() == 'torch.cuda.IntTensor':
+                        total += np.prod(obj.size()) * 32
+                    #else:
+                    # Few non-cuda tensors in my case from dataloader
+        except Exception as e:
+             pass
+    print("{} GB".format(total/((1024**3) * 8)))
+
+#%%
 def torch_mymin(a,b):
     return torch.where(a<b, a, torch.round(b))
 

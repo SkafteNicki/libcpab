@@ -133,9 +133,9 @@ class _CPABFunction(torch.autograd.Function):
                                          nstepsolver.contiguous(), 
                                          nc.contiguous())
             
-        # Backpropagate and reduce to [n_theta, d] vector
-        gradient = torch.sum(grad * gradient, dim=(2,3)).t()
-        return None, gradient
+        # Backpropagate and reduce to [d, n_theta] matrix
+        g = gradient.mul_(grad).sum(dim=(2,3))
+        return None, g.t() # transpose, since pytorch expects a [n_theta, d] matrix
 
 #%%
 def _fast_transformer(points, theta):
