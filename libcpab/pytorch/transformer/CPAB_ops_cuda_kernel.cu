@@ -310,8 +310,8 @@ __global__ void   cpab_cuda_kernel_backward_1D(dim3 nthreads, const int n_theta,
         float Alocal[2], Blocal[2];
         int cellidx;
         
-        CUDA_AXIS_KERNEL_LOOP(batch_index, nthreads, x) {
-            CUDA_AXIS_KERNEL_LOOP(point_index, nthreads, y) {
+        CUDA_AXIS_KERNEL_LOOP(point_index, nthreads, x) {
+            CUDA_AXIS_KERNEL_LOOP(batch_index, nthreads, y) {
                 CUDA_AXIS_KERNEL_LOOP(dim_index, nthreads, z) {
                     int index = nP * batch_index + point_index;
                     int boxsize = nP * n_theta;
@@ -405,8 +405,8 @@ __global__ void   cpab_cuda_kernel_backward_2D(dim3 nthreads, const int n_theta,
         float Alocal[6], Blocal[6];
         int cellidx;
         
-        CUDA_AXIS_KERNEL_LOOP(batch_index, nthreads, x) {
-            CUDA_AXIS_KERNEL_LOOP(point_index, nthreads, y) {
+        CUDA_AXIS_KERNEL_LOOP(point_index, nthreads, x) {
+            CUDA_AXIS_KERNEL_LOOP(batch_index, nthreads, y) {    
                 CUDA_AXIS_KERNEL_LOOP(dim_index, nthreads, z) {
                     int index = 2 * nP * batch_index + point_index;
                     int boxsize = 2 * nP * n_theta;
@@ -510,8 +510,8 @@ __global__ void   cpab_cuda_kernel_backward_3D(dim3 nthreads, const int n_theta,
         float Alocal[12], Blocal[12];
         int cellidx;
         
-        CUDA_AXIS_KERNEL_LOOP(batch_index, nthreads, x) {
-            CUDA_AXIS_KERNEL_LOOP(point_index, nthreads, y) {
+        CUDA_AXIS_KERNEL_LOOP(point_index, nthreads, x) {
+            CUDA_AXIS_KERNEL_LOOP(batch_index, nthreads, y) {    
                 CUDA_AXIS_KERNEL_LOOP(dim_index, nthreads, z) {
                     int index = 3 * nP * batch_index + point_index;
                     int boxsize = 3 * nP * n_theta;
@@ -620,7 +620,7 @@ at::Tensor cpab_cuda_forward(at::Tensor points_in,
                              at::Tensor trels_in,  
                              at::Tensor nstepsolver_in, 
                              at::Tensor nc_in, 
-														 at::Tensor output){
+							 at::Tensor output){
     // Problem size
     const auto ndim = points_in.size(0);
     const auto nP = points_in.size(1);
@@ -640,7 +640,7 @@ at::Tensor cpab_cuda_forward(at::Tensor points_in,
                                                nstepsolver_in.data<int>(),
                                                nc_in.data<int>());
 		}
-		if(ndim == 2){
+	if(ndim == 2){
       cpab_cuda_kernel_forward_2D<<<bc, tpb>>>(nP, batch_size,
                                                output.data<float>(),
                                                points_in.data<float>(),
@@ -648,7 +648,7 @@ at::Tensor cpab_cuda_forward(at::Tensor points_in,
                                                nstepsolver_in.data<int>(),
                                                nc_in.data<int>());
 		}
-		if(ndim == 3){
+	if(ndim == 3){
       cpab_cuda_kernel_forward_3D<<<bc, tpb>>>(nP, batch_size,
                                                output.data<float>(),
                                                points_in.data<float>(),
@@ -656,7 +656,7 @@ at::Tensor cpab_cuda_forward(at::Tensor points_in,
                                                nstepsolver_in.data<int>(),
                                                nc_in.data<int>());
     }
-		gpuErrchk( cudaPeekAtLastError() );                                             
+	gpuErrchk( cudaPeekAtLastError() );                                             
     return output;           
 }
 
@@ -665,7 +665,7 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
                               at::Tensor Bs_in, 
                               at::Tensor nstepsolver_in,
                               at::Tensor nc_in,
-															at::Tensor output){
+		     				  at::Tensor output){
                               
     // Problem size
     const auto n_theta = As_in.size(0);
@@ -675,13 +675,13 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
     const auto nC = Bs_in.size(1);
     
     // Kernel configuration
-    dim3 tpb = dim3(std::min((int)n_theta, 4), std::min((int)nP, 128), std::min((int)d, 1));
-    dim3 bc = dim3(DIV_UP(n_theta, tpb.x), DIV_UP(nP, tpb.y), DIV_UP(d, tpb.z));
-    dim3 vtc = dim3(n_theta, nP, d);
+    dim3 tpb = dim3(std::min((int)nP, 128), std::min((int)n_theta, 4), std::min((int)d, 1));
+    dim3 bc = dim3(DIV_UP(nP, tpb.x), DIV_UP(n_theta, tpb.y), DIV_UP(d, tpb.z));
+    dim3 vtc = dim3(nP, n_theta, d);
     
     // Launch kernel
     // We do it in this way, since dynamically allocating memory in CUDA sucks!
-		if(ndim == 1){
+	if(ndim == 1){
       cpab_cuda_kernel_backward_1D<<<bc, tpb>>>(vtc, n_theta, d, nP, nC,
                                                 output.data<float>(), 
                                                 points_in.data<float>(), 
@@ -689,8 +689,8 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
                                                 Bs_in.data<float>(),
                                                 nstepsolver_in.data<int>(), 
                                                 nc_in.data<int>());
-		}
-		if(ndim == 2){
+	}
+	if(ndim == 2){
       cpab_cuda_kernel_backward_2D<<<bc, tpb>>>(vtc, n_theta, d, nP, nC,
                                                 output.data<float>(), 
                                                 points_in.data<float>(), 
@@ -698,8 +698,8 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
                                                 Bs_in.data<float>(),
                                                 nstepsolver_in.data<int>(), 
                                                 nc_in.data<int>());
-		}
- 		if(ndim == 3){
+	}
+ 	if(ndim == 3){
       cpab_cuda_kernel_backward_3D<<<bc, tpb>>>(vtc, n_theta, d, nP, nC,
                                                 output.data<float>(), 
                                                 points_in.data<float>(), 
@@ -708,7 +708,7 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
                                                 nstepsolver_in.data<int>(), 
                                                 nc_in.data<int>());
     }
-		gpuErrchk( cudaPeekAtLastError() );                                               
+	gpuErrchk( cudaPeekAtLastError() );                                               
     return output;
 }
 
