@@ -28,7 +28,7 @@ class _notcompiled:
 # ABI-incompatible warning I am getting. Is not nessesary with a newer version
 # of gcc compiler. The try-statement makes sure that we default to a slower
 # version if we fail to compile one of the versions     
-_verbose = False
+_verbose = True
 _use_slow = False
 _dir = get_dir(__file__)        
 
@@ -40,12 +40,18 @@ try:
                         verbose=_verbose)
     _cpu_succes = True
     if _verbose:
-        print('succesfully compiled cpu source')    
-except:
+        print(70*'=')
+        print('succesfully compiled cpu source')
+        print(70*'=')
+except Exception as e:
     cpab_cpu = _notcompiled()
     _cpu_succes = False
     if _verbose:
+        print(70*'=')
         print('Unsuccesfully compiled cpu source')
+        print('Error was: ')
+        print(e)
+        print(70*'=')
 
 # Jit compile gpu source
 try:
@@ -56,12 +62,18 @@ try:
                         verbose=_verbose)
     _gpu_succes = True
     if _verbose:
-        print('succesfully compiled gpu source')    
-except:
+        print(70*'=')
+        print('succesfully compiled gpu source')
+        print(70*'=')
+except Exception as e:
     cpab_gpu = _notcompiled()
     _gpu_succes = False
     if _verbose:
+        print(70*'=')
         print('Unsuccesfully compiled gpu source')
+        print('Error was: ')
+        print(e)
+        print(70*'=')
 
 #%%
 class _CPABFunction(torch.autograd.Function):

@@ -92,24 +92,24 @@ if __name__ == '__main__':
     print('\n--- Loading data ---\n')
     # Load some data
     data1 = LoadBrain('data/IBSR_01_ana_strip.csv')
-    
+    print(data1.shape)    
     # Extracting a (s1,s2,s3) patch of the data
     data1 = SliceBrain(data1,slice_size)
     data1 = Normalize(data1)
     data1 = np.expand_dims(data1, 0) #Create color channel effect
     data1 = np.expand_dims(data1, 0) # create batch effect
-    data1 = torch.Tensor(data1)
-    
+    data1 = torch.Tensor(data1).cuda()
+    print(data1.shape)    
     # Loading another img.
     data2 = LoadBrain('data/IBSR_02_ana_strip.csv')
-    
+    print(data2.shape)
     # Extracting a (s1,s2,s3) patch of the data
     data2 = SliceBrain(data2,slice_size)
     data2 = Normalize(data2)
     data2 = np.expand_dims(data2, 0) #Create color channel effect
     data2 = np.expand_dims(data2, 0) # create batch effect
-    data2 = torch.Tensor(data2)
-    
+    data2 = torch.Tensor(data2).cuda()
+    print(data1.shape)
     print('--- Setting up tessalation and optimization parameters ---\n')
     # Now, create pytorch procedure that enables us to estimate the transformation
     # we have just used for transforming the data
@@ -124,6 +124,7 @@ if __name__ == '__main__':
     losses = []
     for i in range(maxiter):
         trans_est = T2.transform_data(data1, theta_est, outsize=slice_size)
+        print(trans_est.shape)
         loss = (data2 - trans_est).abs().pow(2).mean()
         optimizer.zero_grad()
         loss.backward()

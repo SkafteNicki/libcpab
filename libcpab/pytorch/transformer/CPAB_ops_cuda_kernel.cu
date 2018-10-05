@@ -509,10 +509,17 @@ __global__ void   cpab_cuda_kernel_backward_3D(dim3 nthreads, const int n_theta,
         float B_times_T[3], A_times_dTdAlpha[3], u[3], uMid[3];
         float Alocal[12], Blocal[12];
         int cellidx;
-        
-        CUDA_AXIS_KERNEL_LOOP(point_index, nthreads, x) {
-            CUDA_AXIS_KERNEL_LOOP(batch_index, nthreads, y) {    
-                CUDA_AXIS_KERNEL_LOOP(dim_index, nthreads, z) {
+
+	int point_index = threadIdx.x + blockIdx.x * blockDim.x;
+        int batch_index = threadIdx.y + blockIdx.y * blockDim.y;
+        int dim_index = threadIdx.z + blockIdx.z * blockIdx.z;
+        if(point_index < nP && batch_index < n_theta && dim_index < d){
+//        CUDA_AXIS_KERNEL_LOOP(point_index, nthreads, x) {
+//            CUDA_AXIS_KERNEL_LOOP(batch_index, nthreads, y) {    
+//                CUDA_AXIS_KERNEL_LOOP(dim_index, nthreads, z) {
+//                    if(threadIdx.x == 128 && threadIdx.y == 0 && threadIdx.z == 0 && blockIdx.x == 1529 && blockIdx.y == 0 && blockIdx == 86){
+//			printf("hest");
+//		}
                     int index = 3 * nP * batch_index + point_index;
                     int boxsize = 3 * nP * n_theta;
                 
@@ -524,7 +531,7 @@ __global__ void   cpab_cuda_kernel_backward_3D(dim3 nthreads, const int n_theta,
                     grad[dim_index*boxsize + index] = 0;
                     grad[dim_index*boxsize + index + nP] = 0;
                     grad[dim_index*boxsize + index + 2 * nP] = 0;
-
+                    
                     // Get point
                     p[0] = points[point_index];
                     p[1] = points[point_index + nP];
@@ -609,8 +616,8 @@ __global__ void   cpab_cuda_kernel_backward_3D(dim3 nthreads, const int n_theta,
                         p[1] += vMid[1]*h;
                         p[2] += vMid[2]*h;
                     }
-                }
-            }
+//                }
+//            }
         }
         return;
 }
@@ -678,6 +685,10 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
     dim3 tpb = dim3(std::min((int)nP, 128), std::min((int)n_theta, 4), std::min((int)d, 1));
     dim3 bc = dim3(DIV_UP(nP, tpb.x), DIV_UP(n_theta, tpb.y), DIV_UP(d, tpb.z));
     dim3 vtc = dim3(nP, n_theta, d);
+    
+    std::cout << "threads per block " << tpb.x << ", " << tpb.y << ", " << tpb.z << std::endl;
+    std::cout << "num blocks " << bc.x << ", " << bc.y << ", " << bc.z << std::endl;
+    std::cout << "vertual thread count " << vtc.x << ", " << vtc.y << ", " << vtc.z << std::endl;
     
     // Launch kernel
     // We do it in this way, since dynamically allocating memory in CUDA sucks!
