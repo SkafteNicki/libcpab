@@ -5,6 +5,7 @@ Created on Mon Oct  1 07:59:09 2018
 @author: nsde
 """
 #%%
+import torch
 from torch.utils.cpp_extension import load
 
 #%%

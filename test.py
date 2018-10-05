@@ -12,7 +12,7 @@ Created on Mon Oct  1 08:09:00 2018
 from libcpab.pytorch import cpab
 import torch
 import numpy as np
-import csv, sys
+import csv, sys, time
 
 #%%
 def LoadBrain(filename): 
@@ -122,9 +122,9 @@ if __name__ == '__main__':
     
     # Optimization loop
     losses = []
+    start = time.time()
     for i in range(maxiter):
         trans_est = T2.transform_data(data1, theta_est, outsize=slice_size)
-        print(trans_est.shape)
         loss = (data2 - trans_est).abs().pow(2).mean()
         optimizer.zero_grad()
         loss.backward()
@@ -134,3 +134,4 @@ if __name__ == '__main__':
         del loss
         
     print('\n --- Training is done ---\n')
+    print('Total time', time.time() - start)

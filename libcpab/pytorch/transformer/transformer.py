@@ -28,7 +28,7 @@ class _notcompiled:
 # ABI-incompatible warning I am getting. Is not nessesary with a newer version
 # of gcc compiler. The try-statement makes sure that we default to a slower
 # version if we fail to compile one of the versions     
-_verbose = True
+_verbose = False
 _use_slow = False
 _dir = get_dir(__file__)        
 

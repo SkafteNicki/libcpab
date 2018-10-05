@@ -5,10 +5,6 @@
 
 #define DIV_UP(a, b) (((a) + (b)-1) / (b))
 
-#define CUDA_AXIS_KERNEL_LOOP(i, n, axis)                                 \
-  for(int i = blockIdx.axis * blockDim.axis + threadIdx.axis; i < n.axis; \
-	     i += blockDim.axis * gridDim.axis)
-
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -289,7 +285,7 @@ __global__ void cpab_cuda_kernel_forward_3D(const int nP, const int batch_size,
 
             point[0] = point_updated[0];
             point[1] = point_updated[1];
-    	    	point[2] = point_updated[2];
+            point[2] = point_updated[2];
         }
     
         // Copy to output
@@ -300,9 +296,9 @@ __global__ void cpab_cuda_kernel_forward_3D(const int nP, const int batch_size,
     return;                            
 }
 
-__global__ void   cpab_cuda_kernel_backward_1D(dim3 nthreads, const int n_theta, const int d, const int nP, const int nC,
-                                               float* grad, const float* points, const float* As, const float* Bs,
-                                               const int* nStepSolver, const int* nc) {
+__global__ void cpab_cuda_kernel_backward_1D(dim3 nthreads, const int n_theta, const int d, const int nP, const int nC,
+                                             float* grad, const float* points, const float* As, const float* Bs,
+                                             const int* nStepSolver, const int* nc) {
         
         // Allocate memory for computations
         float p[1], v[1], pMid[1], vMid[1], q[1], qMid[1];
@@ -310,86 +306,88 @@ __global__ void   cpab_cuda_kernel_backward_1D(dim3 nthreads, const int n_theta,
         float Alocal[2], Blocal[2];
         int cellidx;
         
-        CUDA_AXIS_KERNEL_LOOP(point_index, nthreads, x) {
-            CUDA_AXIS_KERNEL_LOOP(batch_index, nthreads, y) {
-                CUDA_AXIS_KERNEL_LOOP(dim_index, nthreads, z) {
-                    int index = nP * batch_index + point_index;
-                    int boxsize = nP * n_theta;
-                
-                    // Define start index for the matrices belonging to this batch
-                    // batch * 2 params pr cell * cell in x
-                    int start_idx = batch_index * 2 * nc[0]; 
-                    
-                    // Initilize gradient to zero
-                    grad[dim_index*boxsize + index] = 0;
+        // Thread index
+        int point_index = threadIdx.x + blockIdx.x * blockDim.x;
+        int batch_index = threadIdx.y + blockIdx.y * blockDim.y;
+        int dim_index = threadIdx.z + blockIdx.z * blockIdx.z;
+        
+        // Make sure we are within bounds
+        if(point_index < nP && batch_index < n_theta && dim_index < d){
+            int index = nP * batch_index + point_index;
+            int boxsize = nP * n_theta;
+        
+            // Define start index for the matrices belonging to this batch
+            // batch * 2 params pr cell * cell in x
+            int start_idx = batch_index * 2 * nc[0]; 
+            
+            // Initilize gradient to zero
+            grad[dim_index*boxsize + index] = 0;
 
-                    // Get point
-                    p[0] = points[point_index];
-                    
-                    // Step size for solver
-                    double h = (1.0 / nStepSolver[0]);
+            // Get point
+            p[0] = points[point_index];
+            
+            // Step size for solver
+            double h = (1.0 / nStepSolver[0]);
+        
+            // Iterate a number of times
+            for(int t=0; t<nStepSolver[0]; t++) {
+                // Get current cell
+                cellidx = findcellidx_1D(p, nc[0]);
                 
-                    // Iterate a number of times
-                    for(int t=0; t<nStepSolver[0]; t++) {
-                        // Get current cell
-                        cellidx = findcellidx_1D(p, nc[0]);
-                        
-                        // Get index of A
-                        int As_idx = 2*cellidx;
-                        
-                        // Extract local A
-                        for(int i = 0; i < 2; i++){
-                            Alocal[i] = (As + As_idx + start_idx)[i];
-                        }
-                        
-                        // Compute velocity at current location
-                        A_times_b_1D(v, Alocal, p);
-                        
-                        // Compute midpoint
-                        pMid[0] = p[0] + h*v[0]/2.0;
-                        
-                        // Compute velocity at midpoint
-                        A_times_b_1D(vMid, Alocal, pMid);
-                        
-                        // Get index of B
-                        int Bs_idx = 2 * dim_index * nC + As_idx;
-                        
-                        // Get local B
-                        for(int i = 0; i < 2; i++){
-                            Blocal[i] = (Bs + Bs_idx)[i];
-                        }
-                        
-                        // Copy q
-                        q[0] = grad[dim_index*boxsize + index];
+                // Get index of A
+                int As_idx = 2*cellidx;
                 
-                        // Step 1: Compute u using the old location
-                        // Find current RHS (term 1 + term 2)
-                        A_times_b_1D(B_times_T, Blocal, p); // Term 1
-                        A_times_b_linear_1D(A_times_dTdAlpha, Alocal, q); // Term 2
-                
-                        // Sum both terms
-                        u[0] = B_times_T[0] + A_times_dTdAlpha[0];
-                
-                        // Step 2: Compute mid "point"
-                        qMid[0] = q[0] + h * u[0]/2.0;
-                
-                        // Step 3: Compute uMid
-                        A_times_b_1D(B_times_T, Blocal, pMid); // Term 1
-                        A_times_b_linear_1D(A_times_dTdAlpha, Alocal, qMid); // Term 2
-                
-                        // Sum both terms
-                        uMid[0] = B_times_T[0] + A_times_dTdAlpha[0];
-
-                        // Update q
-                        q[0] += uMid[0] * h;
-                
-                        // Update gradient
-                        grad[dim_index * boxsize + index] = q[0];
-                        
-                        // Update p
-                        p[0] += vMid[0]*h;
-                    }
+                // Extract local A
+                for(int i = 0; i < 2; i++){
+                    Alocal[i] = (As + As_idx + start_idx)[i];
                 }
+                
+                // Compute velocity at current location
+                A_times_b_1D(v, Alocal, p);
+                
+                // Compute midpoint
+                pMid[0] = p[0] + h*v[0]/2.0;
+                
+                // Compute velocity at midpoint
+                A_times_b_1D(vMid, Alocal, pMid);
+                
+                // Get index of B
+                int Bs_idx = 2 * dim_index * nC + As_idx;
+                
+                // Get local B
+                for(int i = 0; i < 2; i++){
+                    Blocal[i] = (Bs + Bs_idx)[i];
+                }
+                
+                // Copy q
+                q[0] = grad[dim_index*boxsize + index];
+        
+                // Step 1: Compute u using the old location
+                // Find current RHS (term 1 + term 2)
+                A_times_b_1D(B_times_T, Blocal, p); // Term 1
+                A_times_b_linear_1D(A_times_dTdAlpha, Alocal, q); // Term 2
+        
+                // Sum both terms
+                u[0] = B_times_T[0] + A_times_dTdAlpha[0];
+        
+                // Step 2: Compute mid "point"
+                qMid[0] = q[0] + h * u[0]/2.0;
+        
+                // Step 3: Compute uMid
+                A_times_b_1D(B_times_T, Blocal, pMid); // Term 1
+                A_times_b_linear_1D(A_times_dTdAlpha, Alocal, qMid); // Term 2
+        
+                // Sum both terms
+                uMid[0] = B_times_T[0] + A_times_dTdAlpha[0];
+
+                // Update q
+                q[0] += uMid[0] * h;
+        
+                // Update gradient
+                grad[dim_index * boxsize + index] = q[0];
+                
+                // Update p
+                p[0] += vMid[0]*h;
             }
         }
         return;
@@ -405,96 +403,98 @@ __global__ void   cpab_cuda_kernel_backward_2D(dim3 nthreads, const int n_theta,
         float Alocal[6], Blocal[6];
         int cellidx;
         
-        CUDA_AXIS_KERNEL_LOOP(point_index, nthreads, x) {
-            CUDA_AXIS_KERNEL_LOOP(batch_index, nthreads, y) {    
-                CUDA_AXIS_KERNEL_LOOP(dim_index, nthreads, z) {
-                    int index = 2 * nP * batch_index + point_index;
-                    int boxsize = 2 * nP * n_theta;
-                
-                    // Define start index for the matrices belonging to this batch
-                    // batch * num_elem * 4 triangles pr cell * cell in x * cell in y
-                    int start_idx = batch_index * 6 * 4 * nc[0] * nc[1]; 
-                    
-                    // Initilize gradient to zero
-                    grad[dim_index*boxsize + index] = 0;
-                    grad[dim_index*boxsize + index + nP] = 0;
+        // Thread index
+        int point_index = threadIdx.x + blockIdx.x * blockDim.x;
+        int batch_index = threadIdx.y + blockIdx.y * blockDim.y;
+        int dim_index = threadIdx.z + blockIdx.z * blockIdx.z;
+        
+        // Make sure we are within bounds
+        if(point_index < nP && batch_index < n_theta && dim_index < d){
+            int index = 2 * nP * batch_index + point_index;
+            int boxsize = 2 * nP * n_theta;
+        
+            // Define start index for the matrices belonging to this batch
+            // batch * num_elem * 4 triangles pr cell * cell in x * cell in y
+            int start_idx = batch_index * 6 * 4 * nc[0] * nc[1]; 
+            
+            // Initilize gradient to zero
+            grad[dim_index*boxsize + index] = 0;
+            grad[dim_index*boxsize + index + nP] = 0;
 
-                    // Get point
-                    p[0] = points[point_index];
-                    p[1] = points[point_index + nP];
-                    
-                    // Step size for solver
-                    double h = (1.0 / nStepSolver[0]);
+            // Get point
+            p[0] = points[point_index];
+            p[1] = points[point_index + nP];
+            
+            // Step size for solver
+            double h = (1.0 / nStepSolver[0]);
+        
+            // Iterate a number of times
+            for(int t=0; t<nStepSolver[0]; t++) {
+                // Get current cell
+                cellidx = findcellidx_2D(p, nc[0], nc[1]);
                 
-                    // Iterate a number of times
-                    for(int t=0; t<nStepSolver[0]; t++) {
-                        // Get current cell
-                        cellidx = findcellidx_2D(p, nc[0], nc[1]);
-                        
-                        // Get index of A
-                        int As_idx = 6*cellidx;
-                        
-                        // Extract local A
-                        for(int i = 0; i < 6; i++){
-                            Alocal[i] = (As + As_idx + start_idx)[i];
-                        }
-                        
-                        // Compute velocity at current location
-                        A_times_b_2D(v, Alocal, p);
-                        
-                        // Compute midpoint
-                        pMid[0] = p[0] + h*v[0]/2.0;
-                        pMid[1] = p[1] + h*v[1]/2.0;
-                        
-                        // Compute velocity at midpoint
-                        A_times_b_2D(vMid, Alocal, pMid);
-                        
-                        // Get index of B
-                        int Bs_idx = 6 * dim_index * nC + As_idx;
-                        
-                        // Get local B
-                        for(int i = 0; i < 6; i++){
-                            Blocal[i] = (Bs + Bs_idx)[i];
-                        }
-                        
-                        // Copy q
-                        q[0] = grad[dim_index*boxsize + index];
-                        q[1] = grad[dim_index*boxsize + index + nP];
+                // Get index of A
+                int As_idx = 6*cellidx;
                 
-                        // Step 1: Compute u using the old location
-                        // Find current RHS (term 1 + term 2)
-                        A_times_b_2D(B_times_T, Blocal, p); // Term 1
-                        A_times_b_linear_2D(A_times_dTdAlpha, Alocal, q); // Term 2
-                
-                        // Sum both terms
-                        u[0] = B_times_T[0] + A_times_dTdAlpha[0];
-                        u[1] = B_times_T[1] + A_times_dTdAlpha[1];
-                
-                        // Step 2: Compute mid "point"
-                        qMid[0] = q[0] + h * u[0]/2.0;
-                        qMid[1] = q[1] + h * u[1]/2.0;
-                
-                        // Step 3: Compute uMid
-                        A_times_b_2D(B_times_T, Blocal, pMid); // Term 1
-                        A_times_b_linear_2D(A_times_dTdAlpha, Alocal, qMid); // Term 2
-                
-                        // Sum both terms
-                        uMid[0] = B_times_T[0] + A_times_dTdAlpha[0];
-                        uMid[1] = B_times_T[1] + A_times_dTdAlpha[1];
-
-                        // Update q
-                        q[0] += uMid[0] * h;
-                        q[1] += uMid[1] * h;
-                
-                        // Update gradient
-                        grad[dim_index * boxsize + index] = q[0];
-                        grad[dim_index * boxsize + index + nP] = q[1];
-                        
-                        // Update p
-                        p[0] += vMid[0]*h;
-                        p[1] += vMid[1]*h;
-                    }
+                // Extract local A
+                for(int i = 0; i < 6; i++){
+                    Alocal[i] = (As + As_idx + start_idx)[i];
                 }
+                
+                // Compute velocity at current location
+                A_times_b_2D(v, Alocal, p);
+                
+                // Compute midpoint
+                pMid[0] = p[0] + h*v[0]/2.0;
+                pMid[1] = p[1] + h*v[1]/2.0;
+                
+                // Compute velocity at midpoint
+                A_times_b_2D(vMid, Alocal, pMid);
+                
+                // Get index of B
+                int Bs_idx = 6 * dim_index * nC + As_idx;
+                
+                // Get local B
+                for(int i = 0; i < 6; i++){
+                    Blocal[i] = (Bs + Bs_idx)[i];
+                }
+                
+                // Copy q
+                q[0] = grad[dim_index*boxsize + index];
+                q[1] = grad[dim_index*boxsize + index + nP];
+        
+                // Step 1: Compute u using the old location
+                // Find current RHS (term 1 + term 2)
+                A_times_b_2D(B_times_T, Blocal, p); // Term 1
+                A_times_b_linear_2D(A_times_dTdAlpha, Alocal, q); // Term 2
+        
+                // Sum both terms
+                u[0] = B_times_T[0] + A_times_dTdAlpha[0];
+                u[1] = B_times_T[1] + A_times_dTdAlpha[1];
+        
+                // Step 2: Compute mid "point"
+                qMid[0] = q[0] + h * u[0]/2.0;
+                qMid[1] = q[1] + h * u[1]/2.0;
+        
+                // Step 3: Compute uMid
+                A_times_b_2D(B_times_T, Blocal, pMid); // Term 1
+                A_times_b_linear_2D(A_times_dTdAlpha, Alocal, qMid); // Term 2
+        
+                // Sum both terms
+                uMid[0] = B_times_T[0] + A_times_dTdAlpha[0];
+                uMid[1] = B_times_T[1] + A_times_dTdAlpha[1];
+
+                // Update q
+                q[0] += uMid[0] * h;
+                q[1] += uMid[1] * h;
+        
+                // Update gradient
+                grad[dim_index * boxsize + index] = q[0];
+                grad[dim_index * boxsize + index + nP] = q[1];
+                
+                // Update p
+                p[0] += vMid[0]*h;
+                p[1] += vMid[1]*h;
             }
         }
         return;
@@ -509,115 +509,110 @@ __global__ void   cpab_cuda_kernel_backward_3D(dim3 nthreads, const int n_theta,
         float B_times_T[3], A_times_dTdAlpha[3], u[3], uMid[3];
         float Alocal[12], Blocal[12];
         int cellidx;
-
-	int point_index = threadIdx.x + blockIdx.x * blockDim.x;
+        
+        // Thread index
+        int point_index = threadIdx.x + blockIdx.x * blockDim.x;
         int batch_index = threadIdx.y + blockIdx.y * blockDim.y;
         int dim_index = threadIdx.z + blockIdx.z * blockIdx.z;
+        
+        // Make sure we are within bounds
         if(point_index < nP && batch_index < n_theta && dim_index < d){
-//        CUDA_AXIS_KERNEL_LOOP(point_index, nthreads, x) {
-//            CUDA_AXIS_KERNEL_LOOP(batch_index, nthreads, y) {    
-//                CUDA_AXIS_KERNEL_LOOP(dim_index, nthreads, z) {
-//                    if(threadIdx.x == 128 && threadIdx.y == 0 && threadIdx.z == 0 && blockIdx.x == 1529 && blockIdx.y == 0 && blockIdx == 86){
-//			printf("hest");
-//		}
-                    int index = 3 * nP * batch_index + point_index;
-                    int boxsize = 3 * nP * n_theta;
+            int index = 3 * nP * batch_index + point_index;
+            int boxsize = 3 * nP * n_theta;
+        
+            // Define start index for the matrices belonging to this batch
+            // batch * 12 params pr cell * 6 triangles pr cell * cell in x * cell in y * cell in z
+            int start_idx = batch_index * 12 * 6 * nc[0] * nc[1] * nc[2]; 
+            
+            // Initilize gradient to zero
+            grad[dim_index*boxsize + index] = 0;
+            grad[dim_index*boxsize + index + nP] = 0;
+            grad[dim_index*boxsize + index + 2 * nP] = 0;
+            
+            // Get point
+            p[0] = points[point_index];
+            p[1] = points[point_index + nP];
+            p[2] = points[point_index + 2 * nP];
+            
+            // Step size for solver
+            double h = (1.0 / nStepSolver[0]);
+        
+            // Iterate a number of times
+            for(int t=0; t<nStepSolver[0]; t++) {
+                // Get current cell
+                cellidx = findcellidx_3D(p, nc[0], nc[1], nc[2]);
                 
-                    // Define start index for the matrices belonging to this batch
-                    // batch * 12 params pr cell * 6 triangles pr cell * cell in x * cell in y * cell in z
-                    int start_idx = batch_index * 12 * 6 * nc[0] * nc[1] * nc[2]; 
-                    
-                    // Initilize gradient to zero
-                    grad[dim_index*boxsize + index] = 0;
-                    grad[dim_index*boxsize + index + nP] = 0;
-                    grad[dim_index*boxsize + index + 2 * nP] = 0;
-                    
-                    // Get point
-                    p[0] = points[point_index];
-                    p[1] = points[point_index + nP];
-                    p[2] = points[point_index + 2 * nP];
-                    
-                    // Step size for solver
-                    double h = (1.0 / nStepSolver[0]);
+                // Get index of A
+                int As_idx = 12*cellidx;
                 
-                    // Iterate a number of times
-                    for(int t=0; t<nStepSolver[0]; t++) {
-                        // Get current cell
-                        cellidx = findcellidx_3D(p, nc[0], nc[1], nc[2]);
-                        
-                        // Get index of A
-                        int As_idx = 12*cellidx;
-                        
-                        // Extract local A
-                        for(int i = 0; i < 12; i++){
-                            Alocal[i] = (As + As_idx + start_idx)[i];
-                        }
-                        
-                        // Compute velocity at current location
-                        A_times_b_3D(v, Alocal, p);
-                        
-                        // Compute midpoint
-                        pMid[0] = p[0] + h*v[0]/2.0;
-                        pMid[1] = p[1] + h*v[1]/2.0;
-                        pMid[2] = p[2] + h*v[2]/2.0;
-                        
-                        // Compute velocity at midpoint
-                        A_times_b_3D(vMid, Alocal, pMid);
-                        
-                        // Get index of B
-                        int Bs_idx = 12 * dim_index * nC + As_idx;
-                        
-                        // Get local B
-                        for(int i = 0; i < 12; i++){
-                            Blocal[i] = (Bs + Bs_idx)[i];
-                        }
-                        
-                        // Copy q
-                        q[0] = grad[dim_index*boxsize + index];
-                        q[1] = grad[dim_index*boxsize + index + nP];
-                        q[2] = grad[dim_index*boxsize + index + 2 * nP];
+                // Extract local A
+                for(int i = 0; i < 12; i++){
+                    Alocal[i] = (As + As_idx + start_idx)[i];
+                }
                 
-                        // Step 1: Compute u using the old location
-                        // Find current RHS (term 1 + term 2)
-                        A_times_b_3D(B_times_T, Blocal, p); // Term 1
-                        A_times_b_linear_3D(A_times_dTdAlpha, Alocal, q); // Term 2
+                // Compute velocity at current location
+                A_times_b_3D(v, Alocal, p);
                 
-                        // Sum both terms
-                        u[0] = B_times_T[0] + A_times_dTdAlpha[0];
-                        u[1] = B_times_T[1] + A_times_dTdAlpha[1];
-                        u[2] = B_times_T[2] + A_times_dTdAlpha[2];
+                // Compute midpoint
+                pMid[0] = p[0] + h*v[0]/2.0;
+                pMid[1] = p[1] + h*v[1]/2.0;
+                pMid[2] = p[2] + h*v[2]/2.0;
                 
-                        // Step 2: Compute mid "point"
-                        qMid[0] = q[0] + h * u[0]/2.0;
-                        qMid[1] = q[1] + h * u[1]/2.0;
-                        qMid[2] = q[2] + h * u[2]/2.0;
+                // Compute velocity at midpoint
+                A_times_b_3D(vMid, Alocal, pMid);
                 
-                        // Step 3: Compute uMid
-                        A_times_b_3D(B_times_T, Blocal, pMid); // Term 1
-                        A_times_b_linear_3D(A_times_dTdAlpha, Alocal, qMid); // Term 2
+                // Get index of B
+                int Bs_idx = 12 * dim_index * nC + As_idx;
                 
-                        // Sum both terms
-                        uMid[0] = B_times_T[0] + A_times_dTdAlpha[0];
-                        uMid[1] = B_times_T[1] + A_times_dTdAlpha[1];
-                        uMid[2] = B_times_T[2] + A_times_dTdAlpha[2];
+                // Get local B
+                for(int i = 0; i < 12; i++){
+                    Blocal[i] = (Bs + Bs_idx)[i];
+                }
+                
+                // Copy q
+                q[0] = grad[dim_index*boxsize + index];
+                q[1] = grad[dim_index*boxsize + index + nP];
+                q[2] = grad[dim_index*boxsize + index + 2 * nP];
+        
+                // Step 1: Compute u using the old location
+                // Find current RHS (term 1 + term 2)
+                A_times_b_3D(B_times_T, Blocal, p); // Term 1
+                A_times_b_linear_3D(A_times_dTdAlpha, Alocal, q); // Term 2
+        
+                // Sum both terms
+                u[0] = B_times_T[0] + A_times_dTdAlpha[0];
+                u[1] = B_times_T[1] + A_times_dTdAlpha[1];
+                u[2] = B_times_T[2] + A_times_dTdAlpha[2];
+        
+                // Step 2: Compute mid "point"
+                qMid[0] = q[0] + h * u[0]/2.0;
+                qMid[1] = q[1] + h * u[1]/2.0;
+                qMid[2] = q[2] + h * u[2]/2.0;
+        
+                // Step 3: Compute uMid
+                A_times_b_3D(B_times_T, Blocal, pMid); // Term 1
+                A_times_b_linear_3D(A_times_dTdAlpha, Alocal, qMid); // Term 2
+        
+                // Sum both terms
+                uMid[0] = B_times_T[0] + A_times_dTdAlpha[0];
+                uMid[1] = B_times_T[1] + A_times_dTdAlpha[1];
+                uMid[2] = B_times_T[2] + A_times_dTdAlpha[2];
 
-                        // Update q
-                        q[0] += uMid[0] * h;
-                        q[1] += uMid[1] * h;
-                        q[2] += uMid[2] * h;
+                // Update q
+                q[0] += uMid[0] * h;
+                q[1] += uMid[1] * h;
+                q[2] += uMid[2] * h;
+        
+                // Ubcpdate gradient
+                grad[dim_index * boxsize + index] = q[0];
+                grad[dim_index * boxsize + index + nP] = q[1];
+                grad[dim_index * boxsize + index + 2 * nP] = q[2];
                 
-                        // Ubcpdate gradient
-                        grad[dim_index * boxsize + index] = q[0];
-                        grad[dim_index * boxsize + index + nP] = q[1];
-                        grad[dim_index * boxsize + index + 2 * nP] = q[2];
-                        
-                        // Update p
-                        p[0] += vMid[0]*h;
-                        p[1] += vMid[1]*h;
-                        p[2] += vMid[2]*h;
-                    }
-//                }
-//            }
+                // Update p
+                p[0] += vMid[0]*h;
+                p[1] += vMid[1]*h;
+                p[2] += vMid[2]*h;
+            }
         }
         return;
 }
@@ -640,30 +635,30 @@ at::Tensor cpab_cuda_forward(at::Tensor points_in,
     // Launch kernel
     // We do it in this way, since dynamically allocating memory in CUDA sucks!
     if(ndim == 1){
-      cpab_cuda_kernel_forward_1D<<<bc, tpb>>>(nP, batch_size,
-                                               output.data<float>(),
-                                               points_in.data<float>(),
-                                               trels_in.data<float>(),
-                                               nstepsolver_in.data<int>(),
-                                               nc_in.data<int>());
-		}
+         cpab_cuda_kernel_forward_1D<<<bc, tpb>>>(nP, batch_size,
+                                                  output.data<float>(),
+                                                  points_in.data<float>(),
+                                                  trels_in.data<float>(),
+                                                  nstepsolver_in.data<int>(),
+                                                  nc_in.data<int>());
+	}
 	if(ndim == 2){
-      cpab_cuda_kernel_forward_2D<<<bc, tpb>>>(nP, batch_size,
-                                               output.data<float>(),
-                                               points_in.data<float>(),
-                                               trels_in.data<float>(),
-                                               nstepsolver_in.data<int>(),
-                                               nc_in.data<int>());
-		}
+         cpab_cuda_kernel_forward_2D<<<bc, tpb>>>(nP, batch_size,
+                                                  output.data<float>(),
+                                                  points_in.data<float>(),
+                                                  trels_in.data<float>(),
+                                                  nstepsolver_in.data<int>(),
+                                                  nc_in.data<int>());
+	}
 	if(ndim == 3){
-      cpab_cuda_kernel_forward_3D<<<bc, tpb>>>(nP, batch_size,
-                                               output.data<float>(),
-                                               points_in.data<float>(),
-                                               trels_in.data<float>(),
-                                               nstepsolver_in.data<int>(),
-                                               nc_in.data<int>());
+        	cpab_cuda_kernel_forward_3D<<<bc, tpb>>>(nP, batch_size,
+                                                	output.data<float>(),
+                                                  points_in.data<float>(),
+                                                  trels_in.data<float>(),
+                                                  nstepsolver_in.data<int>(),
+                                                  nc_in.data<int>());
     }
-	gpuErrchk( cudaPeekAtLastError() );                                             
+    gpuErrchk( cudaPeekAtLastError() );                                             
     return output;           
 }
 
@@ -672,7 +667,7 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
                               at::Tensor Bs_in, 
                               at::Tensor nstepsolver_in,
                               at::Tensor nc_in,
-		     				  at::Tensor output){
+                              at::Tensor output){
                               
     // Problem size
     const auto n_theta = As_in.size(0);
@@ -686,41 +681,35 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
     dim3 bc = dim3(DIV_UP(nP, tpb.x), DIV_UP(n_theta, tpb.y), DIV_UP(d, tpb.z));
     dim3 vtc = dim3(nP, n_theta, d);
     
-    std::cout << "threads per block " << tpb.x << ", " << tpb.y << ", " << tpb.z << std::endl;
-    std::cout << "num blocks " << bc.x << ", " << bc.y << ", " << bc.z << std::endl;
-    std::cout << "vertual thread count " << vtc.x << ", " << vtc.y << ", " << vtc.z << std::endl;
-    
     // Launch kernel
     // We do it in this way, since dynamically allocating memory in CUDA sucks!
 	if(ndim == 1){
-      cpab_cuda_kernel_backward_1D<<<bc, tpb>>>(vtc, n_theta, d, nP, nC,
-                                                output.data<float>(), 
-                                                points_in.data<float>(), 
-                                                As_in.data<float>(), 
-                                                Bs_in.data<float>(),
-                                                nstepsolver_in.data<int>(), 
-                                                nc_in.data<int>());
+         cpab_cuda_kernel_backward_1D<<<bc, tpb>>>(vtc, n_theta, d, nP, nC,
+                                                   output.data<float>(), 
+                                                   points_in.data<float>(), 
+                                                   As_in.data<float>(), 
+                                                   Bs_in.data<float>(),
+                                                   nstepsolver_in.data<int>(), 
+                                                   nc_in.data<int>());
 	}
 	if(ndim == 2){
-      cpab_cuda_kernel_backward_2D<<<bc, tpb>>>(vtc, n_theta, d, nP, nC,
-                                                output.data<float>(), 
-                                                points_in.data<float>(), 
-                                                As_in.data<float>(), 
-                                                Bs_in.data<float>(),
-                                                nstepsolver_in.data<int>(), 
-                                                nc_in.data<int>());
+         cpab_cuda_kernel_backward_2D<<<bc, tpb>>>(vtc, n_theta, d, nP, nC,
+                                                   output.data<float>(), 
+                                                   points_in.data<float>(), 
+                                                   As_in.data<float>(), 
+                                                   Bs_in.data<float>(),
+                                                   nstepsolver_in.data<int>(), 
+                                                   nc_in.data<int>());
 	}
  	if(ndim == 3){
-      cpab_cuda_kernel_backward_3D<<<bc, tpb>>>(vtc, n_theta, d, nP, nC,
-                                                output.data<float>(), 
-                                                points_in.data<float>(), 
-                                                As_in.data<float>(), 
-                                                Bs_in.data<float>(),
-                                                nstepsolver_in.data<int>(), 
-                                                nc_in.data<int>());
+         cpab_cuda_kernel_backward_3D<<<bc, tpb>>>(vtc, n_theta, d, nP, nC,
+                                                   output.data<float>(), 
+                                                   points_in.data<float>(), 
+                                                   As_in.data<float>(), 
+                                                   Bs_in.data<float>(),
+                                                   nstepsolver_in.data<int>(), 
+                                                   nc_in.data<int>());
     }
-	gpuErrchk( cudaPeekAtLastError() );                                               
+    gpuErrchk( cudaPeekAtLastError() );                                               
     return output;
 }
-
-
