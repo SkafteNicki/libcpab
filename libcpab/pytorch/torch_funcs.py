@@ -205,8 +205,8 @@ def torch_interpolate_1D(data, points):
     
     # Lookup values
     data_flat = data.flatten()
-    i1 = torch.gather(data_flat, 0, idx1)
-    i2 = torch.gather(data_flat, 0, idx2)
+    i1 = torch.gather(data_flat, 0, idx1).type(torch.float32)
+    i2 = torch.gather(data_flat, 0, idx2).type(torch.float32)
         
     # Convert to floats
     x0 = x0.type(torch.float32)

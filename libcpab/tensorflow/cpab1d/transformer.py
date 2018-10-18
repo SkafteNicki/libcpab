@@ -142,7 +142,7 @@ def _calc_trans(points, theta):
         Trels = tf_expm2x2(dT*As)
         Trels = Trels[:,:ndim,:] # extract important part
         Trels = tf.reshape(Trels, shape=(n_theta, nC, *Ashape))
-        
+
         # Call the dynamic library
         with tf.name_scope('calc_trans_op'):
 	        newpoints = transformer_op(points, Trels, nStepSolver, ncx)
@@ -193,10 +193,10 @@ def tf_cpab_transformer_1D_cuda(points, theta):
 
 #%% Find out which version to use
 _gpu = gpu_support()
-if _gpu:
-    tf_cpab_transformer_1D = tf_cpab_transformer_1D_cuda
-else:
-    tf_cpab_transformer_1D = tf_cpab_transformer_1D_pure
+#if _gpu:
+#    tf_cpab_transformer_1D = tf_cpab_transformer_1D_cuda
+#else:
+tf_cpab_transformer_1D = tf_cpab_transformer_1D_pure
             
 #%%
 if __name__ == '__main__':

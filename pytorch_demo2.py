@@ -62,3 +62,4 @@ if __name__ == '__main__':
     plt.imshow(trans_est.permute(0,2,3,1).cpu().detach().numpy()[0])
     plt.axis('off')
     plt.title('Estimate')
+    plt.show()

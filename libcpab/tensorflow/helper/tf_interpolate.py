@@ -52,15 +52,44 @@ def tf_interpolate_1D(data, grid):
         x1 = tf.cast(x1, tf.float32)
         
         # Interpolation weights
-        w1 = (x - x0)
-        w2 = (x1 - x)
+        #w1 = (x1 - x)
+        #w2 = (x - x0)
         
         # Do interpolation
-        new_data = w1*i1 + w2*i2
+        new_data = i1 + (x - x0) * (i2 - i1)#w1*i1 + w2*i2
         
         # Reshape and return
         new_data = tf.reshape(new_data, (n_batch, length_g))
         return new_data
+
+##%%
+#def tf_interpolate_1D(data, grid):
+#    with tf.name_scope('interpolate'):
+#        data, grid = tf.cast(data, tf.float32), tf.cast(grid, tf.float32)
+#        n_batch = tf_shape_i(data,0)
+#        ts_length = tf_shape_i(grid,2)
+#        x = tf.linspace(0.0, 1.0, ts_length)
+#        dist = grid - tf.transpose(x[None])
+#        
+#        # Find index of interval in tessellation
+#        greater_than_zero = tf.greater_equal(dist, 0)
+#        idx = (ts_length-1) - tf.reduce_sum(tf.cast(greater_than_zero, tf.float32), axis=1)
+#        idx = tf.clip_by_value(idx, clip_value_min=0, clip_value_max=ts_length-2)
+#        idx = tf.reshape(tf.cast(idx, tf.int32), (-1, ))
+#        
+#        # Fetch values from x_trans and y
+#        x_trans = tf.reshape(grid, (-1, ))
+#        y = tf.reshape(data, (-1, ))
+#        batch_idx = tf_repeat(tf.range(n_batch)*ts_length, ts_length)
+#        x0 = tf.gather(x_trans, batch_idx + idx)
+#        x1 = tf.gather(x_trans, batch_idx + idx + 1)
+#        y0 = tf.gather(y, batch_idx + idx)
+#        y1 = tf.gather(y, batch_idx + idx + 1)
+#
+#        # Perform linear interpolation on points in x
+#        y_interp = y0 + (tf.reshape(tf.stack(n_batch*[x]), (-1, ))-x0) * ((y1-y0)/(x1-x0))
+#        y_interp = tf.reshape(y_interp, (n_batch, ts_length))
+#        return y_interp
 
 #%%
 def tf_interpolate_2D(data, grid):
