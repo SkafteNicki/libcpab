@@ -26,7 +26,7 @@ int mymin(int a, double b) {
 int findcellidx_1D(const float* p, const int ncx) {           
     // Floor value to find cell
     int idx = std::floor(p[0] * ncx);
-    idx = std::min(0, std::max(idx, ncx));
+    idx = std::max(0, std::min(idx, ncx-1));
     return idx;
 }
 

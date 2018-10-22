@@ -193,10 +193,10 @@ def tf_cpab_transformer_1D_cuda(points, theta):
 
 #%% Find out which version to use
 _gpu = gpu_support()
-#if _gpu:
-#    tf_cpab_transformer_1D = tf_cpab_transformer_1D_cuda
-#else:
-tf_cpab_transformer_1D = tf_cpab_transformer_1D_pure
+if _gpu:
+    tf_cpab_transformer_1D = tf_cpab_transformer_1D_cuda
+else:
+    tf_cpab_transformer_1D = tf_cpab_transformer_1D_pure
             
 #%%
 if __name__ == '__main__':

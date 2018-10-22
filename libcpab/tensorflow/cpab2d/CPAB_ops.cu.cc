@@ -167,96 +167,98 @@ __global__ void  calcGrad_kernel(dim3 nthreads, const int n_theta, const int d, 
         float Alocal[6], Blocal[6];
         int cellidx;
         
-        CUDA_AXIS_KERNEL_LOOP(batch_index, nthreads, x) {
-            CUDA_AXIS_KERNEL_LOOP(point_index, nthreads, y) {
-                CUDA_AXIS_KERNEL_LOOP(dim_index, nthreads, z) {
-                    int index = 2 * nP * batch_index + point_index;
-                    int boxsize = 2 * nP * n_theta;
-                
-                    // Define start index for the matrices belonging to this batch
-                    // batch * num_elem * 4 triangles pr cell * cell in x * cell in y
-                    int start_idx = batch_index * 6 * 4 * ncx[0] * ncy[0]; 
-                    
-                    // Initilize gradient to zero
-                    grad[dim_index*boxsize + index] = 0;
-                    grad[dim_index*boxsize + index + nP] = 0;
+        // Thread index
+        int point_index = threadIdx.x + blockIdx.x * blockDim.x;
+        int batch_index = threadIdx.y + blockIdx.y * blockDim.y;
+        int dim_index = threadIdx.z + blockIdx.z * blockIdx.z;
+        
+        // Make sure we are within bounds
+        if(point_index < nP && batch_index < n_theta && dim_index < d){
+            int index = 2 * nP * batch_index + point_index;
+            int boxsize = 2 * nP * n_theta;
+        
+            // Define start index for the matrices belonging to this batch
+            // batch * num_elem * 4 triangles pr cell * cell in x * cell in y
+            int start_idx = batch_index * 6 * 4 * ncx[0] * ncy[0]; 
+            
+            // Initilize gradient to zero
+            grad[dim_index*boxsize + index] = 0;
+            grad[dim_index*boxsize + index + nP] = 0;
 
-                    // Get point
-                    p[0] = points[point_index];
-                    p[1] = points[point_index + nP];
-                    
-                    // Step size for solver
-                    double h = (1.0 / nStepSolver[0]);
+            // Get point
+            p[0] = points[point_index];
+            p[1] = points[point_index + nP];
+            
+            // Step size for solver
+            double h = (1.0 / nStepSolver[0]);
+        
+            // Iterate a number of times
+            for(int t=0; t<nStepSolver[0]; t++) {
+                // Get current cell
+                cellidx = findcellidx(p, ncx[0], ncy[0]);
                 
-                    // Iterate a number of times
-                    for(int t=0; t<nStepSolver[0]; t++) {
-                        // Get current cell
-                        cellidx = findcellidx(p, ncx[0], ncy[0]);
-                        
-                        // Get index of A
-                        int As_idx = 6*cellidx;
-                        
-                        // Extract local A
-                        for(int i = 0; i < 6; i++){
-                            Alocal[i] = (As + As_idx + start_idx)[i];
-                        }
-                        
-                        // Compute velocity at current location
-                        A_times_b(v, Alocal, p);
-                        
-                        // Compute midpoint
-                        pMid[0] = p[0] + h*v[0]/2.0;
-                        pMid[1] = p[1] + h*v[1]/2.0;
-                        
-                        // Compute velocity at midpoint
-                        A_times_b(vMid, Alocal, pMid);
-                        
-                        // Get index of B
-                        int Bs_idx = 6 * dim_index * nC + As_idx;
-                        
-                        // Get local B
-                        for(int i = 0; i < 6; i++){
-                            Blocal[i] = (Bs + Bs_idx)[i];
-                        }
-                        
-                        // Copy q
-                        q[0] = grad[dim_index*boxsize + index];
-                        q[1] = grad[dim_index*boxsize + index + nP];
+                // Get index of A
+                int As_idx = 6*cellidx;
                 
-                        // Step 1: Compute u using the old location
-                        // Find current RHS (term 1 + term 2)
-                        A_times_b(B_times_T, Blocal, p); // Term 1
-                        A_times_b_linear(A_times_dTdAlpha, Alocal, q); // Term 2
-                
-                        // Sum both terms
-                        u[0] = B_times_T[0] + A_times_dTdAlpha[0];
-                        u[1] = B_times_T[1] + A_times_dTdAlpha[1];
-                
-                        // Step 2: Compute mid "point"
-                        qMid[0] = q[0] + h * u[0]/2.0;
-                        qMid[1] = q[1] + h * u[1]/2.0;
-                
-                        // Step 3: Compute uMid
-                        A_times_b(B_times_T, Blocal, pMid); // Term 1
-                        A_times_b_linear(A_times_dTdAlpha, Alocal, qMid); // Term 2
-                
-                        // Sum both terms
-                        uMid[0] = B_times_T[0] + A_times_dTdAlpha[0];
-                        uMid[1] = B_times_T[1] + A_times_dTdAlpha[1];
-
-                        // Update q
-                        q[0] += uMid[0] * h;
-                        q[1] += uMid[1] * h;
-                
-                        // Update gradient
-                        grad[dim_index * boxsize + index] = q[0];
-                        grad[dim_index * boxsize + index + nP] = q[1];
-                        
-                        // Update p
-                        p[0] += vMid[0]*h;
-                        p[1] += vMid[1]*h;
-                    }
+                // Extract local A
+                for(int i = 0; i < 6; i++){
+                    Alocal[i] = (As + As_idx + start_idx)[i];
                 }
+                
+                // Compute velocity at current location
+                A_times_b(v, Alocal, p);
+                
+                // Compute midpoint
+                pMid[0] = p[0] + h*v[0]/2.0;
+                pMid[1] = p[1] + h*v[1]/2.0;
+                
+                // Compute velocity at midpoint
+                A_times_b(vMid, Alocal, pMid);
+                
+                // Get index of B
+                int Bs_idx = 6 * dim_index * nC + As_idx;
+                
+                // Get local B
+                for(int i = 0; i < 6; i++){
+                    Blocal[i] = (Bs + Bs_idx)[i];
+                }
+                
+                // Copy q
+                q[0] = grad[dim_index*boxsize + index];
+                q[1] = grad[dim_index*boxsize + index + nP];
+        
+                // Step 1: Compute u using the old location
+                // Find current RHS (term 1 + term 2)
+                A_times_b(B_times_T, Blocal, p); // Term 1
+                A_times_b_linear(A_times_dTdAlpha, Alocal, q); // Term 2
+        
+                // Sum both terms
+                u[0] = B_times_T[0] + A_times_dTdAlpha[0];
+                u[1] = B_times_T[1] + A_times_dTdAlpha[1];
+        
+                // Step 2: Compute mid "point"
+                qMid[0] = q[0] + h * u[0]/2.0;
+                qMid[1] = q[1] + h * u[1]/2.0;
+        
+                // Step 3: Compute uMid
+                A_times_b(B_times_T, Blocal, pMid); // Term 1
+                A_times_b_linear(A_times_dTdAlpha, Alocal, qMid); // Term 2
+        
+                // Sum both terms
+                uMid[0] = B_times_T[0] + A_times_dTdAlpha[0];
+                uMid[1] = B_times_T[1] + A_times_dTdAlpha[1];
+
+                // Update q
+                q[0] += uMid[0] * h;
+                q[1] += uMid[1] * h;
+        
+                // Update gradient
+                grad[dim_index * boxsize + index] = q[0];
+                grad[dim_index * boxsize + index + nP] = q[1];
+                
+                // Update p
+                p[0] += vMid[0]*h;
+                p[1] += vMid[1]*h;
             }
         }
         return;

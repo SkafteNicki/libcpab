@@ -30,7 +30,7 @@ __device__ double cuda_fmod(double numer, double denom){
 __device__ int findcellidx_1D(const float* p, const int ncx) {           
     // Floor value to find cell
     int idx = floor(p[0] * ncx);
-    idx = min(0, max(idx, ncx));
+    idx = max(0, min(idx, ncx-1));
     return idx;                            
 }
 
@@ -54,7 +54,7 @@ __device__ int findcellidx_2D(const float* p, const int ncx, const int ncy) {
     double x = xmod / inc_x;
     double y = ymod / inc_y;
             
-    int cell_idx =     mymin(ncx-1, (p0 - xmod) / inc_x) + 
+    int cell_idx =  mymin(ncx-1, (p0 - xmod) / inc_x) + 
                     mymin(ncy-1, (p1 - ymod) / inc_y) * ncx;        
     cell_idx *= 4;
             

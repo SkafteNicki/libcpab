@@ -272,7 +272,10 @@ class cpab(object):
         As = self._Avees2As(Avees)
         
         # Find cells and extract correct affine transformation
-        idx = self._sess.run(self._findcellidx(points.T, *self._nc))
+        if self._is_tf_tensor(points):
+            idx = self._sess.run(self._findcellidx(tf.transpose(points), *self._nc))    
+        else:
+            idx = self._sess.run(self._findcellidx(points.T, *self._nc))
         Aidx = As[idx]
         
         # Make homogeneous coordinates
