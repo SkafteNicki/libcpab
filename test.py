@@ -17,7 +17,8 @@ import numpy as np
 
 
 T = cpab([10, ], zero_boundary=False, return_tf_tensors=True)
-theta = np.random.normal(size=(1, T.get_theta_dim()))
+
+theta = 0.01*np.random.normal(size=(1, T.get_theta_dim()))
 theta_tf = tf.cast(theta, tf.float32)
 grid = T.uniform_meshgrid([518,])
 res1 = tf_cpab_transformer_1D_cuda(grid, theta_tf)

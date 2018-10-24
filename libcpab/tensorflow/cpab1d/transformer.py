@@ -186,8 +186,41 @@ def _calc_grad(op, grad):
                                   
         return [None, gradient]
 
+#%%
+def _calc_grad_numeric(op, grad):
+    """ """
+    with tf.name_scope('calc_grad'):
+        # Tessalation information
+        points = op.inputs[0]
+        theta = op.inputs[1]
+        
+        # Finite difference permutation size
+        h = tf.cast(0.01, tf.float32)
+        
+        # Base function evaluation
+        f0 = _calc_trans(points, theta) # n_theta x 2 x nP
+    
+        gradient = [ ]
+        for i in range(theta.get_shape()[1].value):
+            # Add small permutation to i element in theta
+            temp = tf.concat([theta[:,:i], tf.expand_dims(theta[:,i]+h,1), theta[:,(i+1):]], 1)
+            
+            # Calculate new function value
+            f1 = _calc_trans(points, temp) # n_theta x 2 x nP
+            
+            # Finite difference
+            diff = (f1 - f0) / h # n_theta x 2 x nP
+            
+            if i != 0:
+                # Gradient
+                gradient = tf.concat([gradient, tf.expand_dims(tf.reduce_sum(grad * diff, axis=[1,2]), 1)], 1)
+            else:
+                gradient = tf.expand_dims(tf.reduce_sum(grad * diff, axis=[1,2]), 1)
+
+        return [None, gradient] 
+
 #%% Wrapper to connect function to gradient
-@function.Defun(tf.float32, tf.float32, func_name='tf_CPAB_transformer_1D_'+next(uniqueid), python_grad_func=_calc_grad)
+@function.Defun(tf.float32, tf.float32, func_name='tf_CPAB_transformer_1D_'+next(uniqueid), python_grad_func=_calc_grad_numeric)
 def tf_cpab_transformer_1D_cuda(points, theta):
     return _calc_trans(points, theta)
 
