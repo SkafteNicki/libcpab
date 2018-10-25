@@ -2,8 +2,17 @@
 # encoding: utf-8
 
 from distutils.core import setup, Extension
+import sys
 
-nplibcpab_module = Extension('nplibcpab', sources = ['src/npcpab1.cc'], extra_compile_args=["-Ofast", "-march=native"])
+extra_compile_args = []
+extra_link_args = []
+if sys.platform.startswith('win'):
+    extra_compile_args.append('-openmp')
+else:
+    extra_compile_args.append('-fopenmp')
+    extra_link_args.append('-lgomp')
+
+nplibcpab_module = Extension('nplibcpab', sources = ['src/npcpab1.cc'], extra_compile_args=extra_compile_args, extra_link_args=extra_link_args)
 
 setup(name             = "libcpab_numpy_backend",
       version          = "1.0",
