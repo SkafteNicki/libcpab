@@ -205,7 +205,7 @@ void cpab_forward_cpu(const FLOAT *points, // [ndim, n_points]
                 // Update points
                 FLOAT newpoint[ndim];
                 A_times_b(ndim, newpoint, tidx, point);
-                for(int j = 0; j < ndim; j++){
+                for (int j = 0; j < ndim; j++){
                     point[j] = newpoint[j];
                 }
             }
@@ -224,7 +224,7 @@ void cpab_backward_cpu(const FLOAT *points, // [ndim, nP]
                        const FLOAT *Bs, // [d, nC, ndim, ndim+1]
                        int ndim, int nP, int batch_size, int nstepsolver, int d, int nC, // scalar
                        const int *nc, // [ndim]
-                       FLOAT *grad){ // [d, batch_size, ndim, nP]
+                       FLOAT *grad) { // [d, batch_size, ndim, nP]
     
     const FLOAT h = (1.0 / nstepsolver);
     const int params_size = param_pr_cell(ndim);
@@ -253,7 +253,6 @@ void cpab_backward_cpu(const FLOAT *points, // [ndim, nP]
                 for (int j = 0; j < ndim; j++) {
                     p[j] = points[point_index + j*index];
                 }
-                
                 
                 // Integrate velocity field
                 for (int t = 0; t < nstepsolver; t++) {
