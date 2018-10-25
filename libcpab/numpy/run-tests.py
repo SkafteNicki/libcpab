@@ -13,7 +13,7 @@ if __name__ == "__main__":
     
     ## The C implementation
     new_points = np.zeros((batch, 1, N))
-    nplibcpab.npcpab1(points, Trels, new_points, np.array([4.0]), nStepSolver)
+    nplibcpab.npcpab_forward(points, Trels, new_points, np.array([4.0]), nStepSolver)
     
     ## The python implementation
     new_points2 = np.zeros((batch, 1, N))
