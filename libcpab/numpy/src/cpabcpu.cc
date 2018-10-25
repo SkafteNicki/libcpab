@@ -228,6 +228,7 @@ void cpab_backward_cpu(const FLOAT *points, // [ndim, nP]
                        FLOAT *grad) { // [d, batch_size, ndim, nP]
     
     const FLOAT h = (1.0 / nstepsolver);
+    const FLOAT h_half = h/2.0;
     const int params_size = param_pr_cell(ndim);
 
     // Loop over all transformations
@@ -274,7 +275,7 @@ void cpab_backward_cpu(const FLOAT *points, // [ndim, nP]
                     
                     // Compute midpoint
                     for (int j = 0; j < ndim; j++) {
-                        pMid[j] = p[j] + h*v[j]/2.0;
+                        pMid[j] = p[j] + h_half*v[j];
                     }
                     
                     // Compute velocity at midpoint
@@ -315,7 +316,7 @@ void cpab_backward_cpu(const FLOAT *points, // [ndim, nP]
                         // Sum both terms
                         const FLOAT u_j = B_times_T[j] + A_times_dTdAlpha[j];
                         // Step 2: Compute mid point
-                        qMid[j] = q[j] + h * u_j/2.0;
+                        qMid[j] = q[j] + h_half * u_j;
                     }
                     
                     // Step 3: Compute uMid
