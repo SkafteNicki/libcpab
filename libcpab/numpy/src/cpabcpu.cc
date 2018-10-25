@@ -243,7 +243,7 @@ void cpab_backward_cpu(const FLOAT *points, // [ndim, nP]
         for (int point_index = 0; point_index < nP; point_index++) {
             // Make data structures for calculations
             FLOAT p[ndim], v[ndim], pMid[ndim], vMid[ndim], q[ndim], qMid[ndim];
-            FLOAT B_times_T[ndim], A_times_dTdAlpha[ndim], u[ndim], uMid[ndim];
+            FLOAT B_times_T[ndim], A_times_dTdAlpha[ndim]; //, u[ndim]; //, uMid[ndim];
             //FLOAT Alocal[ndim*(ndim+1)], Blocal[ndim*(ndim+1)];
 
             // For all parameters in the transformations
@@ -299,6 +299,7 @@ void cpab_backward_cpu(const FLOAT *points, // [ndim, nP]
                     A_times_b(ndim, B_times_T, Blocal, p); // term 1
                     A_times_b_linear(ndim, A_times_dTdAlpha, Alocal, q); // term 2
                     
+                    /*
                     // Sum both terms
                     for (int j = 0; j < ndim; j++) {
                         u[j] = B_times_T[j] + A_times_dTdAlpha[j];
@@ -308,11 +309,20 @@ void cpab_backward_cpu(const FLOAT *points, // [ndim, nP]
                     for (int j = 0; j < ndim; j++) {
                         qMid[j] = q[j] + h * u[j]/2.0;
                     }
+                    */
+                    
+                    for (int j = 0; j < ndim; j++) {
+                        // Sum both terms
+                        const FLOAT u_j = B_times_T[j] + A_times_dTdAlpha[j];
+                        // Step 2: Compute mid point
+                        qMid[j] = q[j] + h * u_j/2.0;
+                    }
                     
                     // Step 3: Compute uMid
                     A_times_b(ndim, B_times_T, Blocal, pMid);
                     A_times_b_linear(ndim, A_times_dTdAlpha, Alocal, qMid);
                     
+                    /*
                     // Sum both terms
                     for (int j = 0; j < ndim; j++) {
                         uMid[j] = B_times_T[j] + A_times_dTdAlpha[j];
@@ -332,7 +342,18 @@ void cpab_backward_cpu(const FLOAT *points, // [ndim, nP]
                     for (int j = 0; j < ndim; j++) {
                         p[j] += vMid[j]*h;
                     }
+                    */
                     
+                    for (int j = 0; j < ndim; j++) {
+                        // Sum both terms
+                        const FLOAT uMid_j = B_times_T[j] + A_times_dTdAlpha[j];
+                        // Update q
+                        q[j] += uMid_j * h;
+                        // Update gradient
+                        grad[dim_index * boxsize + index + j*nP] = q[j];
+                        // Update p
+                        p[j] += vMid[j]*h;
+                    }
                 }
             }
         }
