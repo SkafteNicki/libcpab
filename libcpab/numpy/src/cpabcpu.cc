@@ -194,10 +194,11 @@ void cpab_forward_cpu(const FLOAT *points, // [ndim, n_points]
             for (int j = 0; j < ndim; j++) {
                 point[j] = points[i + j*nP];
             }
+            
             // Iterate in nStepSolver
             for (int n = 0; n < nstepsolver; n++) {
                 // Find cell index
-                int idx = findcellidx(ndim, point, nc);
+                const int idx = findcellidx(ndim, point, nc);
                 
                 // Get mapping
                 const FLOAT* tidx = trels + param_pr_cell(ndim)*idx + start_idx;  
@@ -205,7 +206,7 @@ void cpab_forward_cpu(const FLOAT *points, // [ndim, n_points]
                 // Update points
                 FLOAT newpoint[ndim];
                 A_times_b(ndim, newpoint, tidx, point);
-                for (int j = 0; j < ndim; j++){
+                for (int j = 0; j < ndim; j++) {
                     point[j] = newpoint[j];
                 }
             }
