@@ -1,4 +1,5 @@
 #include <iostream>
+#include <omp.h>
 
 // Support functions
 int stride(int ndim, const int* nc){
@@ -181,10 +182,12 @@ void cpab_forward_cpu(const FLOAT *points, // [ndim, n_points]
                      )
 {
     // Main loop
+    #pragma omp parallel for
     for (int t = 0; t < batch_size; t++) { // for all batches
         // Start index for batch
         const int start_idx = t * stride(ndim, nc);
         
+        #pragma omp parallel for
         for (int i = 0; i < nP; i++) { // for all points
             // Current point
             FLOAT point[ndim];
@@ -214,130 +217,63 @@ void cpab_forward_cpu(const FLOAT *points, // [ndim, n_points]
     }
 }
 
-/*
-// Function declaration
-at::Tensor cpab_forward(at::Tensor points_in, //[ndim, n_points]
-                        at::Tensor trels_in,  //[batch_size, nC, ndim, ndim+1]
-                        at::Tensor nstepsolver_in, // scalar
-                        at::Tensor nc_in){ // ndim length tensor
-    
-    // Problem size
-    const auto ndim = points_in.size(0);
-    const auto nP = points_in.size(1);
-    const auto batch_size = trels_in.size(0);
 
-    // Allocate output
-    auto output = at::zeros(torch::CPU(at::kFloat), {batch_size, ndim, nP}); // [batch_size, ndim, nP]
-    auto newpoints = output.data<float>();
+template <class FLOAT>
+void cpab_backward_cpu(const FLOAT *points, // [ndim, nP]
+                       const FLOAT *As, // [batch_size, nC, ndim, ndim+1]
+                       const FLOAT *Bs, // [d, nC, ndim, ndim+1]
+                       int ndim, int nP, int batch_size, int nstepsolver, int d, int nC, // scalar
+                       const int *nc, // [ndim]
+                       FLOAT *grad){ // [d, batch_size, ndim, nP]
     
-    // Convert to pointers
-    const auto points = points_in.data<float>();
-    const auto trels = trels_in.data<float>();
-    const auto nstepsolver = nstepsolver_in.data<int>();
-    const auto nc = nc_in.data<int>();
-
-    // Main loop
-    for(int t = 0; t < batch_size; t++) { // for all batches
-        // Start index for batch
-        int start_idx = t * stride(ndim, nc);
-        
-        for(int i = 0; i < nP; i++) { // for all points
-            // Current point
-            float point[ndim];
-            for(int j = 0; j < ndim; j++){
-                point[j] = points[i + j*nP];
-            }
-            // Iterate in nStepSolver
-            for(int n = 0; n < nstepsolver[0]; n++){
-                // Find cell index
-                int idx = findcellidx(ndim, point, nc);
-                
-                // Get mapping
-                const float* tidx = trels + param_pr_cell(ndim)*idx + start_idx;  
-                
-                // Update points
-                float newpoint[ndim];
-                A_times_b(ndim, newpoint, tidx, point);
-                for(int j = 0; j < ndim; j++){
-                    point[j] = newpoint[j];
-                }
-            }
-            // Update output
-            for(int j = 0; j < ndim; j++){
-                newpoints[t * ndim * nP + i + j * nP] = point[j]; 
-            }            
-        }
-    }
-    return output;
-}
-*/
-/*
-at::Tensor cpab_backward(at::Tensor points_in, // [ndim, nP]
-                         at::Tensor As_in, // [n_theta, nC, ndim, ndim+1]
-                         at::Tensor Bs_in, // [d, nC, ndim, ndim+1]
-                         at::Tensor nstepsolver_in, // scalar
-                         at::Tensor nc_in){ // ndim length tensor
-    // Problem size
-    const auto n_theta = As_in.size(0);
-    const auto d = Bs_in.size(0);
-    const auto ndim = points_in.size(0);
-    const auto nP = points_in.size(1);
-    const auto nC = Bs_in.size(1);
-    
-    // Allocate output
-    auto output = at::zeros(torch::CPU(at::kFloat), {d, n_theta, ndim, nP});
-    auto grad = output.data<float>();
-    
-    // Convert to pointers
-    const auto points = points_in.data<float>();
-    const auto As = As_in.data<float>();
-    const auto Bs = Bs_in.data<float>();
-    const auto nstepsolver = nstepsolver_in.data<int>();
-    const auto nc = nc_in.data<int>();
-    
-    // Make data structures for calculations
-    float p[ndim], v[ndim], pMid[ndim], vMid[ndim], q[ndim], qMid[ndim];
-    float B_times_T[ndim], A_times_dTdAlpha[ndim], u[ndim], uMid[ndim];
-    float Alocal[ndim*(ndim+1)], Blocal[ndim*(ndim+1)];
+    const FLOAT h = (1.0 / nstepsolver);
+    const int params_size = param_pr_cell(ndim);
 
     // Loop over all transformations
-    for(int batch_index = 0; batch_index < n_theta; batch_index++){
-        // For all points
-        for(int point_index = 0; point_index < nP; point_index++){
-            // For all parameters in the transformations
-            for(int dim_index = 0; dim_index < d; dim_index++){
-                int index = 2 * nP * batch_index + point_index;
-                int boxsize = 2 * nP * n_theta;
+    #pragma omp parallel for
+    for (int batch_index = 0; batch_index < batch_size; batch_index++) {
+        // Define start index for the matrices belonging to this batch
+        const int start_idx = batch_index * stride(ndim, nc);
                 
-                // Define start index for the matrices belonging to this batch
-                int start_idx = batch_index * stride(ndim, nc);
+        const int boxsize = 2 * nP * batch_size;
+ 
+        // For all points
+        #pragma omp parallel for
+        for (int point_index = 0; point_index < nP; point_index++) {
+            // Make data structures for calculations
+            FLOAT p[ndim], v[ndim], pMid[ndim], vMid[ndim], q[ndim], qMid[ndim];
+            FLOAT B_times_T[ndim], A_times_dTdAlpha[ndim], u[ndim], uMid[ndim];
+            //FLOAT Alocal[ndim*(ndim+1)], Blocal[ndim*(ndim+1)];
+
+            // For all parameters in the transformations
+            for (int dim_index = 0; dim_index < d; dim_index++) {
+                const int index = 2 * nP * batch_index + point_index;
                 
                 // Get point
-                for(int j = 0; j < ndim; j++){
+                for (int j = 0; j < ndim; j++) {
                     p[j] = points[point_index + j*index];
                 }
                 
-                double h = (1.0 / nstepsolver[0]);
                 
                 // Integrate velocity field
-                for(int t = 0; t < nstepsolver[0]; t++){
+                for (int t = 0; t < nstepsolver; t++) {
                     // Get current cell
-                    int cellidx = findcellidx(ndim, p, nc);
+                    const int cellidx = findcellidx(ndim, p, nc);
                     
                     // Get index of A
-                    int params_size = param_pr_cell(ndim);
-                    int As_idx = params_size*cellidx;
+                    const int As_idx = params_size*cellidx;
                     
                     // Extract local A
-                    for(int i = 0; i < params_size; i++){
-                        Alocal[i] = (As + As_idx + start_idx)[i];
-                    }
+                    const FLOAT *Alocal = As + As_idx + start_idx;
+                    //for (int i = 0; i < params_size; i++) {
+                    //    Alocal[i] = (As + As_idx + start_idx)[i];
+                    //}
                     
                     // Compute velocity at current location
                     A_times_b(ndim, v, Alocal, p);
                     
                     // Compute midpoint
-                    for(int j = 0; j < ndim; j++){
+                    for (int j = 0; j < ndim; j++) {
                         pMid[j] = p[j] + h*v[j]/2.0;
                     }
                     
@@ -345,15 +281,16 @@ at::Tensor cpab_backward(at::Tensor points_in, // [ndim, nP]
                     A_times_b(ndim, vMid, Alocal, pMid);
                     
                     // Get index of B
-                    int Bs_idx = params_size * dim_index * nC + As_idx;
+                    const int Bs_idx = params_size * dim_index * nC + As_idx;
                     
                     // Get local B
-                    for(int i = 0; i < params_size; i++){
-                        Blocal[i] = (Bs + Bs_idx)[i];
-                    }
+                    const FLOAT *Blocal = Bs + Bs_idx;
+                    //for (int i = 0; i < params_size; i++) {
+                    //    Blocal[i] = (Bs + Bs_idx)[i];
+                    //}
                     
                     // Copy q
-                    for(int j = 0; j < ndim; j++){
+                    for (int j = 0; j < ndim; j++) {
                         q[j] = grad[dim_index*boxsize + index + j*nP];
                     }
                     
@@ -363,12 +300,12 @@ at::Tensor cpab_backward(at::Tensor points_in, // [ndim, nP]
                     A_times_b_linear(ndim, A_times_dTdAlpha, Alocal, q); // term 2
                     
                     // Sum both terms
-                    for(int j = 0; j < ndim; j++){
+                    for (int j = 0; j < ndim; j++) {
                         u[j] = B_times_T[j] + A_times_dTdAlpha[j];
                     }
                     
                     // Step 2: Compute mid point
-                    for(int j = 0; j < ndim; j++){
+                    for (int j = 0; j < ndim; j++) {
                         qMid[j] = q[j] + h * u[j]/2.0;
                     }
                     
@@ -377,22 +314,22 @@ at::Tensor cpab_backward(at::Tensor points_in, // [ndim, nP]
                     A_times_b_linear(ndim, A_times_dTdAlpha, Alocal, qMid);
                     
                     // Sum both terms
-                    for(int j = 0; j < ndim; j++){
+                    for (int j = 0; j < ndim; j++) {
                         uMid[j] = B_times_T[j] + A_times_dTdAlpha[j];
                     }
                     
                     // Update q
-                    for(int j = 0; j < ndim; j++){
+                    for (int j = 0; j < ndim; j++) {
                         q[j] += uMid[j] * h;
                     }
                     
                     // Update gradient
-                    for(int j = 0; j < ndim; j++){
+                    for (int j = 0; j < ndim; j++) {
                         grad[dim_index * boxsize + index + j*nP] = q[j];
                     }
                     
                     // Update p
-                    for(int j = 0; j < ndim; j++){
+                    for (int j = 0; j < ndim; j++) {
                         p[j] += vMid[j]*h;
                     }
                     
@@ -400,14 +337,5 @@ at::Tensor cpab_backward(at::Tensor points_in, // [ndim, nP]
             }
         }
     }
-    return output;
 }
-*/
 
-/*            
-// Binding
-PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
-    m.def("forward", &cpab_forward, "Cpab transformer forward");
-    m.def("backward", &cpab_backward, "Cpab transformer backward");
-}
-*/
