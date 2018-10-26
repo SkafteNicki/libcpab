@@ -12,7 +12,7 @@ else:
     extra_compile_args.append('-fopenmp')
     extra_link_args.append('-lgomp')
 
-nplibcpab_module = Extension('nplibcpab', sources = ['src/npcpab1.cc'], extra_compile_args=extra_compile_args, extra_link_args=extra_link_args)
+nplibcpab_module = Extension('nplibcpab', sources = ['src/npcpab.cc'], extra_compile_args=extra_compile_args, extra_link_args=extra_link_args)
 
 setup(name             = "libcpab_numpy_backend",
       version          = "1.0",
