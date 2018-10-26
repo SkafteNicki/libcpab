@@ -129,21 +129,21 @@ int findcellidx3(const FLOAT* p, const int nx, const int ny, const int nz) {
     const FLOAT y = point[1]*ny - p1;
     const FLOAT z = point[2]*nz - p2;
 
-    if( x<=y && 1-x>y && x<z && 1-x>=z ){ cell_idx += 0; }
-    if( x>y && x<=1-y && y<z && 1-y>=z ){ cell_idx += 1; }
-    if( x>=z && x<1-z && y>=z && y<1-z ){ cell_idx += 2; }
-    if( x<=z && x>1-z && y<=z && y>1-z ){ cell_idx += 3; }
-    if( x<y && x>=1-y && y>z && 1-y<=z ){ cell_idx += 4; }
-    if( x>=y && 1-x<y && x>z && 1-x<=z ){ cell_idx += 5; }
+    if( x<=y && 1-x>y  && x<z  && 1-x>=z ){ cell_idx += 0; }
+    if( x>y  && x<=1-y && y<z  && 1-y>=z ){ cell_idx += 1; }
+    if( x>=z && x<1-z  && y>=z && y<1-z  ){ cell_idx += 2; }
+    if( x<=z && x>1-z  && y<=z && y>1-z  ){ cell_idx += 3; }
+    if( x<y  && x>=1-y && y>z  && 1-y<=z ){ cell_idx += 4; }
+    if( x>=y && 1-x<y  && x>z  && 1-x<=z ){ cell_idx += 5; }
 
     return cell_idx;
 }
 
 template <class FLOAT>
 inline
-int findcellidx(int ndim, const FLOAT* p, const int* nc){
-    if (ndim == 1){ return findcellidx1(p, nc[0]);} 
-    if (ndim == 2){ return findcellidx2(p, nc[0], nc[1]);}
+int findcellidx(int ndim, const FLOAT* p, const int* nc) {
+    if (ndim == 1){ return findcellidx1(p, nc[0]); } 
+    if (ndim == 2){ return findcellidx2(p, nc[0], nc[1]); }
     if (ndim == 3){ return findcellidx3(p, nc[0], nc[1], nc[2]); }
     return -1; // should never happen; just there to silence compiler
 }
