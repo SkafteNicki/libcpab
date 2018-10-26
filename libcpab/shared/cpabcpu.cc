@@ -118,14 +118,17 @@ int fast_findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
     point[1] = p[1];
     
     // If point is outside [0, 1]x[0, 1] then we project to the circle with
-    // center (1/2, 1/2) and radius 1/2. The index of the projected point
-    // coincide with the natural extrapolation of the boundaries.
+    // center (1/2, 1/2) and radius 1/2; then we rescale to lie on the boundary
+    // of the [0, 1]x[0, 1] box.
     if (point[0] < 0.0 || point[0] > 1.0 || point[1] < 0.0 || point[1] > 1.0) {
         point[0] -= 0.5;
         point[1] -= 0.5;
-        const FLOAT s = 0.5 * (1.0 / sqrt(point[0]*point[0] + point[1]*point[1])); // in CUDA we should use rsqrtf
-        point[0] = s*point[0] + 0.5;
-        point[1] = s*point[1] + 0.5;
+        const FLOAT s = 1.0 / sqrt(point[0]*point[0] + point[1]*point[1]); // in CUDA we should use rsqrtf
+        point[0] = s*point[0];
+        point[1] = s*point[1];
+        const FLOAT m = 0.5 / std::max(std::abs(point[0]), std::abs(point[1]));
+        point[0] = m * point[0] + 0.5;
+        point[1] = m * point[1] + 0.5;
     }
     
     // Cell size
@@ -275,10 +278,12 @@ void cpab_forward_cpu(const FLOAT *points, // [ndim, n_points]
                      )
 {
     // Main loop
+    const int str = stride(ndim, nc);
+    
     #pragma omp parallel for
     for (int t = 0; t < batch_size; t++) { // for all batches
         // Start index for batch
-        const int start_idx = t * stride(ndim, nc);
+        const int start_idx = t * str;
         
         #pragma omp parallel for
         for (int i = 0; i < nP; i++) { // for all points
@@ -324,12 +329,13 @@ void cpab_backward_cpu(const FLOAT *points, // [ndim, nP]
     const FLOAT h = (1.0 / nstepsolver);
     const FLOAT h_half = h/2.0;
     const int params_size = param_pr_cell(ndim);
+    const int str = stride(ndim, nc);
 
     // Loop over all transformations
     #pragma omp parallel for
     for (int batch_index = 0; batch_index < batch_size; batch_index++) {
         // Define start index for the matrices belonging to this batch
-        const int start_idx = batch_index * stride(ndim, nc);
+        const int start_idx = batch_index * str;
                 
         const int boxsize = 2 * nP * batch_size;
  
