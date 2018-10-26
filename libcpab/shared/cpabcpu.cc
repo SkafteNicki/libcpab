@@ -2,6 +2,7 @@
 #include <omp.h>
 
 // Support functions
+inline
 int stride(int ndim, const int* nc){
     int s = 0;
     if (ndim == 1){ s = 2; } // two parameters per cell
@@ -13,6 +14,7 @@ int stride(int ndim, const int* nc){
     return s;
 }
 
+inline
 int param_pr_cell(int ndim){
     if(ndim == 1){ return 2; } // two parameters per cell
     if(ndim == 2){ return 6; } // 6 parameters per triangle
@@ -21,11 +23,13 @@ int param_pr_cell(int ndim){
 }
 
 template <class FLOAT>
+inline
 int mymin(int a, FLOAT b) {
     return !(b<a)?a:round(b);
 }
 
 template <class FLOAT>
+inline
 int findcellidx1(const FLOAT* p, const int ncx) {           
     // Floor value to find cell
     int idx = std::floor(p[0] * ncx);
@@ -34,6 +38,7 @@ int findcellidx1(const FLOAT* p, const int ncx) {
 }
 
 template <class FLOAT>
+inline
 int findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
     // Copy point                        
     double point[2];
@@ -105,6 +110,7 @@ int findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
 }
 
 template <class FLOAT>
+inline
 int findcellidx3(const FLOAT* p, const int nx, const int ny, const int nz) {
     // Copy point
     FLOAT point[3];
@@ -134,6 +140,7 @@ int findcellidx3(const FLOAT* p, const int nx, const int ny, const int nz) {
 }
 
 template <class FLOAT>
+inline
 int findcellidx(int ndim, const FLOAT* p, const int* nc){
     if(ndim == 1){ return findcellidx1(p, nc[0]);} 
     if(ndim == 2){ return findcellidx2(p, nc[0], nc[1]);}
@@ -142,6 +149,7 @@ int findcellidx(int ndim, const FLOAT* p, const int* nc){
 }
 
 template <class FLOAT>
+inline
 void A_times_b(int ndim, FLOAT x[], const FLOAT *A, const FLOAT *b) {
     if (ndim == 1) {
       x[0] = A[0]*b[0] + A[1];
@@ -158,6 +166,7 @@ void A_times_b(int ndim, FLOAT x[], const FLOAT *A, const FLOAT *b) {
 }
 
 template <class FLOAT>
+inline
 void A_times_b_linear(int ndim, FLOAT x[], const FLOAT *A, FLOAT *b) {
     if (ndim == 1) {
       x[0] = A[0]*b[0];
@@ -174,6 +183,7 @@ void A_times_b_linear(int ndim, FLOAT x[], const FLOAT *A, FLOAT *b) {
 }
 
 template <class FLOAT>
+static
 void cpab_forward_cpu(const FLOAT *points, // [ndim, n_points]
                       const FLOAT *trels,  // [batch_size, nC, ndim, ndim+1]
                       int ndim, int nP, int batch_size, int nstepsolver, 
@@ -220,6 +230,7 @@ void cpab_forward_cpu(const FLOAT *points, // [ndim, n_points]
 
 
 template <class FLOAT>
+static
 void cpab_backward_cpu(const FLOAT *points, // [ndim, nP]
                        const FLOAT *As, // [batch_size, nC, ndim, ndim+1]
                        const FLOAT *Bs, // [d, nC, ndim, ndim+1]
