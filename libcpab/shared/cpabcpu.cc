@@ -75,7 +75,7 @@ int findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
     
     // Out of bound (right)
     if (point[0] >= ncx*inc_x) {
-        if (point[1]<=0 && -point[1]/inc_y > point[0]/inc_x - ncx) {
+        if (point[1] <= 0 && -point[1]/inc_y > point[0]/inc_x - ncx) {
             // Nothing to do here
         } else if (point[1] >= ncy*inc_y && point[1]/inc_y - ncy > point[0]/inc_x-ncx) {
             cell_idx += 2;
@@ -142,9 +142,9 @@ int findcellidx3(const FLOAT* p, const int nx, const int ny, const int nz) {
 template <class FLOAT>
 inline
 int findcellidx(int ndim, const FLOAT* p, const int* nc){
-    if(ndim == 1){ return findcellidx1(p, nc[0]);} 
-    if(ndim == 2){ return findcellidx2(p, nc[0], nc[1]);}
-    if(ndim == 3){ return findcellidx3(p, nc[0], nc[1], nc[2]); }
+    if (ndim == 1){ return findcellidx1(p, nc[0]);} 
+    if (ndim == 2){ return findcellidx2(p, nc[0], nc[1]);}
+    if (ndim == 3){ return findcellidx3(p, nc[0], nc[1], nc[2]); }
     return -1; // should never happen; just there to silence compiler
 }
 
