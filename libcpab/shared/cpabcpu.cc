@@ -123,7 +123,7 @@ int fast_findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
     if (point[0] < 0.0 || point[0] > 1.0 || point[1] < 0.0 || point[1] > 1.0) {
         point[0] -= 0.5;
         point[1] -= 0.5;
-        const FLOAT s = 0.5 * (1.0 / sqrt(point[0]*point[0] + point[1]*point[1])); // in CUDA we should use rsqrt
+        const FLOAT s = 0.5 * (1.0 / sqrt(point[0]*point[0] + point[1]*point[1])); // in CUDA we should use rsqrtf
         point[0] = s*point[0] + 0.5;
         point[1] = s*point[1] + 0.5;
     }
