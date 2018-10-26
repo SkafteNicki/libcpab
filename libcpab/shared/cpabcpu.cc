@@ -16,9 +16,9 @@ int stride(int ndim, const int* nc){
 
 inline
 int param_pr_cell(int ndim){
-    if(ndim == 1){ return 2; } // two parameters per cell
-    if(ndim == 2){ return 6; } // 6 parameters per triangle
-    if(ndim == 3){ return 12; } // 12 parameters per pyramid
+    if (ndim == 1){ return 2; } // two parameters per cell
+    if (ndim == 2){ return 6; } // 6 parameters per triangle
+    if (ndim == 3){ return 12; } // 12 parameters per pyramid
     return -1; // should never happen, just there to silence the compiler
 }
 
@@ -41,31 +41,31 @@ template <class FLOAT>
 inline
 int findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
     // Copy point                        
-    double point[2];
+    FLOAT point[2];
     point[0] = p[0];
     point[1] = p[1];
     
     // Cell size
-    const float inc_x = 1.0 / ncx;
-    const float inc_y = 1.0 / ncy;
+    const FLOAT inc_x = 1.0 / ncx;
+    const FLOAT inc_y = 1.0 / ncy;
     
     // Find initial row, col placement
-    double p0 = std::min((ncx * inc_x - 0.000000001), std::max(0.0, point[0]));
-    double p1 = std::min((ncy * inc_y - 0.000000001), std::max(0.0, point[1]));
-    double xmod = fmod(p0, inc_x);
-    double ymod = fmod(p1, inc_y);
-    double x = xmod / inc_x;
-    double y = ymod / inc_y;
+    const FLOAT p0 = std::min((ncx * inc_x - 0.000000001), std::max(0.0, point[0]));
+    const FLOAT p1 = std::min((ncy * inc_y - 0.000000001), std::max(0.0, point[1]));
+    const FLOAT xmod = fmod(p0, inc_x);
+    const FLOAT ymod = fmod(p1, inc_y);
+    const FLOAT x = xmod / inc_x;
+    const FLOAT y = ymod / inc_y;
     
     int cell_idx =  mymin(ncx-1, (p0 - xmod) / inc_x) + 
                     mymin(ncy-1, (p1 - ymod) / inc_y) * ncx;        
     cell_idx *= 4;
 
     // Out of bound (left)
-    if(point[0]<=0){
-        if(point[1] <= 0 && point[1]/inc_y<point[0]/inc_x){
+    if (point[0] <= 0) {
+        if (point[1] <= 0 && point[1]/inc_y<point[0]/inc_x) {
             // Nothing to do here
-        } else if(point[1] >= ncy * inc_y && point[1]/inc_y-ncy > -point[0]/inc_x) {
+        } else if (point[1] >= ncy * inc_y && point[1]/inc_y-ncy > -point[0]/inc_x) {
             cell_idx += 2;
         } else {
             cell_idx += 3;
@@ -74,10 +74,10 @@ int findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
     }
     
     // Out of bound (right)
-    if(point[0] >= ncx*inc_x){
-        if(point[1]<=0 && -point[1]/inc_y > point[0]/inc_x - ncx){
+    if (point[0] >= ncx*inc_x) {
+        if (point[1]<=0 && -point[1]/inc_y > point[0]/inc_x - ncx) {
             // Nothing to do here
-        } else if(point[1] >= ncy*inc_y && point[1]/inc_y - ncy > point[0]/inc_x-ncx){
+        } else if (point[1] >= ncy*inc_y && point[1]/inc_y - ncy > point[0]/inc_x-ncx) {
             cell_idx += 2;
         } else {
             cell_idx += 1;
@@ -86,24 +86,24 @@ int findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
     }
         
     // Out of bound (up)
-    if(point[1] <= 0){
+    if (point[1] <= 0) {
         return cell_idx;
     }
     
     // Out of bound (bottom)
-    if(point[1] >= ncy*inc_y){
+    if (point[1] >= ncy*inc_y) {
         cell_idx += 2;
         return cell_idx;
     }
     
     // OK, we are inbound
-    if(x<y){
-        if(1-x<y){
+    if (x < y) {
+        if (1-x < y) {
             cell_idx += 2;
         } else {
             cell_idx += 3;
         }
-    } else if(1-x<y) {
+    } else if (1-x < y) {
         cell_idx += 1;
     }
     return cell_idx;
@@ -119,9 +119,9 @@ int findcellidx3(const FLOAT* p, const int nx, const int ny, const int nz) {
     point[2] = p[2];
     
     // Find row, col, layer placement
-    int p0 = mymin( nx - 1 , std::max(0.0, point[0]*nx) );
-    int p1 = mymin( ny - 1 , std::max(0.0, point[1]*ny) );
-    int p2 = mymin( nz - 1 , std::max(0.0, point[2]*nz) );
+    const int p0 = mymin( nx - 1 , std::max(0.0, point[0]*nx) );
+    const int p1 = mymin( ny - 1 , std::max(0.0, point[1]*ny) );
+    const int p2 = mymin( nz - 1 , std::max(0.0, point[2]*nz) );
     
     int cell_idx = 6 * ( p0 + p1*nx + p2*nx*ny );
 
