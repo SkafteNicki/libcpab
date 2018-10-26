@@ -4,7 +4,7 @@
 from distutils.core import setup, Extension
 import sys
 
-extra_compile_args = []
+extra_compile_args = ['-ffast-math']
 extra_link_args = []
 if sys.platform.startswith('win'):
     extra_compile_args.append('-openmp')
