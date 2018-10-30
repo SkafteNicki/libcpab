@@ -1,4 +1,5 @@
 #include <iostream>
+#include <cmath>
 #include <omp.h>
 
 // Support functions
@@ -112,32 +113,39 @@ int findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
 template <class FLOAT>
 inline
 int fast_findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
+    // Cell size
+    const FLOAT inc_x = 1.0 / ncx;
+    const FLOAT inc_y = 1.0 / ncy;
+
     // Copy point                        
     FLOAT point[2];
     point[0] = p[0];
     point[1] = p[1];
     
-    // If point is outside [0, 1]x[0, 1] then we project to the circle with
-    // center (1/2, 1/2) and radius 1/2; then we rescale to lie on the boundary
-    // of the [0, 1]x[0, 1] box.
+    // If point is outside [0, 1]x[0, 1] then we push it inside
     if (point[0] < 0.0 || point[0] > 1.0 || point[1] < 0.0 || point[1] > 1.0) {
-        point[0] -= 0.5;
-        point[1] -= 0.5;
-        const FLOAT s = 1.0 / sqrt(point[0]*point[0] + point[1]*point[1]); // in CUDA we should use rsqrtf
-        point[0] = s*point[0];
-        point[1] = s*point[1];
-        const FLOAT m = 0.5 / std::max(std::abs(point[0]), std::abs(point[1]));
-        point[0] = m * point[0] + 0.5;
-        point[1] = m * point[1] + 0.5;
+        const FLOAT half = 0.5;
+        point[0] -= half;
+        point[1] -= half;
+        const FLOAT abs_x = std::abs(point[0]);
+        const FLOAT abs_y = std::abs(point[1]);
+
+        const FLOAT push_x = (abs_x < abs_y) ? half*inc_x : 0.0;
+        const FLOAT push_y = (abs_y < abs_x) ? half*inc_y : 0.0;
+        if (abs_x > half) {
+            point[0] = std::copysign(half - push_x, point[0]);
+        }
+        if (abs_y > half) {
+            point[1] = std::copysign(half - push_y, point[1]);
+        }
+        
+        point[0] += half;
+        point[1] += half;
     }
     
-    // Cell size
-    const FLOAT inc_x = 1.0 / ncx;
-    const FLOAT inc_y = 1.0 / ncy;
-    
     // Find initial row, col placement
-    const FLOAT p0 = std::min((ncx * inc_x - 0.000000001), std::max(0.0, point[0]));
-    const FLOAT p1 = std::min((ncy * inc_y - 0.000000001), std::max(0.0, point[1]));
+    const FLOAT p0 = std::min((1.0 - 0.000000001), std::max(0.0, point[0]));
+    const FLOAT p1 = std::min((1.0 - 0.000000001), std::max(0.0, point[1]));
     const FLOAT xmod = fmod(p0, inc_x);
     const FLOAT ymod = fmod(p1, inc_y);
     const FLOAT x = xmod / inc_x;
@@ -146,42 +154,7 @@ int fast_findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
     int cell_idx =  mymin(ncx-1, (p0 - xmod) / inc_x) + 
                     mymin(ncy-1, (p1 - ymod) / inc_y) * ncx;        
     cell_idx *= 4;
-/*
-    // Out of bound (left)
-    if (point[0] <= 0) {
-        if (point[1] <= 0 && point[1]/inc_y<point[0]/inc_x) {
-            // Nothing to do here
-        } else if (point[1] >= ncy * inc_y && point[1]/inc_y-ncy > -point[0]/inc_x) {
-            cell_idx += 2;
-        } else {
-            cell_idx += 3;
-        }
-        return cell_idx;
-    }
-    
-    // Out of bound (right)
-    if (point[0] >= ncx*inc_x) {
-        if (point[1] <= 0 && -point[1]/inc_y > point[0]/inc_x - ncx) {
-            // Nothing to do here
-        } else if (point[1] >= ncy*inc_y && point[1]/inc_y - ncy > point[0]/inc_x-ncx) {
-            cell_idx += 2;
-        } else {
-            cell_idx += 1;
-        }
-        return cell_idx;
-    }
-        
-    // Out of bound (up)
-    if (point[1] <= 0) {
-        return cell_idx;
-    }
-    
-    // Out of bound (bottom)
-    if (point[1] >= ncy*inc_y) {
-        cell_idx += 2;
-        return cell_idx;
-    }
-*/    
+
     // OK, we are inbound
     if (x < y) {
         if (1-x < y) {
