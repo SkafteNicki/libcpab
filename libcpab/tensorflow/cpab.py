@@ -164,8 +164,8 @@ class cpab(object):
                 'n_points needs to be a list equal to the dimensionality of the transformation'
             lin_p = [np.linspace(self._domain_min[i], self._domain_max[i], n_points[i])
                     for i in range(self._ndim)]
-            mesh_p = np.meshgrid(*lin_p)
-            grid = np.vstack([array.flatten() for array in mesh_p])
+            mesh_p = np.meshgrid(*lin_p[::-1], indexing='ij')
+            grid = np.vstack([array.flatten() for array in mesh_p[::-1]])
             if self._return_tf_tensors: grid = tf.cast(grid, tf.float32)
         return grid
     

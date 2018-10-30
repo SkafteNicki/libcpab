@@ -147,8 +147,8 @@ class cpab(object):
             equal to the dimensionality of the transformation'''
         ls = [torch.linspace(self.params.domain_min[i], self.params.domain_max[i], 
                              n_points[i]) for i in range(self.params.ndim)]
-        mg = torch.meshgrid(ls)
-        grid = torch.cat([g.reshape(1,-1) for g in mg], dim=0)
+        mg = torch.meshgrid(ls[::-1])
+        grid = torch.cat([g.reshape(1,-1) for g in mg[::-1]], dim=0)
         return grid.to(self.device)
         
     #%%
