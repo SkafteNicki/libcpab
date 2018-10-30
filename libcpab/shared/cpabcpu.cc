@@ -144,18 +144,17 @@ int fast_findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
     }
     
     // Find initial row, col placement
-    const FLOAT p0 = std::min((1.0 - 0.000000001), std::max(0.0, point[0]));
-    const FLOAT p1 = std::min((1.0 - 0.000000001), std::max(0.0, point[1]));
-    const FLOAT xmod = fmod(p0, inc_x);
-    const FLOAT ymod = fmod(p1, inc_y);
-    const FLOAT x = xmod / inc_x;
-    const FLOAT y = ymod / inc_y;
+    const FLOAT p0 = std::min((1.0 - 0.000000001), point[0]);
+    const FLOAT p1 = std::min((1.0 - 0.000000001), point[1]);
+    const FLOAT p0ncx = p0*ncx;
+    const FLOAT p1ncy = p1*ncy;
+    const int ip0ncx = p0ncx; // rounds down
+    const int ip1ncy = p1ncy; // rounds down
+    int cell_idx = 4 * (ip0ncx + ip1ncy * ncx);
     
-    int cell_idx =  mymin(ncx-1, (p0 - xmod) / inc_x) + 
-                    mymin(ncy-1, (p1 - ymod) / inc_y) * ncx;        
-    cell_idx *= 4;
-
-    // OK, we are inbound
+    // Find (sub)triangle
+    const FLOAT x = p0ncx - ip0ncx;
+    const FLOAT y = p1ncy - ip1ncy;
     if (x < y) {
         if (1-x < y) {
             cell_idx += 2;
@@ -165,6 +164,7 @@ int fast_findcellidx2(const FLOAT* p, const int ncx, const int ncy) {
     } else if (1-x < y) {
         cell_idx += 1;
     }
+    
     return cell_idx;
 }
 
