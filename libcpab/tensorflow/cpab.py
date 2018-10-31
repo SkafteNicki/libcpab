@@ -156,8 +156,8 @@ class cpab(object):
             lin_p = [tf.linspace(tf.cast(self._domain_min[i], tf.float32), 
                                  tf.cast(self._domain_max[i], tf.float32), n_points[i])
                     for i in range(self._ndim)]
-            mesh_p = tf.meshgrid(*lin_p)                        
-            grid = tf.concat([tf.reshape(array, (1, -1)) for array in mesh_p], axis=0)
+            mesh_p = tf.meshgrid(*lin_p[::-1])                        
+            grid = tf.concat([tf.reshape(array, (1, -1)) for array in mesh_p[::-1]], axis=0)
             if not self._return_tf_tensors: grid = self._sess.run(grid)
         else:
             assert len(n_points) == self._ndim, \
