@@ -157,11 +157,12 @@ def tf_interpolate_3D(data, grid):
         z = z * (depth-1)
         
         # Do sampling
-        x0 = tf.cast(tf.floor(x), tf.int32)
+        eps = 1e-5
+        x0 = tf.cast(tf.floor(x+eps), tf.int32)
         x1 = x0 + 1
-        y0 = tf.cast(tf.floor(y), tf.int32)
+        y0 = tf.cast(tf.floor(y+eps), tf.int32)
         y1 = y0 + 1
-        z0 = tf.cast(tf.floor(z), tf.int32)
+        z0 = tf.cast(tf.floor(z+eps), tf.int32)
         z1 = z0 + 1
         
         # Clip values
@@ -173,9 +174,9 @@ def tf_interpolate_3D(data, grid):
         z1 = tf.clip_by_value(z1, 0, max_z)
         
         # Take care of batch effect
-        dim1 = depth * height * width
-        dim2 = depth * height
-        dim3 = depth
+        dim1 = width * height * depth
+        dim2 = width * height
+        dim3 = width
         base = tf_repeat(tf.range(n_batch) * dim1, dim1)
         base_z0 = base + dim2 * z0
         base_z1 = base + dim2 * z1
@@ -207,7 +208,6 @@ def tf_interpolate_3D(data, grid):
         x0_f = tf.cast(x0, tf.float32)
         y0_f = tf.cast(y0, tf.float32)
         z0_f = tf.cast(z0, tf.float32)
-        
         
         # Interpolation weights
         xd = (x-x0_f)
