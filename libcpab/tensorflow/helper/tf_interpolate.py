@@ -169,7 +169,7 @@ def tf_interpolate_3D(data, grid):
     " grid: n_batch x 3 x n_points "
     with tf.name_scope('interpolate'):
         data, grid = tf.cast(data, tf.float32), tf.cast(grid, tf.float32)
-        
+            
         # Constants
         n_batch = tf_shape_i(data,0)
         width = tf_shape_i(data,1)
@@ -185,9 +185,9 @@ def tf_interpolate_3D(data, grid):
         z = tf.reshape(grid[:,2], (-1,))
         
         # Scale to domain
-        x = x * width
-        y = y * height
-        z = z * depth
+        x = x * (width-1)
+        y = y * (height-1)
+        z = z * (depth-1)
         
         # Do sampling
         x0 = tf.cast(tf.floor(x), tf.int32)
@@ -205,42 +205,22 @@ def tf_interpolate_3D(data, grid):
         z0 = tf.clip_by_value(z0, 0, max_z)
         z1 = tf.clip_by_value(z1, 0, max_z)
         
-        # Take care of batch effect
-        dim1 = depth * height * width
-        dim2 = depth * height
-        dim3 = depth
+        dim1 = width * height * depth
         base = tf_repeat(tf.range(n_batch) * dim1, dim1)
-        base_z0 = base + dim2 * z0
-        base_z1 = base + dim2 * z1
-        base_z0_y0 = base_z0 + dim3 * y0
-        base_z0_y1 = base_z0 + dim3 * y1
-        base_z1_y0 = base_z1 + dim3 * y0
-        base_z1_y1 = base_z1 + dim3 * y1
-        i1 = base_z0_y0 + x0
-        i2 = base_z0_y0 + x1
-        i3 = base_z0_y1 + x0
-        i4 = base_z0_y1 + x1
-        i5 = base_z1_y0 + x0
-        i6 = base_z1_y0 + x1
-        i7 = base_z1_y1 + x0
-        i8 = base_z1_y1 + x1
-
-        # Lookup values
-        data_flat = tf.reshape(data, (-1, ))
-        c000 = tf.gather(data_flat, i1)
-        c001 = tf.gather(data_flat, i5)
-        c010 = tf.gather(data_flat, i2)
-        c011 = tf.gather(data_flat, i6)
-        c100 = tf.gather(data_flat, i3)
-        c101 = tf.gather(data_flat, i7)
-        c110 = tf.gather(data_flat, i4)
-        c111 = tf.gather(data_flat, i8)
+        
+        c000 = tf.gather_nd(data, tf.stack([base, x0, y0, z0], axis=1))
+        c001 = tf.gather_nd(data, tf.stack([base, x0, y0, z1], axis=1))
+        c010 = tf.gather_nd(data, tf.stack([base, x0, y1, z0], axis=1))
+        c011 = tf.gather_nd(data, tf.stack([base, x0, y1, z1], axis=1))
+        c100 = tf.gather_nd(data, tf.stack([base, x1, y0, z0], axis=1))
+        c101 = tf.gather_nd(data, tf.stack([base, x1, y0, z1], axis=1))
+        c110 = tf.gather_nd(data, tf.stack([base, x1, y1, z0], axis=1))
+        c111 = tf.gather_nd(data, tf.stack([base, x1, y1, z1], axis=1))
         
         # Float casting
         x0_f = tf.cast(x0, tf.float32)
         y0_f = tf.cast(y0, tf.float32)
         z0_f = tf.cast(z0, tf.float32)
-        
         
         # Interpolation weights
         xd = (x-x0_f)
@@ -257,7 +237,7 @@ def tf_interpolate_3D(data, grid):
         c = c0*(1-zd) + c1*zd
         
         # Reshape and return
-        new_data = tf.reshape(c, (n_batch, width, height, depth))
+        new_data = tf.transpose(tf.reshape(c, (n_batch, depth, height, width)), perm=[0,3,2,1])
         return new_data
     
 #%%
