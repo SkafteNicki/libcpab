@@ -30,6 +30,7 @@ class _notcompiled:
 # version if we fail to compile one of the versions     
 _verbose = False
 _use_slow = False
+_use_numeric = False
 _dir = get_dir(__file__)        
 
 # Jit compile cpu source
@@ -150,9 +151,112 @@ class _CPABFunction(torch.autograd.Function):
         return None, g.t() # transpose, since pytorch expects a [n_theta, d] matrix
 
 #%%
+class _CPABFunction_numeric(torch.autograd.Function):
+    # Function that connects the forward pass to the backward pass
+    @staticmethod
+    def forward(ctx, points, theta):
+        assert points.device == theta.device, '''points are on device %s and 
+            theta are on device %s. Please make sure that they are on the 
+            same device''' % (str(points.device), str(theta.device))
+        device = points.device
+        params = load_basis_as_struct()
+        
+        # Problem size
+        n_theta = theta.shape[0]
+        
+        # Get velocity fields
+        B = torch.Tensor(params.basis).to(device)
+        Avees = torch.matmul(B, theta.t())
+        As = Avees.t().reshape(n_theta*params.nC, *params.Ashape)
+        zero_row = torch.zeros(n_theta*params.nC, 1, params.ndim+1).to(device)
+        AsSquare = torch.cat([As, zero_row], dim=1)
+        
+        # Take matrix exponential
+        dT = 1.0 / params.nstepsolver
+        Trels = torch_expm(dT*AsSquare)
+        Trels = Trels[:,:params.ndim,:].view(n_theta, params.nC, *params.Ashape)
+        
+        # Convert to tensor
+        nstepsolver = torch.tensor(params.nstepsolver, dtype=torch.int32, 
+                                   device=device).to(device)
+        nc = torch.tensor(params.nc, dtype=torch.int32, device=device)
+        
+        # Call integrator
+        if points.is_cuda:
+            newpoints = cpab_gpu.forward(points.contiguous(), 
+                                         Trels.contiguous(), 
+    								nstepsolver.contiguous(), 
+												nc.contiguous())
+        else:            
+            newpoints = cpab_cpu.forward(points.contiguous(), 
+												Trels.contiguous(), 
+												nstepsolver.contiguous(), 
+												nc.contiguous())
+        
+        # Save for backward
+        ctx.save_for_backward(points, theta, newpoints, nstepsolver, nc, params)
+        # Output result
+        return newpoints
+    
+    @staticmethod
+    @torch.autograd.function.once_differentiable
+    def backward(ctx, grad): # grad [n_theta, ndim, n]
+        # Grap input
+        points, theta, newpoints, nstepsolver, nc, params = ctx.saved_tensors
+        device = points.device
+        h = 0.01
+        gradient = [ ]
+        
+        # Problem size
+        n_theta, d = theta.shape
+        
+        for i in range(d):
+            # Permute theta
+            temp = theta
+            temp[i] += h
+            
+            # Get velocity fields
+            B = torch.Tensor(params.basis).to(device)
+            Avees = torch.matmul(B, temp.t())
+            As = Avees.t().reshape(n_theta*params.nC, *params.Ashape)
+            zero_row = torch.zeros(n_theta*params.nC, 1, params.ndim+1).to(device)
+            AsSquare = torch.cat([As, zero_row], dim=1)
+            
+            # Take matrix exponential
+            dT = 1.0 / params.nstepsolver
+            Trels = torch_expm(dT*AsSquare)
+            Trels = Trels[:,:params.ndim,:].view(n_theta, params.nC, *params.Ashape)
+            
+            # Call integrator
+            if points.is_cuda:
+                temp_points = cpab_gpu.forward(points.contiguous(), 
+                                             Trels.contiguous(), 
+        								nstepsolver.contiguous(), 
+    												nc.contiguous())
+            else:            
+                temp_points = cpab_cpu.forward(points.contiguous(), 
+    												Trels.contiguous(), 
+    												nstepsolver.contiguous(), 
+    												nc.contiguous())
+            
+            diff = (temp_points - newpoints) / h
+            
+            # Do finite gradient
+            gradient.append((grad * diff).sum(dim=[1,2])) # gradient [n_theta, ]
+        
+        # Reshaping
+        gradient = torch.stack(gradient, dim = 1) # [n_theta, d]
+        return gradient
+
+#%%
 def _fast_transformer(points, theta):
     return _CPABFunction.apply(points, theta)
 
+#%%
+def _fast_transformer_numeric(points, theta):
+    return _CPABFunction_numeric.apply(points, theta)
+.is_cuda: res = expm_gpu_module.forward(A.contiguous())
+                else: r
 #%%
 def _slow_transformer(points, theta):
     assert points.device == theta.device, '''points are on device %s and 
@@ -213,14 +317,22 @@ def CPAB_transformer(points, theta):
     if points.is_cuda and theta.is_cuda:
         if _gpu_succes and not _use_slow:
             if _verbose: print('fast gpu version')
-            newpoints = _fast_transformer(points, theta)
+            if _use_numeric:
+                if _verbose: print('using finite difference')
+                newpoints = _fast_transformer_numeric(points, theta)    
+            else:
+                newpoints = _fast_transformer(points, theta)
         else:
             if _verbose: print('slow gpu version')
             newpoints = _slow_transformer(points, theta)
     else:
         if _cpu_succes and not _use_slow:
             if _verbose: print('fast cpu version')
-            newpoints = _fast_transformer(points, theta)
+            if _use_numeric:
+                if _verbose: print('using finite difference')
+                newpoints = _fast_transformer_numeric(points, theta)
+            else:
+                newpoints = _fast_transformer(points, theta)
         else:
             if _verbose: print('slow cpu version')
             newpoints = _slow_transformer(points, theta)
