@@ -20,6 +20,7 @@ def tf_interpolate_1D(data, grid):
         # Constants
         n_batch = tf_shape_i(data,0)
         length_d = tf_shape_i(data,1)
+        n_channel = tf_shape_i(data,2)
         length_g = tf_shape_i(grid,2)
         max_x = tf.cast(length_d-1, tf.int32)
         
@@ -27,7 +28,7 @@ def tf_interpolate_1D(data, grid):
         x = tf.reshape(grid[:,0], (-1,)) # [n_theta x n_points]
         
         # Scale to domain
-        x = x * length_d
+        x = x * (length_d-1)
         
         # Do sampling
         x0 = tf.cast(tf.floor(x), tf.int32)
@@ -43,7 +44,7 @@ def tf_interpolate_1D(data, grid):
         idx_2 = base + x1
         
         # Lookup values
-        data_flat = tf.reshape(data, (-1,))
+        data_flat = tf.reshape(data, (-1,n_channel))
         i1 = tf.gather(data_flat, idx_1)
         i2 = tf.gather(data_flat, idx_2)
         
@@ -52,10 +53,11 @@ def tf_interpolate_1D(data, grid):
         x1 = tf.cast(x1, tf.float32)
         
         # Do interpolation
-        new_data = i1 + (x - x0) * (i2 - i1)#w1*i1 + w2*i2
+        new_data = i1 + tf.transpose((x - x0) * tf.transpose((i2 - i1), perm=[1,0]), 
+                                     perm=[1,0]) #w1*i1 + w2*i2
         
         # Reshape and return
-        new_data = tf.reshape(new_data, (n_batch, length_g))
+        new_data = tf.reshape(new_data, (n_batch, length_g, n_channel))
         return new_data
 
 #%%
