@@ -28,9 +28,11 @@ application ect.) we request you to cite [1] and [2].
 ## Requirements
 
 * Generic python packages: numpy, scipy, matplotlib
+* To use the Tensorflow backend, install [tensorflow](https://www.tensorflow.org/install/)
+* To use the Pytorch backend, install [pytorch](https://pytorch.org/)
 * Tensorflow or Pytorch
 
-To use the GPU implementation (both backends), you need a nvidia GPU and CUDA + cuDNN installed.
+To use the GPU implementation (tensorflow + pytorch backend), you need a nvidia GPU and CUDA + cuDNN installed.
 I recommend going through these [installation instructions](https://www.tensorflow.org/install/)
 for tensorflow. If you can get tensorflow working on your machine, pytorch should also work.
 
