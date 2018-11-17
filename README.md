@@ -27,7 +27,7 @@ application ect.) we request you to cite [1] and [2].
 
 ## Requirements
 
-* Generic python packages: numpy, scipy, matplotlib
+* Generic python packages: numpy, scipy, matplotlib, pickle
 * To use the Tensorflow backend, install [tensorflow](https://www.tensorflow.org/install/)
 * To use the Pytorch backend, install [pytorch](https://pytorch.org/)
 * Tensorflow or Pytorch
