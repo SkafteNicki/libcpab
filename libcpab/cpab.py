@@ -104,48 +104,68 @@ class cpab(object):
         
     #%%
     def get_theta_dim(self):
+        """ """
         return self.params.d
     
     #%%
     def get_params(self):
+        """ """
         return self.params
     
     #%%
     def get_basis(self):
+        """ """
         return self.params.basis
     
     #%%    
     def uniform_meshgrid(self, n_points):
-        raise NotImplementedError
+        """ """
+        return self.backend.uniform_meshgrid(self.params.ndim,
+                                             self.params.domain_min,
+                                             self.params.domain_max,
+                                             n_points)
       
     #%%
     def sample_transformation(self, n_sample=1, mean=None, cov=None):
+        """ """
         if not mean: self._check_type(mean)
         if not cov: self._check_type(cov)
         return self.backend.sample_transformation(n_sample, mean, cov)
     
     #%%
     def sample_transformation_with_prior(self, n_sample=1):
+        """ """
         raise NotImplementedError
     
     #%%
     def identity(self, n_sample=1, epsilon=0):
+        """ """
         return self.backend.identity(self.params.d, n_sample, epsilon)
     
     #%%
     def transform_grid(self, points, theta):
+        """ """
+        self._check_type(points)
+        self._check_type(theta)
         raise NotImplementedError
     
     #%%    
     def interpolate(self, data, grid, outsize):
+        """ """
+        self._check_type(data)
+        self._check_grid(data)
         raise NotImplementedError
     
     #%%
     def transform_data(self, data, theta, outsize):
+        """ """
+        self._check_type(data)
+        self._check_type(theta)
         raise NotImplementedError
     
     #%%
     def _check_input(self, tess_size, backend, zero_boundary, volume_perservation):
+        """ """
         assert len(tess_size) > 0 and len(tess_size) <= 3, \
             '''Transformer only supports 1D, 2D or 3D'''
         assert type(tess_size) == list or type(tess_size) == tuple, \
@@ -163,6 +183,7 @@ class cpab(object):
             
     #%%
     def _check_type(self, x):
+        """ """
         assert type(x) in self.backend.atype(), \
             ''' Input has type {0} but expected type {1} ''' % \
             (type(x), self.backend.atype())
