@@ -127,6 +127,10 @@ and this [github repo](https://github.com/SkafteNicki/ddtn).
   this, use T.identity(n_sample, epsilon) and set epsilon to a small number.
   I will look into this at some points in the future.
   
+## Note
+This is a older branch of the library that is only active for support to older
+projects. Please update to version 2.0 of the library if you can.
+  
 ## Versions
 
 * 23/08/2018, Version 1.0 - First working version of libcpab
