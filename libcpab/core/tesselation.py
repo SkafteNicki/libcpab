@@ -9,11 +9,23 @@ Created on Sun Nov 18 14:23:25 2018
 import numpy as np
 
 #%%
-class tesselation1D:
+class tesselation:
+    """ Base tesselation class. This function is not meant to be called,
+        but descripes the base structure that needs to be implemented in
+        1D, 2D, and 3D.
+    Args:
+        nc: list with number of cells
+        domain_min: value of the lower bound(s) of the domain
+        domain_max: value of the upper bound(s) of the domain
+        zero_boundary: bool, if true the velocity is zero on the boundary
+        volume_perservation: bool, if true volume is perserved
+    
+    """
     def __init__(self, nc, domain_min=0, domain_max=1,
                  zero_boundary = True, volume_perservation=False):
         # Save parameters
         self.nc = nc
+        self.nC = np.prod(nc)
         self.domain_min = domain_min
         self.domain_max = domain_max
         self.zero_boundary = zero_boundary
@@ -21,8 +33,10 @@ class tesselation1D:
     
         # Get vertices
         self.vertices = self.find_verts()
+        self.inner_vertices = self.vertices
         
-        if not zero_boundary: # find auxility vertices
+        # find auxility vertices, if transformation is valid outside
+        if not zero_boundary: 
             temp = self.find_verts_outside()
             self.vertices = np.concatenate((self.vertices, temp), axis=0)
         
@@ -42,76 +56,50 @@ class tesselation1D:
     def get_constrain_matrix(self):
         return self.L
     
+    def get_cell_centers(self):
+        return np.mean(self.inner_vertices)
+    
     def find_verts(self):
-        pass
-    
+        raise NotImplemented
+        
     def find_verts_outside(self):
-        pass
-    
+        raise NotImplemented
+        
     def create_continuity_constrains(self):
-        pass
+        raise NotImplemented
         
     def create_zero_boundary_constrains(self):
-        pass
+        raise NotImplemented
         
     def create_zero_trace_constrains(self):
-        pass
-    
+        raise NotImplemented
+        
 #%%
-class tesselation2D:
+class tesselation1D(tesselation):
     def __init__(self, nc, domain_min=0, domain_max=1,
                  zero_boundary = True, volume_perservation=False):
-        # Save parameters
-        self.nc = nc
-        self.domain_min = domain_min
-        self.domain_max = domain_max
-        self.zero_boundary = zero_boundary
-        self.volume_perservation = volume_perservation
-    
-    def get_constrain_matrix(self):
-        pass
+        super(tesselation1D, self).__init__(nc, domain_min, domain_max,
+             zero_boundary, volume_perservation)
+        self.n_params = 2
     
     def find_verts(self):
         pass
     
     def find_verts_outside(self):
-        pass
+        return np.empty((0, self.nC))
     
     def create_continuity_constrains(self):
         pass
         
     def create_zero_boundary_constrains(self):
-        pass
+        Ltemp = np.zeros((2,2*self.nC))
+        Ltemp[0,:2] = [self.domain_min, 1]
+        Ltemp[1,-2:] = [self.domain_max, 1]
+        return Ltemp
         
     def create_zero_trace_constrains(self):
-        pass
-    
-#%%
-class tesselation3D:
-    def __init__(self, nc, domain_min=0, domain_max=1,
-                 zero_boundary = True, volume_perservation=False):
-        # Save parameters
-        self.nc = nc
-        self.domain_min = domain_min
-        self.domain_max = domain_max
-        self.zero_boundary = zero_boundary
-        self.volume_perservation = volume_perservation
-    
-    def get_constrain_matrix(self):
-        pass
-    
-    def find_verts(self):
-        pass
-    
-    def find_verts_outside(self):
-        pass
-    
-    def create_continuity_constrains(self):
-        pass
-        
-    def create_zero_boundary_constrains(self):
-        pass
-        
-    def create_zero_trace_constrains(self):
-        pass
+        Ltemp = np.zeros(shape=(self.nC, 2*self.nC))
+        for c in range(self.nC):
+            Ltemp[c,2*c] = 1
+        return Ltemp
     
