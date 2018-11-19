@@ -126,7 +126,13 @@ and this [github repo](https://github.com/SkafteNicki/ddtn).
   to initialize the transformations to the identity and calculate gradients of 
   this, use T.identity(n_sample, epsilon) and set epsilon to a small number.
   I will look into this at some points in the future.
-  
+
+## Future
+
+Note that the code is currently being updated to version 2.0 (see the branch).
+The current state of the reposatory is branched off as version 1.4 and will see
+no further development.
+
 ## Versions
 
 * 23/08/2018, Version 1.0 - First working version of libcpab
