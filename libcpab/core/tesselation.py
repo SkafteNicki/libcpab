@@ -30,12 +30,12 @@ class Tesselation:
     Methods that should not be implemented in subclasses:
         @get_constrain_matrix:
         @get_cell_centers:
+        @create_continuity_constrains:
         @create_zero_trace_constrains:
             
     Methods that should be implemented in subclasses:
         @find_verts:
         @find_verts_outside:
-        @create_continuity_constrains:
         @create_zero_boundary_constrains:
         
     """
@@ -84,12 +84,15 @@ class Tesselation:
         shared_v, shared_v_idx = [ ], [ ]
         for i in range(self.nC):
             for j in range(self.nC):
-                vi = make_hashable(self.verts[i])
-                vj = make_hashable(self.verts[j])
-                shared_verts = set(vi).intersection(vj)
-                if len(shared_verts) == self.ndim and (j,i) not in shared_v_idx:
-                    shared_v.append(list(shared_verts))
-                    shared_v_idx.append((i,j))
+                if i != j:
+                    vi = make_hashable(self.verts[i])
+                    vj = make_hashable(self.verts[j])
+                    shared_verts = set(vi).intersection(vj)
+                    if len(shared_verts) >= self.ndim and (j,i) not in shared_v_idx:
+                        shared_v.append(list(shared_verts)[:self.ndim])
+                        shared_v_idx.append((i,j))
+                    #if len(shared_verts) > self.ndim:
+                    #    x = 5
         
         # Save result
         self.shared_v = np.asarray(shared_v)
@@ -99,7 +102,20 @@ class Tesselation:
         raise NotImplementedError
         
     def create_continuity_constrains(self):
-        raise NotImplementedError
+        """ This function goes through all pairs (i,j) of cells that share a
+            boundary. In N dimension we need to add N*N constrains (one for each
+            dimension times one of each vertex in the boundary) """
+        Ltemp = np.zeros(shape=(0,self.n_params*self.nC))
+        for idx, (i,j) in enumerate(self.shared_v_idx):
+            for vidx in range(self.ndim):
+                for k in range(self.ndim):
+                    index1 = self.n_params*i + k*(self.ndim+1)
+                    index2 = self.n_params*j + k*(self.ndim+1)
+                    row = np.zeros(shape=(1,self.n_params*self.nC))
+                    row[0,index1:index1+(self.ndim+1)] = self.shared_v[idx][vidx]
+                    row[0,index2:index2+(self.ndim+1)] = -self.shared_v[idx][vidx]
+                    Ltemp = np.vstack((Ltemp, row))
+        return Ltemp
         
     def create_zero_boundary_constrains(self):
         raise NotImplementedError
@@ -143,12 +159,6 @@ class Tesselation1D(Tesselation):
         
     def find_verts_outside(self):
         pass # in 1D, we do not need auxilliry points
-    
-    def create_continuity_constrains(self):
-        Ltemp = np.zeros(shape=(self.nC-1,2*self.nC))
-        for idx, v in enumerate(self.shared_v):
-            Ltemp[idx,2*idx:2*(idx+2)] = [*v[0], *(-v[0])]
-        return Ltemp
         
     def create_zero_boundary_constrains(self):
         Ltemp = np.zeros((2,2*self.nC))
@@ -264,45 +274,6 @@ class Tesselation2D(Tesselation):
         # Concat to the current list of vertices
         self.shared_v = np.concatenate((self.shared_v, shared_v))
         self.shared_v_idx = np.concatenate((self.shared_v_idx, shared_v_idx))
-
-    def create_continuity_constrains(self):
-        Ltemp = np.zeros(shape=(0,6*self.nC))
-        count = 0
-        for i,j in self.shared_v_idx:
-    
-            # Row 1 [x_a^T 0_{1x3} -x_a^T 0_{1x3}]
-            row1 = np.zeros(shape=(6*self.nC))
-            row1[(6*i):(6*(i+1))] = np.append(np.array(self.shared_v[count][0]), 
-                                              np.zeros((1,3)))
-            row1[(6*j):(6*(j+1))] = np.append(-np.array(self.shared_v[count][0]), 
-                                              np.zeros((1,3)))
-            
-            # Row 2 [0_{1x3} x_a^T 0_{1x3} -x_a^T]
-            row2 = np.zeros(shape=(6*self.nC))
-            row2[(6*i):(6*(i+1))] = np.append(np.zeros((1,3)), 
-                                              np.array(self.shared_v[count][0]))
-            row2[(6*j):(6*(j+1))] = np.append(np.zeros((1,3)), 
-                                              -np.array(self.shared_v[count][0]))
-            
-            # Row 3 [x_b^T 0_{1x3} -x_b^T 0_{1x3}]
-            row3 = np.zeros(shape=(6*self.nC))
-            row3[(6*i):(6*(i+1))] = np.append(np.array(self.shared_v[count][1]), 
-                                              np.zeros((1,3)))
-            row3[(6*j):(6*(j+1))] = np.append(-np.array(self.shared_v[count][1]), 
-                                              np.zeros((1,3)))
-            
-            # Row 4 [0_{1x3} x_b^T 0_{1x3} -x_b^T]
-            row4 = np.zeros(shape=(6*self.nC))
-            row4[(6*i):(6*(i+1))] = np.append(np.zeros((1,3)), 
-                                              np.array(self.shared_v[count][1]))
-            row4[(6*j):(6*(j+1))] = np.append(np.zeros((1,3)), 
-                                              -np.array(self.shared_v[count][1]))
-                        
-            Ltemp = np.vstack((Ltemp, row1, row2, row3, row4))
-            
-            count += 1
-        
-        return Ltemp
         
     def create_zero_boundary_constrains(self):
         xmin, ymin = self.domain_min
@@ -355,7 +326,7 @@ class Tesselation3D(Tesselation):
                     
                     verts.append((cnt, lnl, lnu, lfl, lfu))
                     verts.append((cnt, lnl, lnu, rnl, rnu))
-                    verts.append((cnt, lnl, lfl, rnl, rnu))
+                    verts.append((cnt, lnl, lfl, rnl, rfl))
                     verts.append((cnt, rnl, rnu, rfl, rfu))
                     verts.append((cnt, lfl, lfu, rfl, rfu))
                     verts.append((cnt, lnu, lfu, rnu, rfu))
@@ -374,26 +345,12 @@ class Tesselation3D(Tesselation):
     def find_verts_outside(self):
         raise NotImplementedError
         
-    def create_continuity_constrains(self):
-        Ltemp = np.zeros(shape=(0,self.n_params*self.nC))
-
-        for idx, (i,j) in enumerate(self.shared_v_idx):
-            for vidx in range(self.ndim):
-                for k in range(self.ndim):
-                    index1 = self.n_params*i + k*(self.ndim+1)
-                    index2 = self.n_params*j + k*(self.ndim+1)
-                    row = np.zeros(shape=(1,self.n_params*self.nC))
-                    row[0,index1:index1+(self.ndim+1)] = self.shared_v[idx][vidx]
-                    row[0,index2:index2+(self.ndim+1)] = -self.shared_v[idx][vidx]
-                    Ltemp = np.vstack((Ltemp, row))
-        return Ltemp
-    
-        
     def create_zero_boundary_constrains(self):
         nx, ny, nz = self.nc
         Ltemp = np.zeros(shape=(2*((nx+1)*(ny+1) + (nx+1)*(nz+1) + (ny+1)*(nz+1)), self.n_params*self.nC))
         # xy-plane
         sr = 0
+        z = [0,0,0]
         for i in [0,nz-1]:
             for j in range(ny+1):
                 for k in range(nx+1):
@@ -402,7 +359,7 @@ class Tesselation3D(Tesselation):
 
                     vrt = [ k/nx, j/ny, i/(nz-1) ]
 
-                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.matrix(vrt+[0,0,1])
+                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.matrix(z+z+vrt+[0,0,1])
                     sr += 1
         # xz-plane
         for j in [0,ny-1]:
@@ -413,7 +370,7 @@ class Tesselation3D(Tesselation):
 
                     vrt = [ k/nx, j/(ny-1), i/nz ]
 
-                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.matrix(vrt+[0,1,0])
+                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.matrix(z+vrt+z+[0,1,0])
                     sr += 1
         # yz-plane
         for k in [0,nx-1]:
@@ -424,7 +381,7 @@ class Tesselation3D(Tesselation):
             
                     vrt = [ k/(nx-1), j/ny, i/nz ]
 
-                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.matrix(vrt+[1,0,0])
+                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.matrix(vrt+z+z+[1,0,0])
                     sr += 1
                     
         return Ltemp
@@ -433,4 +390,4 @@ class Tesselation3D(Tesselation):
 if __name__ == "__main__":
     tess1 = Tesselation1D([5], [0], [1], zero_boundary=True, volume_perservation=True)
     tess2 = Tesselation2D([2,2], [0,0], [1,1], zero_boundary=False, volume_perservation=True)
-    tess3 = Tesselation3D([2,2,2], [0,0,0], [1,1,1], zero_boundary=True, volume_perservation=True)
+    tess3 = Tesselation3D([2,2,2], [0,0,0], [1,1,1], zero_boundary=True, volume_perservation=False)

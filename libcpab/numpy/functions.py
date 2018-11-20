@@ -7,6 +7,7 @@ Created on Fri Nov 16 16:01:52 2018
 
 #%%
 import numpy as np
+from .interpolation import interpolate
 
 #%%
 def atype():

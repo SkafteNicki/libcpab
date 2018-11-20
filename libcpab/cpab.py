@@ -9,9 +9,7 @@ Created on Fri Nov 16 15:34:36 2018
 import numpy as np
 from .core.utility import params, get_dir, create_dir, check_if_file_exist, \
                             save_obj, load_obj, null
-from .core.setup_constrains_1d import get_constrain_matrix_1D
-from .core.setup_constrains_2d import get_constrain_matrix_2D
-from .core.setup_constrains_3d import get_constrain_matrix_3D
+from .core.tesselation import Tesselation1D, Tesselation2D, Tesselation3D
 
 #%%
 class cpab(object):
@@ -53,23 +51,27 @@ class cpab(object):
         # Specific for the different dims
         if self.params.ndim == 1:
             self.params.nC = self.params.nc[0]
-            get_constrain_matrix_f = get_constrain_matrix_1D     
+            self.tesselation = Tesselation1D(self.params.nc, self.domain_min,
+                                             self.params.domain_max, 
+                                             self.params.zero_boundary, 
+                                             self.params.volume_perservation)
         elif self.params.ndim == 2:
             self.params.nC = 4*np.prod(self.params.nc)
-            get_constrain_matrix_f = get_constrain_matrix_2D
+            self.tesselation = Tesselation2D(self.params.nc, self.domain_min,
+                                             self.params.domain_max, 
+                                             self.params.zero_boundary, 
+                                             self.params.volume_perservation)
         elif self.params.ndim == 3:
             self.params.nC = 6*np.prod(self.params.nc)
-            get_constrain_matrix_f = get_constrain_matrix_3D
+            self.tesselation = Tesselation3D(self.params.nc, self.domain_min,
+                                             self.params.domain_max, 
+                                             self.params.zero_boundary, 
+                                             self.params.volume_perservation)
         
         # Check if we have already created the basis
         if not check_if_file_exist(self._basis_file+'.pkl'):
             # Get constrain matrix
-            L = get_constrain_matrix_f(self.params.nc, 
-                                       self.params.domain_min, 
-                                       self.params.domain_max,
-                                       self.params.valid_outside, 
-                                       self.params.zero_boundary,
-                                       self.params.volume_perservation)
+            L = self.tesselation.get_constrain_matrix()
                 
             # Find null space of constrain matrix
             B = null(L)
@@ -154,7 +156,7 @@ class cpab(object):
         """ """
         self._check_type(data)
         self._check_grid(data)
-        raise NotImplementedError
+        return self.backend.interpolate(self.params.ndim, data, grid, outsize)
     
     #%%
     def transform_data(self, data, theta, outsize):
