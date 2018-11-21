@@ -7,18 +7,14 @@ Created on Sun Nov 18 14:23:25 2018
 
 #%%
 import numpy as np
-
-def make_hashable(arr):
-    """ Make an array hasable. In this way we can use built-in functions like
-        set(...) and intersection(...) on the array
-    """
-    return tuple([tuple(r.tolist()) for r in arr])
+from .utility import make_hashable
 
 #%%
 class Tesselation:
     """ Base tesselation class. This function is not meant to be called,
         but descripes the base structure that needs to be implemented in
-        1D, 2D, and 3D.
+        1D, 2D, and 3D. Additionally, some functionallity is shared across
+        the different dimensions.
         
     Args:
         nc: list with number of cells
@@ -39,8 +35,18 @@ class Tesselation:
         @create_zero_boundary_constrains:
         
     """
-    def __init__(self, nc, domain_min=0, domain_max=1,
+    def __init__(self, nc, domain_min, domain_max,
                  zero_boundary = True, volume_perservation=False):
+        """ Initilization of the class that create the constrain matrix L
+        Arguments:
+            nc: list, number of cells in each dimension
+            domain_min: list, lower domain bound in each dimension
+            domain_max: list, upper domain bound in each dimension
+            zero_boundary: bool, determines is the velocity at the boundary is zero
+            volume_perservation: bool, determine if the transformation is
+                volume perservating
+        """
+        
         # Save parameters
         self.nc = nc
         self.domain_min = domain_min
@@ -71,15 +77,21 @@ class Tesselation:
             self.L = np.concatenate((self.L, temp), axis=0)
     
     def get_constrain_matrix(self):
+        """ Function for getting the constructed constrain matrix L """
         return self.L
     
     def get_cell_centers(self):
+        """ Get the centers of all the cells """
         return np.mean(self.verts[:,:,:self.ndim], axis=1)
     
     def find_verts(self):
+        """ Function that should find the different vertices of all cells in
+            the tesselation """
         raise NotImplementedError
         
     def find_shared_verts(self):
+        """ Find pairs of cells that share ndim-vertices. It is these pairs,
+            where we need to add continuity constrains at """
         # Iterate over all pairs of cell to find cells with intersecting cells
         shared_v, shared_v_idx = [ ], [ ]
         for i in range(self.nC):
@@ -91,14 +103,15 @@ class Tesselation:
                     if len(shared_verts) >= self.ndim and (j,i) not in shared_v_idx:
                         shared_v.append(list(shared_verts)[:self.ndim])
                         shared_v_idx.append((i,j))
-                    #if len(shared_verts) > self.ndim:
-                    #    x = 5
         
         # Save result
         self.shared_v = np.asarray(shared_v)
         self.shared_v_idx = shared_v_idx
         
     def find_verts_outside(self):
+        """ If the transformation should be valid outside, this function should
+            add additional auxilliry points to the tesselation that secures
+            continuity outside the domain """
         raise NotImplementedError
         
     def create_continuity_constrains(self):
@@ -118,6 +131,8 @@ class Tesselation:
         return Ltemp
         
     def create_zero_boundary_constrains(self):
+        """ Function that creates a constrain matrix L, containing constrains that
+            secure 0 velocity at the boundary """
         raise NotImplementedError
         
     def create_zero_trace_constrains(self):
@@ -131,7 +146,7 @@ class Tesselation:
         
 #%%
 class Tesselation1D(Tesselation):
-    def __init__(self, nc, domain_min=0, domain_max=1,
+    def __init__(self, nc, domain_min, domain_max,
                  zero_boundary = True, volume_perservation=False):
         # 1D parameters
         self.n_params = 2
@@ -168,7 +183,7 @@ class Tesselation1D(Tesselation):
 
 #%%
 class Tesselation2D(Tesselation):
-    def __init__(self, nc, domain_min=0, domain_max=1,
+    def __init__(self, nc, domain_min, domain_max,
                  zero_boundary = True, volume_perservation=False):
         # 1D parameters
         self.n_params = 6 
@@ -293,7 +308,7 @@ class Tesselation2D(Tesselation):
 
 #%%
 class Tesselation3D(Tesselation):
-    def __init__(self, nc, domain_min=0, domain_max=1,
+    def __init__(self, nc, domain_min, domain_max,
                  zero_boundary = True, volume_perservation=False):
         # 1D parameters
         self.n_params = 12
@@ -307,7 +322,7 @@ class Tesselation3D(Tesselation):
     def find_verts(self):
         Vx = np.linspace(self.domain_min[0], self.domain_max[0], self.nc[0]+1)
         Vy = np.linspace(self.domain_min[1], self.domain_max[1], self.nc[1]+1)
-        Vz = np.linspace(self.domain_min[1], self.domain_max[1], self.nc[1]+1)
+        Vz = np.linspace(self.domain_min[2], self.domain_max[2], self.nc[2]+1)
         
         # Find cell index and verts for each cell
         cells, verts = [ ], [ ]
@@ -343,7 +358,37 @@ class Tesselation3D(Tesselation):
         self.cells = cells
 
     def find_verts_outside(self):
-        raise NotImplementedError
+        shared_verts, shared_verts_idx = [ ], [ ]
+        # Iterate over all pairs of cells
+        for i in range(self.nC):
+            for j in range(self.nC):
+                if i != j:
+                    # Add constrains for each side
+                    for d in range(self.ndim):
+                        # Get cell vertices
+                        vi = self.verts[i]    
+                        vj = self.verts[j]
+                        
+                        # Conditions for adding a constrain
+                        upper_cond = sum(vi[:,d]==self.domain_min[d]) == 4 and \
+                                     sum(vj[:,d]==self.domain_min[d]) == 4
+                        lower_cond = sum(vi[:,d]==self.domain_max[d]) == 4 and \
+                                     sum(vj[:,d]==self.domain_max[d]) == 4
+                        dist_cond = np.sqrt(np.sum(np.power(vi[0] - vj[0], 2.0))) <= 1/self.nc[d]+1e-5
+                        idx_cond = (j,i) not in shared_verts_idx
+                        
+                        if (upper_cond or lower_cond) and dist_cond and idx_cond:
+                            # Find the shared points
+                            vi = make_hashable(vi)
+                            vj = make_hashable(vj)
+                            sv = set(vi).intersection(vj)
+                            # Add auxilliry point halfway between the centers
+                            center = [(v1 + v2) / 2.0 for v1,v2 in zip(vi[0], vj[0])]
+                            shared_verts.append(list(sv.union([tuple(center)])))
+                            shared_verts_idx.append((i,j))
+        # Add to already found pairs
+        self.shared_v = np.concatenate((self.shared_v, np.asarray(shared_verts)))
+        self.shared_verts_idx += shared_verts_idx
         
     def create_zero_boundary_constrains(self):
         nx, ny, nz = self.nc
