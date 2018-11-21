@@ -9,6 +9,7 @@ Created on Fri Nov 16 16:01:52 2018
 import tensorflow as tf
 import tensorflow_probability as tfp
 from .interpolation import interpolate
+from .transformer import CPAB_transformer as transformer
 
 #%%
 def to(x):

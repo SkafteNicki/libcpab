@@ -199,11 +199,11 @@ class cpab(object):
         return self.backend.identity(self.params.d, n_sample, epsilon)
     
     #%%
-    def transform_grid(self, points, theta):
+    def transform_grid(self, grid, theta):
         """ """
-        self._check_type(points)
+        self._check_type(grid)
         self._check_type(theta)
-        raise NotImplementedError
+        return self.backend.transformer(grid, theta)
     
     #%%    
     def interpolate(self, data, grid, outsize):
@@ -214,10 +214,32 @@ class cpab(object):
     
     #%%
     def transform_data(self, data, theta, outsize):
-        """ """
+        """ Combination of the transform_grid and interpolate methods for easy
+            transformation of data.
+        Arguments:
+            data: [n_batch, *data_shape] tensor, with input data. The format of
+                the data_shape depends on the dimension of the data AND the
+                backend that is being used. In tensorflow and numpy:
+                    In 1D: [n_batch, number_of_features, n_channels]
+                    In 2D: [n_batch, width, height, n_channels]
+                    In 3D: [n_batch, width, height, depth, n_channels]
+                In pytorch:
+                    In 1D: [n_batch, n_channels, number_of_features]
+                    In 2D: [n_batch, n_channels, width, height]
+                    In 3D: [n_batch, n_channels, width, height, depth]
+            theta: [n_batch, d] matrix with transformation parameters. Each row
+                correspond to a transformation.
+            outsize: list, number of points in each direction that is transformed
+                and interpolated
+        Output:
+            data_t: [n_batch, *outsize] tensor, transformed and interpolated data
+        """
         self._check_type(data)
         self._check_type(theta)
-        raise NotImplementedError
+        grid = self.uniform_meshgrid(outsize)
+        grid_t = self.transform_grid(grid, theta)
+        data_t = self.interpolate(data, grid_t, outsize)
+        return data_t
     
     #%%
     def _check_input(self, tess_size, backend, device, 
