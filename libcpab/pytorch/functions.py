@@ -10,8 +10,19 @@ import torch
 from .interpolation import interpolate
 
 #%%
-def atype():
+def to(x):
+    return torch.Tensor(x)
+
+#%%
+def type():
     return [torch.Tensor]
+
+#%%
+def pdist(mat):
+    norm = torch.sum(mat * mat, 1)
+    norm = torch.reshape(norm, (-1, 1))
+    D = norm - 2*mat.mm(mat.t()) + norm.t()
+    return D
 
 #%%
 def sample_transformation(d, n_sample=1, mean=None, cov=None):
@@ -22,6 +33,7 @@ def sample_transformation(d, n_sample=1, mean=None, cov=None):
 
 #%%
 def identity(d, n_sample=1, epsilon=0):
+    assert epsilon>=0, "epsilon need to be larger than 0"
     return torch.zeros(n_sample, d, dtype=torch.float32) + epsilon
 
 #%%

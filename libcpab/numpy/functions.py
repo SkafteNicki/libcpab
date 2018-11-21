@@ -10,8 +10,19 @@ import numpy as np
 from .interpolation import interpolate
 
 #%%
-def atype():
+def to(x): 
+    return np.array(x)
+
+#%%
+def type():
     return [np.ndarray]
+
+#%%
+def pdist(mat):
+    norm = np.sum(mat * mat, 1)
+    norm = np.reshape(norm, (-1, 1))
+    D = norm - 2*np.matmul(mat, mat.T) + norm.T
+    return D
 
 #%%
 def sample_transformation(d, n_sample=1, mean=None, cov=None):
@@ -22,6 +33,7 @@ def sample_transformation(d, n_sample=1, mean=None, cov=None):
 
 #%%
 def identity(d, n_sample=1, epsilon=0):
+    assert epsilon>=0, "epsilon need to be larger than 0"
     return np.zeros((n_sample, d), dtype=np.float32) + epsilon
 
 #%%

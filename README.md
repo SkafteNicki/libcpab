@@ -1,11 +1,11 @@
 # libcpab
 CPAB Transformations [1]: finite-dimensional spaces of simple, fast, and 
 highly-expressive diffeomorphisms derived from parametric, 
-continuously-defined, velocity fields in **Tensorflow** and **Pytorch**.
+continuously-defined, velocity fields in **Numpy**, **Tensorflow** and **Pytorch**.
 
 The main idea behind this library is to offer a simple way to use diffiomorphic 
-transformations and incorporate them into existing software. 
-The diffiomorphic transformations are based on the work of 
+transformations and incorporate them into existing software. The diffiomorphic 
+transformations are based on the work of 
 [Freifeld et al.](https://www.cs.bgu.ac.il/~orenfr/papers/freifeld_etal_PAMI_2017).
 The library supports diffiomorphic transformations in 1D (time series), 
 2D (images) and 3D (volumetric images).
@@ -30,11 +30,11 @@ application ect.) we request you to cite [1] and [2].
 * Generic python packages: numpy, scipy, matplotlib, pickle
 * To use the Tensorflow backend, install [tensorflow](https://www.tensorflow.org/install/)
 * To use the Pytorch backend, install [pytorch](https://pytorch.org/)
-* Tensorflow or Pytorch
 
-To use the GPU implementation (tensorflow + pytorch backend), you need a nvidia GPU and CUDA + cuDNN installed.
-I recommend going through these [installation instructions](https://www.tensorflow.org/install/)
-for tensorflow. If you can get tensorflow working on your machine, pytorch should also work.
+To use the GPU implementation (tensorflow or pytorch backend), you need a nvidia 
+GPU and CUDA + cuDNN installed. I recommend going through these 
+[installation instructions](https://www.tensorflow.org/install/) for tensorflow. 
+If you can get tensorflow working on your machine, pytorch should also work.
 
 ## Installation
 
@@ -48,26 +48,33 @@ export PYTHONPATH=$PYTHONPATH:$YOUR_FOLDER_PATH/libcpab
 ```
 
 ## How to use
-The interface is simple to use and only have a couple of different methods that should
-get you started with diffiomorphic transformations. You have the choice to choose
-between a tensorflow or pytorch backend:
+The interface is simple to use and only have a couple of different methods that 
+should get you started with diffiomorphic transformations. You have the choice 
+to choose between a numpy, tensorflow or pytorch backend. Regardless of backend
+the main class to interact with is imported as
 
 ```
-    # Import library with tensorflow backend
-    from libcpab.tensorflow import cpab
-    
-    # Import library with pytorch backend
-    from libcpab.pytorch import cpab
+    from libcpab import cpab
+    T = cpab(tess_size, backend, device, zero_boundary, volume_perservation)
 ```
 
-Both class share the same the same interface
+The arguments are:
+* tess_size: list, with the number of cells in each dimension
+* backend: string, computational backend to use. Choose between "numpy" (default), 
+    "pytorch" or "tensorflow"      
+* device: string, either "CPU" (default) or "GPU". For the numpy backend only 
+    the "CPU" option is valid
+* zero_boundary: bool, determines is the velocity at the boundary is zero 
+* volume_perservation: bool, determine if the transformation is volume perservating
+
+The class have a number of methods
 
 ```
     # Import library
-    from libcpab."framework" import cpab
+    from libcpab import cpab
  
     # Define a 2x2 transformation class
-    T = cpab(tess_size=[2,2])
+    T = cpab(tess_size, backend, device, zero_boundary, volume_perservation)
     
     # Important methods
     g = T.uniform_meshgrid(...)               # sample uniform grid of points in transformer domain
@@ -75,15 +82,13 @@ Both class share the same the same interface
     theta = T.identity(...)                   # get the identity transformation
     dim = T.get_theta_size()                  # get dimensionality of transformation parametrization
     params = T.get_params()                   # get different transformer parameters
+    basis = T.get_basis()                     # get the basis for the transformation
     g_t = T.transform_grid(g, theta)          # transform a grid of points using theta
     data_t1 = T.interpolate(data, g_t)        # interpolate some data using the transformed grid
     data_t2 = T.transform_data(data, theta)   # combination of the two last methods 
 ```
 
-There are small differences between using the two backends. Please see this
-[file](libcpab/README.md) for the specific differences.
-
-We supply 3 case scripts for each backend:
+We supply 3 demo files (in the demo folder) for each backend:
 * *_demo1.py: simple use of the library to transform data
 * *_demo2.py: image registration by incorporating the library in a tensorflow/pytorch optimization rutine
 * *_demo3.py: time series alignment by sampling approch
@@ -131,8 +136,9 @@ and this [github repo](https://github.com/SkafteNicki/ddtn).
   
 ## Versions
 
-* 23/08/2018, Version 1.0 - First working version of libcpab
-* 28/09/2018, Version 1.1 - Pytorch backend support
-* 22/10/2018, Version 1.2 - Various bugfixes
-* 30/10/2018, Version 1.3 - Numpy backend support
+* ----------, Version 2.0 - Major overhaul of the library, many changes
 * 15/11/2018, Version 1.4 - Various bugfixes
+* 30/10/2018, Version 1.3 - Numpy backend support
+* 22/10/2018, Version 1.2 - Various bugfixes
+* 28/09/2018, Version 1.1 - Pytorch backend support
+* 23/08/2018, Version 1.0 - First working version of libcpab

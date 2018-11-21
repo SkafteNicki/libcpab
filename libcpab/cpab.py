@@ -13,16 +13,47 @@ from .core.tesselation import Tesselation1D, Tesselation2D, Tesselation3D
 
 #%%
 class cpab(object):
-    """
-    
+    """ Core class for this library. This class contains all the information
+        about the tesselation, transformation ect. The user is not meant to
+        use anything else than this specific class
+        
+    Arguments:
+        tess_size: list, with the number of cells in each dimension
+        
+        backend: string, computational backend to use. Choose between 
+            "numpy" (default), "pytorch" or "tensorflow"
+        
+        device: string, either "CPU" (default) or "GPU". For the numpy backend
+            only the "CPU" option is valid
+        
+        zero_boundary: bool, determines is the velocity at the boundary is zero 
+        
+        volume_perservation: bool, determine if the transformation is 
+            volume perservating
+        
+    Methods:
+        @get_theta_dim
+        @get_params
+        @get_bases
+        @uniform_meshgrid
+        @sample_transformation
+        @sample_transformation_with_smooth_prior
+        @identity
+        @transform_grid
+        @interpolate
+        @transform_data
+        
     """
     def __init__(self, 
                  tess_size,
                  backend = 'numpy',
+                 device = 'cpu', 
                  zero_boundary=True,
-                 volume_perservation=False):
+                 volume_perservation=False,
+                 ):
         # Check input
-        self._check_input(tess_size, backend, zero_boundary, volume_perservation)
+        self._check_input(tess_size, backend, device, 
+                          zero_boundary, volume_perservation)
         
         # Parameters
         self.params = params()
@@ -49,24 +80,17 @@ class cpab(object):
         create_dir(self._dir)
         
         # Specific for the different dims
+        pdir = [self.params.nc, self.params.domain_min, self.params.domain_max, 
+                self.params.zero_boundary, self.params.volume_perservation]
         if self.params.ndim == 1:
             self.params.nC = self.params.nc[0]
-            self.tesselation = Tesselation1D(self.params.nc, self.domain_min,
-                                             self.params.domain_max, 
-                                             self.params.zero_boundary, 
-                                             self.params.volume_perservation)
+            self.tesselation = Tesselation1D(*pdir)
         elif self.params.ndim == 2:
             self.params.nC = 4*np.prod(self.params.nc)
-            self.tesselation = Tesselation2D(self.params.nc, self.domain_min,
-                                             self.params.domain_max, 
-                                             self.params.zero_boundary, 
-                                             self.params.volume_perservation)
+            self.tesselation = Tesselation2D(*pdir)
         elif self.params.ndim == 3:
             self.params.nC = 6*np.prod(self.params.nc)
-            self.tesselation = Tesselation3D(self.params.nc, self.domain_min,
-                                             self.params.domain_max, 
-                                             self.params.zero_boundary, 
-                                             self.params.volume_perservation)
+            self.tesselation = Tesselation3D(*pdir)
         
         # Check if we have already created the basis
         if not check_if_file_exist(self._basis_file+'.pkl'):
@@ -103,25 +127,31 @@ class cpab(object):
         elif backend == 'pytorch':
             from .pytorch import functions as backend
         self.backend = backend
+        self.device = device
         
     #%%
     def get_theta_dim(self):
-        """ """
+        """ Method that returns the dimensionality of the transformation"""
         return self.params.d
     
     #%%
     def get_params(self):
-        """ """
+        """ Returns a class with all parameters for the transformation """
         return self.params
     
     #%%
     def get_basis(self):
-        """ """
+        """ Method that return the basis of transformation"""
         return self.params.basis
     
     #%%    
     def uniform_meshgrid(self, n_points):
-        """ """
+        """ Constructs a meshgrid 
+        Arguments:
+            n_points: list, number of points in each dimension
+        Output:
+            grid: [ndim, nP] matrix of points, where nP = product(n_points)
+        """
         return self.backend.uniform_meshgrid(self.params.ndim,
                                              self.params.domain_min,
                                              self.params.domain_max,
@@ -129,19 +159,43 @@ class cpab(object):
       
     #%%
     def sample_transformation(self, n_sample=1, mean=None, cov=None):
-        """ """
+        """ Method for sampling transformation from simply multivariate gaussian
+            As default the method will sample from a standard normal
+        Arguments:
+            n_sample: integer, number of transformations to sample
+            mean: [d,] vector, mean of multivariate gaussian
+            cov: [d,d] matrix, covariance of multivariate gaussian
+        Output:
+            samples: [n_sample, d] matrix. Each row is a independent sample from
+                a multivariate gaussian
+        """
         if not mean: self._check_type(mean)
         if not cov: self._check_type(cov)
         return self.backend.sample_transformation(n_sample, mean, cov)
     
     #%%
     def sample_transformation_with_prior(self, n_sample=1):
-        """ """
+        """ Function for sampling smooth transformations """
+        
+#        # Get cell centers and convert to backend type
+#        centers = self.backend.to(self.tesselation.get_cell_centers())
+#        
+#        # Get distance between cell centers
+#        dist = self.backend.pdist(centers)
+        
         raise NotImplementedError
     
     #%%
     def identity(self, n_sample=1, epsilon=0):
-        """ """
+        """ Method for getting the identity parameters for the identity 
+            transformation (vector of zeros) 
+        Arguments:
+            n_sample: integer, number of transformations to sample
+            epsilon: float>0, small number to add to the identity transformation
+                for stability during training
+        Output:
+            samples: [n_sample, d] matrix. Each row is a sample    
+        """
         return self.backend.identity(self.params.d, n_sample, epsilon)
     
     #%%
@@ -166,7 +220,8 @@ class cpab(object):
         raise NotImplementedError
     
     #%%
-    def _check_input(self, tess_size, backend, zero_boundary, volume_perservation):
+    def _check_input(self, tess_size, backend, device, 
+                     zero_boundary, volume_perservation):
         """ """
         assert len(tess_size) > 0 and len(tess_size) <= 3, \
             '''Transformer only supports 1D, 2D or 3D'''
@@ -178,6 +233,10 @@ class cpab(object):
             '''All elements of tess_size must be positive'''
         assert backend in ['numpy', 'tensorflow', 'pytorch'], \
             '''Unknown backend, choose between 'numpy', 'tensorflow' or 'pytorch' '''
+        assert device in ['cpu', 'gpu'], \
+            '''Unknown device, choose between 'cpu' or 'gpu' '''
+        if backend == 'numpy':
+            assert device == 'cpu', '''Cannot use gpu with numpy backend '''
         assert type(zero_boundary) == bool, \
             '''Argument zero_boundary must be True or False'''
         assert type(volume_perservation) == bool, \
@@ -186,6 +245,6 @@ class cpab(object):
     #%%
     def _check_type(self, x):
         """ """
-        assert type(x) in self.backend.atype(), \
+        assert type(x) in self.backend.type(), \
             ''' Input has type {0} but expected type {1} ''' % \
-            (type(x), self.backend.atype())
+            (type(x), self.backend.type())
