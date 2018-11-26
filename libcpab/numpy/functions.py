@@ -9,10 +9,16 @@ Created on Fri Nov 16 16:01:52 2018
 import numpy as np
 from .interpolation import interpolate
 from .transformer import CPAB_transformer as transformer
+from .findcellidx import findcellidx
+from ..core.utility import load_basis_as_struct
 
 #%%
 def to(x): 
     return np.array(x)
+
+#%%
+def tonumpy(x):
+    return x
 
 #%%
 def type():
@@ -43,3 +49,26 @@ def uniform_meshgrid(ndim, domain_min, domain_max, n_points):
     mesh = np.meshgrid(*lin[::-1], indexing='ij')
     grid = np.vstack([array.flatten() for array in mesh[::-1]])
     return grid
+
+#%%
+def calc_vectorfield(grid, theta):
+    # Load parameters
+    params = load_basis_as_struct()
+    
+    # Calculate velocity fields
+    Avees = np.dot(params.basis, theta)
+    As = np.reshape(Avees, (params.nC, *params.Ashape))
+    
+    # Find cell index
+    idx = findcellidx(params.ndim, grid, params.nc)
+    
+    # Do indexing
+    Aidx = As[idx]
+    
+    # Convert to homogeneous coordinates
+    grid = grid
+    
+    # Do matrix multiplication
+    v = np.dot(Aidx, grid)
+    return v
+    

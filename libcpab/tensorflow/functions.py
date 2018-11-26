@@ -10,10 +10,16 @@ import tensorflow as tf
 import tensorflow_probability as tfp
 from .interpolation import interpolate
 from .transformer import CPAB_transformer as transformer
+from .findcellidx import findcellidx
+from ..core.utility import load_basis_as_struct
 
 #%%
 def to(x):
     return tf.cast(x, dtype=x.dtype)
+
+#%%
+def tonumpy(x):
+    return x.cpu().numpy()
 
 #%%
 def type():
@@ -46,3 +52,25 @@ def uniform_meshgrid(ndim, domain_min, domain_max, n_points):
     mesh = tf.meshgrid(*lin[::-1])
     grid = tf.concat([tf.reshape(array, (1, -1)) for array in mesh[::-1]], axis=0)
     return grid
+
+#%%
+def calc_vectorfield(grid, theta):
+    # Load parameters
+    params = load_basis_as_struct()
+    
+    # Calculate velocity fields
+    Avees = tf.matmul(params.basis, theta)
+    As = tf.reshape(Avees, (params.nC, *params.Ashape))
+    
+    # Find cell index
+    idx = findcellidx(params.ndim, grid, params.nc)
+    
+    # Do indexing
+    Aidx = As[idx]
+    
+    # Convert to homogeneous coordinates
+    grid = grid
+    
+    # Do matrix multiplication
+    v = tf.matmul(Aidx, grid)
+    return v

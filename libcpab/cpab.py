@@ -15,7 +15,7 @@ from .core.tesselation import Tesselation1D, Tesselation2D, Tesselation3D
 class cpab(object):
     """ Core class for this library. This class contains all the information
         about the tesselation, transformation ect. The user is not meant to
-        use anything else than this specific class
+        use anything else than this specific class.
         
     Arguments:
         tess_size: list, with the number of cells in each dimension
@@ -23,8 +23,8 @@ class cpab(object):
         backend: string, computational backend to use. Choose between 
             "numpy" (default), "pytorch" or "tensorflow"
         
-        device: string, either "CPU" (default) or "GPU". For the numpy backend
-            only the "CPU" option is valid
+        device: string, either "cpu" (default) or "gpu". For the numpy backend
+            only the "cpu" option is valid
         
         zero_boundary: bool, determines is the velocity at the boundary is zero 
         
@@ -42,7 +42,8 @@ class cpab(object):
         @transform_grid
         @interpolate
         @transform_data
-        
+        @calc_vectorfield
+        @visualize_vectorfield
     """
     def __init__(self, 
                  tess_size,
@@ -119,7 +120,7 @@ class cpab(object):
             self.params.d = file['d']
             save_obj(file, self._dir + 'current_basis')
             
-        # Load backend
+        # Load backend and set device
         if backend == 'numpy':
             from .numpy import functions as backend
         elif backend == 'tensorflow':
@@ -241,6 +242,43 @@ class cpab(object):
         data_t = self.interpolate(data, grid_t, outsize)
         return data_t
     
+    #%%
+    def calc_vectorfield(self, grid, theta):
+        v = self.backend.calc_vectorfield(grid, theta)
+        return v
+    
+    #%%
+    def visualize_vectorfield(self, theta, nb_points = 10):
+        grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
+        v = self.calc_vectorfield(grid, theta)
+        v = self.backend.tonumpy(v)
+        
+        # Plot
+        import matplotlib.pyplot as plt
+        if self.params.ndim == 1:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.quiver(grid[0,:], np.zeros_like(grid), v, np.zeros_like(v))
+            ax.set_xlim(self.params.domain_min[0], self.params.domain_max[0])
+        elif self.params.ndim == 2:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.quiver(grid[0,:], grid[1,:], v[0,:], v[1,:])
+            ax.set_xlim(self.params.domain_min[0], self.params.domain_max[0])
+            ax.set_ylim(self.params.domain_min[1], self.params.domain_max[1])            
+        elif self.params.ndim==3:
+            from mpl_toolkits.mplot3d import Axes3D
+            fig = plt.figure()
+            ax = fig.add_subplot(111, projection='3d')
+            ax.quiver(grid[0,:], grid[1,:], grid[2,:], v[0,:], v[1,:], v[2,:],
+                      length=0.3, arrow_length_ratio=0.5)
+            ax.set_xlim3d(self.params.domain_min[0], self.params.domain_max[0])
+            ax.set_ylim3d(self.params.domain_min[1], self.params.domain_max[1])
+            ax.set_zlim3d(self.params.domain_min[2], self.params.domain_max[2])
+        plt.axis('equal')
+        plt.title('Velocity field')
+        plt.show()
+        
     #%%
     def _check_input(self, tess_size, backend, device, 
                      zero_boundary, volume_perservation):
