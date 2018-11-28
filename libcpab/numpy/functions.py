@@ -30,10 +30,13 @@ def pdist(mat):
     norm = np.reshape(norm, (-1, 1))
     D = norm - 2*np.matmul(mat, mat.T) + norm.T
     return D
+#%%
+def norm(x):
+    return np.linalg.norm(x)
 
 #%%
 def sample_transformation(d, n_sample=1, mean=None, cov=None):
-    mean = np.zeros((d,), dtype=np.float32) if mean is None else mean
+    mean = np.zeros(d, dtype=np.float32) if mean is None else mean
     cov = np.eye(d, dtype=np.float32) if cov is None else cov
     samples = np.random.multivariate_normal(mean, cov, size=n_sample)
     return samples
@@ -56,7 +59,7 @@ def calc_vectorfield(grid, theta):
     params = load_basis_as_struct()
     
     # Calculate velocity fields
-    Avees = np.dot(params.basis, theta)
+    Avees = np.matmul(params.basis, theta.flatten())
     As = np.reshape(Avees, (params.nC, *params.Ashape))
     
     # Find cell index
@@ -66,9 +69,10 @@ def calc_vectorfield(grid, theta):
     Aidx = As[idx]
     
     # Convert to homogeneous coordinates
-    grid = grid
+    grid = np.concatenate((grid, np.ones((1, grid.shape[1]))), axis=0)
+    grid = np.transpose(grid[None], axes=[2,1,0])
     
     # Do matrix multiplication
-    v = np.dot(Aidx, grid)
-    return v
+    v = np.matmul(Aidx, grid)
+    return np.transpose(v[:,:,0]) # output: [ndim, nP] 
     

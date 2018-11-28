@@ -16,7 +16,9 @@ def findcellidx(ndim, p, nc):
     
 #%%
 def findcellidx1D(p, nx):
-    pass
+    idx = tf.floor(p * nx)
+    idx = tf.minimum(0.0, tf.maximum(idx, nx-1))
+    return tf.cast(idx.flatten(), tf.int64)
 
 #%%
 def findcellidx2D(p, nx, ny):

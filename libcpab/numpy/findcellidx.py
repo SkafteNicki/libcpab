@@ -16,7 +16,9 @@ def findcellidx(ndim, p, nc):
     
 #%%
 def findcellidx1D(p, nx):
-    pass
+    idx = np.floor(p * nx)
+    idx = np.maximum(0, np.minimum(idx, nx-1))
+    return idx.flatten().astype(np.int32)
 
 #%%
 def findcellidx2D(p, nx, ny):

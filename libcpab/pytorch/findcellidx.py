@@ -16,7 +16,10 @@ def findcellidx(ndim, p, nc):
     
 #%%
 def findcellidx1D(p, nx):
-    pass
+    n = p.shape[1]
+    idx = torch.floor(p * nx)
+    idx = torch.max(torch.zeros(n), torch.min(idx, (nx-1)*torch.ones(n)))
+    return idx.flatten().to(torch.int64)
 
 #%%
 def findcellidx2D(p, nx, ny):

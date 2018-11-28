@@ -7,6 +7,7 @@ Created on Fri Nov 16 15:34:36 2018
 
 #%%
 import numpy as np
+import matplotlib.pyplot as plt
 from .core.utility import params, get_dir, create_dir, check_if_file_exist, \
                             save_obj, load_obj, null
 from .core.tesselation import Tesselation1D, Tesselation2D, Tesselation3D
@@ -44,6 +45,7 @@ class cpab(object):
         @transform_data
         @calc_vectorfield
         @visualize_vectorfield
+        @visualize_tesselation
     """
     def __init__(self, 
                  tess_size,
@@ -121,14 +123,16 @@ class cpab(object):
             save_obj(file, self._dir + 'current_basis')
             
         # Load backend and set device
-        if backend == 'numpy':
+        self.backend_name = backend
+        if self.backend_name == 'numpy':
             from .numpy import functions as backend
-        elif backend == 'tensorflow':
+        elif self.backend_name == 'tensorflow':
             from .tensorflow import functions as backend
-        elif backend == 'pytorch':
+        elif self.backend_name == 'pytorch':
             from .pytorch import functions as backend
         self.backend = backend
         self.device = device
+        
         
     #%%
     def get_theta_dim(self):
@@ -170,9 +174,9 @@ class cpab(object):
             samples: [n_sample, d] matrix. Each row is a independent sample from
                 a multivariate gaussian
         """
-        if not mean: self._check_type(mean)
-        if not cov: self._check_type(cov)
-        return self.backend.sample_transformation(n_sample, mean, cov)
+        if mean is not None: self._check_type(mean)
+        if cov is not None: self._check_type(cov)
+        return self.backend.sample_transformation(self.params.d, n_sample, mean, cov)
     
     #%%
     def sample_transformation_with_prior(self, n_sample=1):
@@ -244,17 +248,21 @@ class cpab(object):
     
     #%%
     def calc_vectorfield(self, grid, theta):
+        self._check_type(grid)
+        self._check_type(theta)
         v = self.backend.calc_vectorfield(grid, theta)
         return v
     
     #%%
     def visualize_vectorfield(self, theta, nb_points = 10):
+        self._check_type(theta)
+        
+        # Calculate vectorfield and convert to numpy
         grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
         v = self.calc_vectorfield(grid, theta)
         v = self.backend.tonumpy(v)
         
         # Plot
-        import matplotlib.pyplot as plt
         if self.params.ndim == 1:
             fig = plt.figure()
             ax = fig.add_subplot(111)
@@ -279,6 +287,27 @@ class cpab(object):
         plt.title('Velocity field')
         plt.show()
         
+    #%%
+    def visualize_tesselation(self, nb_points = 100):
+        grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
+        
+        # Find cellindex and convert to numpy
+        idx = self.backend.findcellidx(self.params.ndim, grid, self.params.nc)
+        idx = self.backend.tonumpy(idx)
+        idx = np.reshape(idx, (*[self.params.ndim*[nb_points]]))
+        
+        # Plot
+        if self.params.ndim == 1:
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            ax.scatter(grid.flatten(), np.zeros_like(grid).flatten(), c=idx)
+        elif self.params.ndim == 2:
+            pass
+        elif self.params.ndim == 3:
+            pass
+        
+        plt.axis('equal')
+        plt.title('Tesselation ' + str(self.params.nc))
     #%%
     def _check_input(self, tess_size, backend, device, 
                      zero_boundary, volume_perservation):

@@ -34,6 +34,10 @@ def pdist(mat):
     return D
 
 #%%
+def norm(x):
+    return tf.norm(x)
+
+#%%
 def sample_transformation(d, n_sample=1, mean=None, cov=None):
     mean = tf.zeros((d,), dtype=tf.float32) if mean is None else mean
     cov = tf.eye(d, dtype=tf.float32) if cov is None else cov

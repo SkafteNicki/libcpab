@@ -404,7 +404,7 @@ class Tesselation3D(Tesselation):
 
                     vrt = [ k/nx, j/ny, i/(nz-1) ]
 
-                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.matrix(z+z+vrt+[0,0,1])
+                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.asarray(z+z+vrt+[0,0,1])
                     sr += 1
         # xz-plane
         for j in [0,ny-1]:
@@ -415,7 +415,7 @@ class Tesselation3D(Tesselation):
 
                     vrt = [ k/nx, j/(ny-1), i/nz ]
 
-                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.matrix(z+vrt+z+[0,1,0])
+                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.asarray(z+vrt+z+[0,1,0])
                     sr += 1
         # yz-plane
         for k in [0,nx-1]:
@@ -426,7 +426,7 @@ class Tesselation3D(Tesselation):
             
                     vrt = [ k/(nx-1), j/ny, i/nz ]
 
-                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.matrix(vrt+z+z+[1,0,0])
+                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.asarray(vrt+z+z+[1,0,0])
                     sr += 1
                     
         return Ltemp

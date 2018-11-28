@@ -32,6 +32,10 @@ def pdist(mat):
     return D
 
 #%%
+def norm(x):
+    return torch.norm(x)
+
+#%%
 def theta2Avees(basis, theta):
     return torch.matmul(basis, theta)
 

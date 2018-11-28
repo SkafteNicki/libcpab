@@ -19,6 +19,9 @@ from scipy import transpose, compress
 #%%
 class params:
     pass
+    
+    def __repr__(self):
+        return str(self.__dict__)
 
 #%%
 def null(A, eps = 1e-6):
@@ -80,7 +83,7 @@ def check_if_file_exist(file):
 #%%
 def load_basis():
     """ Load the latest cpab basis created by cpab class """
-    basis_loc = get_dir(__file__) + '/../basis_files/current_basis'
+    basis_loc = get_dir(__file__) + '/../../basis_files/current_basis'
     try:
         basis = load_obj(basis_loc)
     except:
