@@ -255,8 +255,7 @@ def _fast_transformer(points, theta):
 #%%
 def _fast_transformer_numeric(points, theta):
     return _CPABFunction_numeric.apply(points, theta)
-.is_cuda: res = expm_gpu_module.forward(A.contiguous())
-                else: r
+
 #%%
 def _slow_transformer(points, theta):
     assert points.device == theta.device, '''points are on device %s and 

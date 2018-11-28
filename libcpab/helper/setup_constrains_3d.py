@@ -8,7 +8,7 @@ Created on Mon Nov 20 09:59:09 2017
 
 #%%
 import numpy as np
-from .utility import make_hasable
+from .utility import make_hashable
 
 #%%
 def get_constrain_matrix_3D(nc, domain_min, domain_max,
