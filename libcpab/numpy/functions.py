@@ -30,6 +30,7 @@ def pdist(mat):
     norm = np.reshape(norm, (-1, 1))
     D = norm - 2*np.matmul(mat, mat.T) + norm.T
     return D
+
 #%%
 def norm(x):
     return np.linalg.norm(x)

@@ -100,7 +100,7 @@ class Tesselation:
                     vi = make_hashable(self.verts[i])
                     vj = make_hashable(self.verts[j])
                     shared_verts = set(vi).intersection(vj)
-                    if len(shared_verts) >= self.ndim and (j,i) not in shared_v_idx:
+                    if len(shared_verts) == self.ndim and (j,i) not in shared_v_idx:
                         shared_v.append(list(shared_verts)[:self.ndim])
                         shared_v_idx.append((i,j))
         
@@ -287,8 +287,9 @@ class Tesselation2D(Tesselation):
                     shared_v_idx.append((i,j))
         
         # Concat to the current list of vertices
-        self.shared_v = np.concatenate((self.shared_v, shared_v))
-        self.shared_v_idx = np.concatenate((self.shared_v_idx, shared_v_idx))
+        if shared_v:
+            self.shared_v = np.concatenate((self.shared_v, shared_v))
+            self.shared_v_idx = np.concatenate((self.shared_v_idx, shared_v_idx))
         
     def create_zero_boundary_constrains(self):
         xmin, ymin = self.domain_min
@@ -312,7 +313,7 @@ class Tesselation3D(Tesselation):
                  zero_boundary = True, volume_perservation=False):
         # 1D parameters
         self.n_params = 12
-        self.nC = 6*np.prod(nc) # 6 triangle per cell
+        self.nC = 5*np.prod(nc) # 6 triangle per cell
         self.ndim = 3
         
         # Initialize super class
@@ -329,29 +330,36 @@ class Tesselation3D(Tesselation):
         for i in range(self.nc[2]):
             for j in range(self.nc[1]):        
                 for k in range(self.nc[0]):
-                    cnt = tuple([(Vx[k]+Vx[k+1])/2.0, (Vy[j]+Vy[j+1])/2.0, (Vz[i]+Vz[i+1])/2.0, 1])
-                    lnl = tuple([Vx[k], Vy[j], Vz[i], 1])
-                    lnu = tuple([Vx[k], Vy[j], Vz[i+1], 1])
-                    lfl = tuple([Vx[k], Vy[j+1], Vz[i], 1])
-                    lfu = tuple([Vx[k], Vy[j+1], Vz[i+1], 1])
-                    rnl = tuple([Vx[k+1], Vy[j], Vz[i], 1])
-                    rnu = tuple([Vx[k+1], Vy[j], Vz[i+1], 1])
-                    rfl = tuple([Vx[k+1], Vy[j+1], Vz[i], 1])
-                    rfu = tuple([Vx[k+1], Vy[j+1], Vz[i+1], 1])
-                    
-                    verts.append((cnt, lnl, lnu, lfl, lfu))
-                    verts.append((cnt, lnl, lnu, rnl, rnu))
-                    verts.append((cnt, lnl, lfl, rnl, rfl))
-                    verts.append((cnt, rnl, rnu, rfl, rfu))
-                    verts.append((cnt, lfl, lfu, rfl, rfu))
-                    verts.append((cnt, lnu, lfu, rnu, rfu))
+                    ul0 = tuple([Vx[k],Vy[j],Vz[i],1])
+                    ur0 = tuple([Vx[k+1],Vy[j],Vz[i],1])
+                    ll0 = tuple([Vx[k],Vy[j+1],Vz[i],1])
+                    lr0 = tuple([Vx[k+1],Vy[j+1],Vz[i],1])
+                    ul1 = tuple([Vx[k],Vy[j],Vz[i+1],1])
+                    ur1 = tuple([Vx[k+1],Vy[j],Vz[i+1],1])
+                    ll1 = tuple([Vx[k],Vy[j+1],Vz[i+1],1])
+                    lr1 = tuple([Vx[k+1],Vy[j+1],Vz[i+1],1])
 
-                    cells.append((k,j,i,0))
-                    cells.append((k,j,i,1))
-                    cells.append((k,j,i,2))
-                    cells.append((k,j,i,3))
-                    cells.append((k,j,i,4))
-                    cells.append((k,j,i,5))
+                    tf=False                    
+                    if k%2==0:
+                        if (i%2==0 and j%2==1) or  (i%2==1 and j%2==0):
+                            tf=True
+                    else:
+                        if (i%2==0 and j%2==0) or  (i%2==1 and j%2==1):
+                            tf=True
+                    
+                    if tf:
+                        ul0,ur0,lr0,ll0 = ur0,lr0,ll0,ul0
+                        ul1,ur1,lr1,ll1 = ur1,lr1,ll1,ul1
+                    
+                    # ORDER MATTERS 
+                    verts.append((ll1,ur1,ul0,lr0))  # central part
+                    verts.append((ul1,ur1,ll1,ul0))
+                    verts.append((lr1,ur1,ll1,lr0))
+                    verts.append((ll0,ul0,lr0,ll1))
+                    verts.append((ur0,ul0,lr0,ur1))
+                    
+                    for l in range(5):
+                        cells.append((k,j,i,l))
         
         # Convert to array
         self.verts = np.asarray(verts)
@@ -368,69 +376,51 @@ class Tesselation3D(Tesselation):
                         # Get cell vertices
                         vi = self.verts[i]    
                         vj = self.verts[j]
-                        
+                        ci = self.cells[i]
+                        cj = self.cells[j]
                         # Conditions for adding a constrain
-                        upper_cond = sum(vi[:,d]==self.domain_min[d]) == 4 and \
-                                     sum(vj[:,d]==self.domain_min[d]) == 4
-                        lower_cond = sum(vi[:,d]==self.domain_max[d]) == 4 and \
-                                     sum(vj[:,d]==self.domain_max[d]) == 4
-                        dist_cond = np.sqrt(np.sum(np.power(vi[0] - vj[0], 2.0))) <= 1/self.nc[d]+1e-5
+                        upper_cond = sum(vi[:,d]==self.domain_min[d]) == 3 and \
+                                     sum(vj[:,d]==self.domain_min[d]) == 3
+                        lower_cond = sum(vi[:,d]==self.domain_max[d]) == 3 and \
+                                     sum(vj[:,d]==self.domain_max[d]) == 3
+                        dist_cond = (sum([abs(i1-i2) for i1,i2 in zip(ci[:3], cj[:3])]) == 0) # same cell
                         idx_cond = (j,i) not in shared_verts_idx
-                        
                         if (upper_cond or lower_cond) and dist_cond and idx_cond:
                             # Find the shared points
                             vi = make_hashable(vi)
                             vj = make_hashable(vj)
                             sv = set(vi).intersection(vj)
-                            # Add auxilliry point halfway between the centers
-                            center = [(v1 + v2) / 2.0 for v1,v2 in zip(vi[0], vj[0])]
+                            center = [(v1 + v2) / 2.0 for v1, v2 in zip(vi[0], vj[0])]
+                            center[d] += (-1) if upper_cond else (+1)
                             shared_verts.append(list(sv.union([tuple(center)])))
                             shared_verts_idx.append((i,j))
+                            
         # Add to already found pairs
-        self.shared_v = np.concatenate((self.shared_v, np.asarray(shared_verts)))
-        self.shared_verts_idx += shared_verts_idx
-        
-    def create_zero_boundary_constrains(self):
-        nx, ny, nz = self.nc
-        Ltemp = np.zeros(shape=(2*((nx+1)*(ny+1) + (nx+1)*(nz+1) + (ny+1)*(nz+1)), self.n_params*self.nC))
-        # xy-plane
-        sr = 0
-        z = [0,0,0]
-        for i in [0,nz-1]:
-            for j in range(ny+1):
-                for k in range(nx+1):
-                    c_idx = 6 * ( nx*ny*i + nx*min(j,ny-1) + min(k,nx-1) )
-                    c_idx += 2 if i==0 else 3
+        if shared_verts:
+            self.shared_v = np.concatenate((self.shared_v, np.asarray(shared_verts)))
+            self.shared_v_idx += shared_verts_idx
 
-                    vrt = [ k/nx, j/ny, i/(nz-1) ]
-
-                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.asarray(z+z+vrt+[0,0,1])
-                    sr += 1
-        # xz-plane
-        for j in [0,ny-1]:
-            for i in range(nz+1):
-                for k in range(nx+1):
-                    c_idx = 6 * ( nx*ny*min(i,nz-1) + nx*j + min(k,nx-1) )
-                    c_idx += 1 if j==0 else 4
-
-                    vrt = [ k/nx, j/(ny-1), i/nz ]
-
-                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.asarray(z+vrt+z+[0,1,0])
-                    sr += 1
-        # yz-plane
-        for k in [0,nx-1]:
-            for i in range(nz+1):
-                for j in range(ny+1):
-                    c_idx = 6 * ( nx*ny*min(i,nz-1) + nx*min(j,ny-1) + k )
-                    c_idx += 0 if k==0 else 5
             
-                    vrt = [ k/(nx-1), j/ny, i/nz ]
-
-                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.asarray(vrt+z+z+[1,0,0])
-                    sr += 1
-                    
+    def create_zero_boundary_constrains(self):
+        xmin, ymin, zmin = self.domain_min
+        xmax, ymax, zmax = self.domain_max
+        Ltemp = np.zeros(shape=(0, 12*self.nC))
+        for c in range(self.nC):
+            for v in self.verts[c]:
+                if(v[0] == xmin or v[0] == xmax):
+                    row = np.zeros(shape=(12*self.nC))
+                    row[(12*c):(12*(c+1))] = np.concatenate([v, np.zeros((8,))])
+                    Ltemp = np.vstack((Ltemp, row))
+                if(v[1] == ymin or v[1] == ymax):
+                    row = np.zeros(shape=(12*self.nC))
+                    row[(12*c):(12*(c+1))] = np.concatenate([np.zeros((4,)), v, np.zeros((4,))])
+                    Ltemp = np.vstack((Ltemp, row))
+                if(v[2] == zmin or v[2] == zmax):
+                    row = np.zeros(shape=(12*self.nC))
+                    row[(12*c):(12*(c+1))] = np.concatenate([np.zeros((8,)), v])
+                    Ltemp = np.vstack((Ltemp, row))
         return Ltemp
-    
+                    
 #%%
 if __name__ == "__main__":
     tess1 = Tesselation1D([5], [0], [1], zero_boundary=True, volume_perservation=True)

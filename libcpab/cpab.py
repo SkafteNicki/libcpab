@@ -31,6 +31,9 @@ class cpab(object):
         
         volume_perservation: bool, determine if the transformation is 
             volume perservating
+            
+        override: bool, if true a new basis will always be created and saved,
+            when the class is called
         
     Methods:
         @get_theta_dim
@@ -53,7 +56,7 @@ class cpab(object):
                  device = 'cpu', 
                  zero_boundary=True,
                  volume_perservation=False,
-                 ):
+                 override=False):
         # Check input
         self._check_input(tess_size, backend, device, 
                           zero_boundary, volume_perservation)
@@ -92,11 +95,11 @@ class cpab(object):
             self.params.nC = 4*np.prod(self.params.nc)
             self.tesselation = Tesselation2D(*pdir)
         elif self.params.ndim == 3:
-            self.params.nC = 6*np.prod(self.params.nc)
+            self.params.nC = 5*np.prod(self.params.nc)
             self.tesselation = Tesselation3D(*pdir)
         
         # Check if we have already created the basis
-        if not check_if_file_exist(self._basis_file+'.pkl'):
+        if not check_if_file_exist(self._basis_file+'.pkl') or override:
             # Get constrain matrix
             L = self.tesselation.get_constrain_matrix()
                 
@@ -214,7 +217,7 @@ class cpab(object):
     def interpolate(self, data, grid, outsize):
         """ """
         self._check_type(data)
-        self._check_grid(data)
+        self._check_type(grid)
         return self.backend.interpolate(self.params.ndim, data, grid, outsize)
     
     #%%
@@ -266,48 +269,74 @@ class cpab(object):
         if self.params.ndim == 1:
             fig = plt.figure()
             ax = fig.add_subplot(111)
-            ax.quiver(grid[0,:], np.zeros_like(grid), v, np.zeros_like(v))
+            plot = ax.quiver(grid[0,:], np.zeros_like(grid), v, np.zeros_like(v), units='xy')
             ax.set_xlim(self.params.domain_min[0], self.params.domain_max[0])
         elif self.params.ndim == 2:
             fig = plt.figure()
             ax = fig.add_subplot(111)
-            ax.quiver(grid[0,:], grid[1,:], v[0,:], v[1,:])
+            plot = ax.quiver(grid[0,:], grid[1,:], v[0,:], v[1,:], units='xy')
             ax.set_xlim(self.params.domain_min[0], self.params.domain_max[0])
             ax.set_ylim(self.params.domain_min[1], self.params.domain_max[1])            
         elif self.params.ndim==3:
             from mpl_toolkits.mplot3d import Axes3D
             fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
-            ax.quiver(grid[0,:], grid[1,:], grid[2,:], v[0,:], v[1,:], v[2,:],
-                      length=0.3, arrow_length_ratio=0.5)
+            plot = ax.quiver(grid[0,:], grid[1,:], grid[2,:], v[0,:], v[1,:], v[2,:],
+                             length=0.3, arrow_length_ratio=0.5)
             ax.set_xlim3d(self.params.domain_min[0], self.params.domain_max[0])
             ax.set_ylim3d(self.params.domain_min[1], self.params.domain_max[1])
             ax.set_zlim3d(self.params.domain_min[2], self.params.domain_max[2])
+            ax.set_xlabel('x'); ax.set_ylabel('y'); ax.set_zlabel('z')
         plt.axis('equal')
         plt.title('Velocity field')
-        plt.show()
+        return plot
         
     #%%
-    def visualize_tesselation(self, nb_points = 100):
-        grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
+    def visualize_tesselation(self, nb_points = 50, show_outside=False):
+        if show_outside:
+            domain_size = [self.params.domain_max[i] - self.params.domain_min[i] 
+                           for i in range(self.params.ndim)]
+            domain_min = [self.params.domain_min[i]-domain_size[i]/10 
+                          for i in range(self.params.ndim)]
+            domain_max = [self.params.domain_max[i]+domain_size[i]/10 
+                          for i in range(self.params.ndim)]
+            grid = self.backend.uniform_meshgrid(self.params.ndim, domain_min, 
+                        domain_max, [nb_points for _ in range(self.params.ndim)])
+        else:
+            grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
         
         # Find cellindex and convert to numpy
         idx = self.backend.findcellidx(self.params.ndim, grid, self.params.nc)
         idx = self.backend.tonumpy(idx)
-        idx = np.reshape(idx, (*[self.params.ndim*[nb_points]]))
         
         # Plot
         if self.params.ndim == 1:
             fig = plt.figure()
             ax = fig.add_subplot(111)
-            ax.scatter(grid.flatten(), np.zeros_like(grid).flatten(), c=idx)
+            plot = ax.scatter(grid.flatten(), np.zeros_like(grid).flatten(), c=idx)
         elif self.params.ndim == 2:
-            pass
+            fig = plt.figure()
+            ax = fig.add_subplot(111)
+            plot = ax.imshow(idx.reshape(self.params.ndim*[nb_points]))
         elif self.params.ndim == 3:
-            pass
-        
+            import matplotlib.animation as animation
+            idx = idx.reshape(self.params.ndim*[nb_points])
+            fig = plt.figure()
+            im = plt.imshow(idx[0,:,:], animated=True)
+            def update(frames):
+                im.set_array(idx[frames,:,:])
+                return im,
+            plot = animation.FuncAnimation(fig, update, frames=nb_points, blit=True)
+            cbar = plt.colorbar()
+            cbar.set_clim(idx.min(), idx.max())
+            cbar.update_ticks()
+            
         plt.axis('equal')
         plt.title('Tesselation ' + str(self.params.nc))
+        return plot
+        
+        
+    
     #%%
     def _check_input(self, tess_size, backend, device, 
                      zero_boundary, volume_perservation):
