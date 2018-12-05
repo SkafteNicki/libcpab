@@ -186,9 +186,9 @@ class Tesselation3D(Tesselation):
                     verts.append((cnt, lnl, lnu, lfl, lfu))
                     verts.append((cnt, lnl, lnu, rnl, rnu))
                     verts.append((cnt, lnl, lfl, rnl, rfl))
-                    verts.append((cnt, rnl, rnu, rfl, rfu))
+                    verts.append((cnt, lnu, lfu, rnu, rfu))                    
                     verts.append((cnt, lfl, lfu, rfl, rfu))
-                    verts.append((cnt, lnu, lfu, rnu, rfu))
+                    verts.append((cnt, rnl, rnu, rfl, rfu))
 
                     cells.append((k,j,i,0))
                     cells.append((k,j,i,1))
@@ -230,9 +230,11 @@ class Tesselation3D(Tesselation):
                             center = [(v1 + v2) / 2.0 for v1,v2 in zip(vi[0], vj[0])]
                             shared_verts.append(list(sv.union([tuple(center)])))
                             shared_verts_idx.append((i,j))
+        
         # Add to already found pairs
-        self.shared_v = np.concatenate((self.shared_v, np.asarray(shared_verts)))
-        self.shared_verts_idx += shared_verts_idx
+        if shared_verts:
+            self.shared_v = np.concatenate((self.shared_v, np.asarray(shared_verts)))
+            self.shared_v_idx += shared_verts_idx
         
     def create_zero_boundary_constrains(self):
         nx, ny, nz = self.nc

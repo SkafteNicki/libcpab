@@ -9,34 +9,33 @@ Created on Mon Oct  1 08:09:00 2018
 # Please do not expect it to run 
 
 #%%
-import tensorflow as tf
-from libcpab.tensorflow.cpab1d.transformer import tf_cpab_transformer_1D_cuda
-from libcpab.tensorflow.cpab1d.transformer import tf_cpab_transformer_1D_pure
+import matplotlib.pyplot as plt
+import torch
+from libcpab.pytorch import cpab
+T = cpab([3,3,3], zero_boundary=True)
+
+img = plt.imread('data/cat.jpg') / 255
+data = torch.zeros(1, 3, 100, 100, 100)
+for i in range(100):
+    data[:,:,i,:,:] = torch.tensor(img[125:225,125:225,:].transpose([2,0,1]))
+    
+theta = T.sample_transformation(1)
+new_data = T.transform_data(data, theta, outsize=(100, 100, 100))
+
+plt.figure()
+plt.imshow(data[0,:,0,:,:].numpy().transpose([1,2,0]))
+plt.figure()
+plt.imshow(new_data[0,:,0,:,:].numpy().transpose([1,2,0]))
+
+#%%
 from libcpab.tensorflow import cpab
+import matplotlib.pyplot as plt
 import numpy as np
+im = plt.imread('data/cat.jpg')
+data = np.zeros((1, 100, 100, 100))
+for i in range(100):
+    data[0,i] = im[125:225, 125:225, 0]
 
-
-T = cpab([10, ], zero_boundary=False, return_tf_tensors=True)
-
-theta = 0.01*np.random.normal(size=(1, T.get_theta_dim()))
-theta_tf = tf.cast(theta, tf.float32)
-grid = T.uniform_meshgrid([518,])
-res1 = tf_cpab_transformer_1D_cuda(grid, theta_tf)
-res2 = tf_cpab_transformer_1D_pure(grid, theta_tf)
-grad1 = tf.gradients(res1, theta_tf)
-grad2 = tf.gradients(res2, theta_tf)
-
-
-with tf.Session() as sess:
-    with tf.device('/gpu:0'):
-        result1 = sess.run(res1)
-        result2 = sess.run(res2)
-        gradient1 = sess.run(grad1)[0]
-        gradient2 = sess.run(grad2)[0]
-        print('Difference res:', np.linalg.norm(result1 - result2))
-        print('Difference grad:', np.linalg.norm(gradient1 - gradient2))
-        print(gradient1)
-        print(gradient2)
-        
-T2 = cpab([10, ], zero_boundary=False, return_tf_tensors=False)
-T2.visualize_vectorfield(theta[0])
+T = cpab([3,3,3])
+theta = 5*T.sample_transformation(1)
+new_data = T.transform_data(data, theta)

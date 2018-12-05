@@ -19,7 +19,7 @@ inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=t
 
 // Support functions
 __device__ int mymin(int a, double b) {
-    return !(b<a)?a:round(b);
+    return !(b<a)?a:floor(b);
 }
 
 __device__ double cuda_fmod(double numer, double denom){

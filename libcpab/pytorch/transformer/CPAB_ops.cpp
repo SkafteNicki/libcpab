@@ -20,7 +20,7 @@ int param_pr_cell(int ndim){
 }
 
 int mymin(int a, double b) {
-    return !(b<a)?a:round(b);
+    return !(b<a)?a:floor(b);
 }
     
 int findcellidx_1D(const float* p, const int ncx) {           

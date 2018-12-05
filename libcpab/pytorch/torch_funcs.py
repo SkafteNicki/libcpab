@@ -34,7 +34,7 @@ def memconsumption():
 
 #%%
 def torch_mymin(a,b):
-    return torch.where(a<b, a, torch.round(b))
+    return torch.where(a<b, a, torch.floor(b))
 
 #%%
 def torch_repeat_matrix(A, n):
