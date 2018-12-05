@@ -29,7 +29,8 @@ class cpab(object):
     def __init__(self, tess_size, 
                  zero_boundary=True, 
                  volume_perservation=False,
-                 return_tf_tensors=False):
+                 return_tf_tensors=False,
+                 override):
         # Check input
         assert len(tess_size) > 0 and len(tess_size) <= 3, \
             '''Transformer only support 1D, 2D or 3D'''
@@ -92,7 +93,7 @@ class cpab(object):
             self._findcellidx = tf_findcellidx_3D
             
         # Check if we have already created the basis
-        if not check_if_file_exist(self._basis_file+'.pkl'):
+        if not check_if_file_exist(self._basis_file+'.pkl') or override:
             # Get constrain matrix
             L = get_constrain_matrix_f(self._nc, self._domain_min, self._domain_max,
                                        self._valid_outside, self._zero_boundary,

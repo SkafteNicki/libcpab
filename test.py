@@ -12,7 +12,7 @@ Created on Mon Oct  1 08:09:00 2018
 import matplotlib.pyplot as plt
 import torch
 from libcpab.pytorch import cpab
-T = cpab([3,3,3], zero_boundary=True)
+T = cpab([3,3,3], zero_boundary=True, override=True)
 
 img = plt.imread('data/cat.jpg') / 255
 data = torch.zeros(1, 3, 100, 100, 100)
@@ -24,8 +24,9 @@ new_data = T.transform_data(data, theta, outsize=(100, 100, 100))
 
 plt.figure()
 plt.imshow(data[0,:,0,:,:].numpy().transpose([1,2,0]))
-plt.figure()
-plt.imshow(new_data[0,:,0,:,:].numpy().transpose([1,2,0]))
+for i in range(20):
+    plt.figure()
+    plt.imshow(new_data[0,:,i,:,:].numpy().transpose([1,2,0]))
 
 #%%
 from libcpab.tensorflow import cpab

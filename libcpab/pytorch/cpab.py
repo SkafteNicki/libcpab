@@ -33,7 +33,8 @@ class cpab(object):
                  zero_boundary=True, 
                  volume_perservation=False,
                  return_tf_tensors=False,
-                 device='cpu'):
+                 device='cpu',
+                 override=False):
         # Check input
         assert len(tess_size) > 0 and len(tess_size) <= 3, \
             '''Transformer only support 1D, 2D or 3D'''
@@ -98,7 +99,7 @@ class cpab(object):
             self.findcellidx = torch_findcellidx_3D
             
         # Check if we have already created the basis
-        if not check_if_file_exist(self._basis_file+'.pkl'):
+        if not check_if_file_exist(self._basis_file+'.pkl') or override:
             # Get constrain matrix
             L = get_constrain_matrix_f(self.params.nc, 
                                        self.params.domain_min, 

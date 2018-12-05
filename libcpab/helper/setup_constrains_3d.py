@@ -237,44 +237,23 @@ class Tesselation3D(Tesselation):
             self.shared_v_idx += shared_verts_idx
         
     def create_zero_boundary_constrains(self):
-        nx, ny, nz = self.nc
-        Ltemp = np.zeros(shape=(2*((nx+1)*(ny+1) + (nx+1)*(nz+1) + (ny+1)*(nz+1)), self.n_params*self.nC))
-        # xy-plane
-        sr = 0
-        z = [0,0,0]
-        for i in [0,nz-1]:
-            for j in range(ny+1):
-                for k in range(nx+1):
-                    c_idx = 6 * ( nx*ny*i + nx*min(j,ny-1) + min(k,nx-1) )
-                    c_idx += 2 if i==0 else 3
-
-                    vrt = [ k/nx, j/ny, i/(nz-1) ]
-
-                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.matrix(z+z+vrt+[0,0,1])
-                    sr += 1
-        # xz-plane
-        for j in [0,ny-1]:
-            for i in range(nz+1):
-                for k in range(nx+1):
-                    c_idx = 6 * ( nx*ny*min(i,nz-1) + nx*j + min(k,nx-1) )
-                    c_idx += 1 if j==0 else 4
-
-                    vrt = [ k/nx, j/(ny-1), i/nz ]
-
-                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.matrix(z+vrt+z+[0,1,0])
-                    sr += 1
-        # yz-plane
-        for k in [0,nx-1]:
-            for i in range(nz+1):
-                for j in range(ny+1):
-                    c_idx = 6 * ( nx*ny*min(i,nz-1) + nx*min(j,ny-1) + k )
-                    c_idx += 0 if k==0 else 5
-            
-                    vrt = [ k/(nx-1), j/ny, i/nz ]
-
-                    Ltemp[sr,c_idx*12:(c_idx+1)*12] = np.matrix(vrt+z+z+[1,0,0])
-                    sr += 1
-                    
+        xmin, ymin, zmin = self.domain_min
+        xmax, ymax, zmax = self.domain_max
+        Ltemp = np.zeros(shape=(0, 12*self.nC))
+        for c in range(self.nC):
+            for v in self.verts[c]:
+                if(v[0] == xmin or v[0] == xmax):
+                    row = np.zeros(shape=(12*self.nC))
+                    row[(12*c):(12*(c+1))] = np.concatenate([v, np.zeros((8,))])
+                    Ltemp = np.vstack((Ltemp, row))
+                if(v[1] == ymin or v[1] == ymax):
+                    row = np.zeros(shape=(12*self.nC))
+                    row[(12*c):(12*(c+1))] = np.concatenate([np.zeros((4,)), v, np.zeros((4,))])
+                    Ltemp = np.vstack((Ltemp, row))
+                if(v[2] == zmin or v[2] == zmax):
+                    row = np.zeros(shape=(12*self.nC))
+                    row[(12*c):(12*(c+1))] = np.concatenate([np.zeros((8,)), v])
+                    Ltemp = np.vstack((Ltemp, row))
         return Ltemp
 
 #%%
