@@ -115,7 +115,8 @@ def findcellidx3D(p, nx, ny, nz):
     x = xmod / inc_x
     y = ymod / inc_y
     z = zmod / inc_z
-
+    
+    # Find subcell location
     cond = np.logical_or(np.logical_or(np.logical_or(
             ((k%2==0) & (i%2==0) & (hest%2==1)),
             ((k%2==0) & (i%2==1) & (hest%2==0))),

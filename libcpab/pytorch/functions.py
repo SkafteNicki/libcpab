@@ -36,28 +36,24 @@ def norm(x):
     return torch.norm(x)
 
 #%%
-def theta2Avees(basis, theta):
-    return torch.matmul(basis, theta)
-
-#%%
-def Avees2As(Avees, Ashape):
-    return torch.reshape(Avees, (-1, *Ashape))
-
-#%%
-def sample_transformation(d, n_sample=1, mean=None, cov=None):
-    mean = torch.zeros(d,dtype=torch.float32) if mean is None else mean
-    cov = torch.eye(d,dtype=torch.float32) if cov is None else cov
+def sample_transformation(d, n_sample=1, mean=None, cov=None, device='cpu'):
+    device = torch.device('cpu') if device=='cpu' else torch.device('cuda')
+    mean = torch.zeros(d, dtype=torch.float32, device=device) if mean is None else mean
+    cov = torch.eye(d, dtype=torch.float32, device=device) if cov is None else cov
     distribution = torch.distributions.MultivariateNormal(mean, cov)
     return distribution.sample((n_sample,))
 
 #%%
-def identity(d, n_sample=1, epsilon=0):
+def identity(d, n_sample=1, epsilon=0, device='cpu'):
     assert epsilon>=0, "epsilon need to be larger than 0"
-    return torch.zeros(n_sample, d, dtype=torch.float32) + epsilon
+    device = torch.device('cpu') if device=='cpu' else torch.device('cuda')
+    return torch.zeros(n_sample, d, dtype=torch.float32, device=device) + epsilon
 
 #%%
-def uniform_meshgrid(ndim, domain_min, domain_max, n_points):
-    lin = [torch.linspace(domain_min[i], domain_max[i], n_points[i]) for i in range(ndim)]
+def uniform_meshgrid(ndim, domain_min, domain_max, n_points, device='cpu'):
+    device = torch.device('cpu') if device=='cpu' else torch.device('cuda')
+    lin = [torch.linspace(domain_min[i], domain_max[i], n_points[i], 
+                          device=device) for i in range(ndim)]
     mesh = torch.meshgrid(lin)
     grid = torch.cat([g.reshape(1,-1) for g in mesh], dim=0)
     return grid
@@ -78,8 +74,9 @@ def calc_vectorfield(grid, theta):
     Aidx = As[idx]
     
     # Convert to homogeneous coordinates
-    grid = grid
+    grid = torch.cat((grid, torch.ones(1, grid.shape[1])), dim=0)
+    grid = grid[None].permute(2,1,0)
     
     # Do matrix multiplication
     v = torch.matmul(Aidx, grid)
-    return v
+    return v[:,:,0].t()

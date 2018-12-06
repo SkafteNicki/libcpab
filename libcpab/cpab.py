@@ -74,6 +74,8 @@ class cpab(object):
         self.params.inc = [(self.params.domain_max[i] - self.params.domain_min[i]) / 
                            self.params.nc[i] for i in range(self.params.ndim)]
         self.params.nstepsolver = 50
+        self.params.numeric_grad = False
+        self.params.use_slow = False
         
         # For saving the basis
         self._dir = get_dir(__file__) + '/../basis_files/'
@@ -113,7 +115,8 @@ class cpab(object):
             obj = {'basis': self.params.basis, 'constrains': self.params.constrain_mat, 
                    'ndim': self.params.ndim, 'D': self.params.D, 'd': self.params.d, 
                    'nc': self.params.nc, 'nC': self.params.nC, 'Ashape': self.params.Ashape, 
-                   'nstepsolver': self.params.nstepsolver}
+                   'nstepsolver': self.params.nstepsolver, 'numeric_grad': self.params.numeric_grad,
+                   'use_slow': self.params.use_slow}
             save_obj(obj, self._basis_file)
             save_obj(obj, self._dir + 'current_basis')
         
@@ -136,7 +139,6 @@ class cpab(object):
         self.backend = backend
         self.device = device
         
-        
     #%%
     def get_theta_dim(self):
         """ Method that returns the dimensionality of the transformation"""
@@ -152,6 +154,28 @@ class cpab(object):
         """ Method that return the basis of transformation"""
         return self.params.basis
     
+    #%%
+    def set_solver_params(self, nstepsolver=50, numeric_grad=False, use_slow=False):
+        """ Function for setting parameters that controls parameters of the
+            integration algorithm. Only use if you know what you do.
+        Arguments:
+            nstepsolver: int, number of iterations to take in integration. Higher
+                number give better approximations but takes longer time to compute
+            numeric_grad: bool, determines if we should use the analytical grad
+                or numeric grad for gradient computations
+            use_slow: bool, determine if the integration should be done using the
+                pure "python" version of each backend
+        """
+        assert nstepsolver > 0, '''nstepsolver must be a positive number'''
+        assert type(nstepsolver) == int, '''nstepsolver must be integer'''
+        assert type(numeric_grad) == bool, '''numeric_grad must be bool'''
+        assert type(use_slow) == bool, '''use_slow must be bool'''
+        file = load_obj(self._basis_file)
+        file['nstepsolver'] = nstepsolver
+        file['numeric_grad'] = numeric_grad
+        file['use_slow'] = use_slow
+        save_obj(file, self._dir + 'current_basis')
+        
     #%%    
     def uniform_meshgrid(self, n_points):
         """ Constructs a meshgrid 
@@ -163,7 +187,7 @@ class cpab(object):
         return self.backend.uniform_meshgrid(self.params.ndim,
                                              self.params.domain_min,
                                              self.params.domain_max,
-                                             n_points)
+                                             n_points, self.device)
       
     #%%
     def sample_transformation(self, n_sample=1, mean=None, cov=None):
@@ -179,7 +203,8 @@ class cpab(object):
         """
         if mean is not None: self._check_type(mean)
         if cov is not None: self._check_type(cov)
-        return self.backend.sample_transformation(self.params.d, n_sample, mean, cov)
+        return self.backend.sample_transformation(self.params.d, n_sample, 
+                                                  mean, cov, self.device)
     
     #%%
     def sample_transformation_with_prior(self, n_sample=1):
@@ -204,14 +229,24 @@ class cpab(object):
         Output:
             samples: [n_sample, d] matrix. Each row is a sample    
         """
-        return self.backend.identity(self.params.d, n_sample, epsilon)
+        return self.backend.identity(self.params.d, n_sample, epsilon, self.device)
     
     #%%
     def transform_grid(self, grid, theta):
-        """ """
+        """ Main method of the class. Integrates the grid using the parametrization
+            in theta.
+        Arguments:
+            grid: [ndim, n_points] matrix,
+            theta: [n_batch, d] matrix,
+        Output:
+            transformed_grid: [n_batch, ndim, n_points] tensor, with the transformed
+                grid. The slice transformed_grid[i] corresponds to the grid being
+                transformed by theta[i]
+        """
         self._check_type(grid)
         self._check_type(theta)
-        return self.backend.transformer(grid, theta)
+        transformed_grid = self.backend.transformer(grid, theta)
+        return transformed_grid
     
     #%%    
     def interpolate(self, data, grid, outsize):
@@ -334,8 +369,6 @@ class cpab(object):
         plt.axis('equal')
         plt.title('Tesselation ' + str(self.params.nc))
         return plot
-        
-        
     
     #%%
     def _check_input(self, tess_size, backend, device, 
@@ -366,3 +399,18 @@ class cpab(object):
         assert type(x) in self.backend.type(), \
             ''' Input has type {0} but expected type {1} ''' % \
             (type(x), self.backend.type())
+            
+    #%%
+    def __repr__(self):
+        output = '''CPAB transformer class. Parameters:
+        Tesselation size:           {0}
+        Total number of cells:      {1}
+        Theta size:                 {2}
+        Domain lower bound:         {3}
+        Domain upper bound:         {4}
+        Zero Boundary:              {5}
+        Volume perservation:        {6}
+        '''.format(self.params.nc, self.params.nC, self.params.d, 
+            self.params.domain_min, self.params.domain_max, 
+            self.params.zero_boundary, self.params.volume_perservation)
+        return output

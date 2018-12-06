@@ -62,8 +62,8 @@ The arguments are:
 * tess_size: list, with the number of cells in each dimension
 * backend: string, computational backend to use. Choose between "numpy" (default), 
     "pytorch" or "tensorflow"      
-* device: string, either "CPU" (default) or "GPU". For the numpy backend only 
-    the "CPU" option is valid
+* device: string, either "cpu" (default) or "gpu". For the numpy backend only 
+    the "cpu" option is valid
 * zero_boundary: bool, determines is the velocity at the boundary is zero 
 * volume_perservation: bool, determine if the transformation is volume perservating
 
@@ -73,7 +73,7 @@ The class have a number of methods
     # Import library
     from libcpab import cpab
  
-    # Define a 2x2 transformation class
+    # Define a transformation class
     T = cpab(tess_size, backend, device, zero_boundary, volume_perservation)
     
     # Important methods
@@ -85,7 +85,10 @@ The class have a number of methods
     basis = T.get_basis()                     # get the basis for the transformation
     g_t = T.transform_grid(g, theta)          # transform a grid of points using theta
     data_t1 = T.interpolate(data, g_t)        # interpolate some data using the transformed grid
-    data_t2 = T.transform_data(data, theta)   # combination of the two last methods 
+    data_t2 = T.transform_data(data, theta)   # combination of the two last methods
+    plot1 = T.visualize_vectorfield(theta)    # visualize the vectorfield of a given parametrization
+    plot2 = visualize_tesselation(...)        # visualize the chosen tesselation
+    
 ```
 
 We supply 3 demo files (in the demo folder) for each backend:
@@ -137,6 +140,7 @@ and this [github repo](https://github.com/SkafteNicki/ddtn).
 ## Versions
 
 * ----------, Version 2.0 - Major overhaul of the library, many changes
+* 05/12/2018, Version 1.5 - Fix the broken 3D pipline
 * 15/11/2018, Version 1.4 - Various bugfixes
 * 30/10/2018, Version 1.3 - Numpy backend support
 * 22/10/2018, Version 1.2 - Various bugfixes
