@@ -13,12 +13,16 @@ from .findcellidx import findcellidx
 from ..core.utility import load_basis_as_struct
 
 #%%
-def to(x): 
+def to(x, dtype=np.float32, device=None): 
     return np.array(x)
 
 #%%
 def tonumpy(x):
     return x
+
+#%%
+def check_device(x, device_name):
+    return True # always return true, because device can only be cpu
 
 #%%
 def type():

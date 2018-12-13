@@ -201,8 +201,8 @@ class cpab(object):
             samples: [n_sample, d] matrix. Each row is a independent sample from
                 a multivariate gaussian
         """
-        if mean is not None: self._check_type(mean)
-        if cov is not None: self._check_type(cov)
+        if mean is not None: self._check_type(mean); self._check_device(mean)
+        if cov is not None: self._check_type(cov); self._check_device(cov)
         return self.backend.sample_transformation(self.params.d, n_sample, 
                                                   mean, cov, self.device)
     
@@ -243,16 +243,16 @@ class cpab(object):
                 grid. The slice transformed_grid[i] corresponds to the grid being
                 transformed by theta[i]
         """
-        self._check_type(grid)
-        self._check_type(theta)
+        self._check_type(grid); self._check_device(grid)
+        self._check_type(theta); self._check_device(theta)
         transformed_grid = self.backend.transformer(grid, theta)
         return transformed_grid
     
     #%%    
     def interpolate(self, data, grid, outsize):
         """ """
-        self._check_type(data)
-        self._check_type(grid)
+        self._check_type(data); self._check_device(data)
+        self._check_type(grid); self._check_device(grid)
         return self.backend.interpolate(self.params.ndim, data, grid, outsize)
     
     #%%
@@ -277,8 +277,8 @@ class cpab(object):
         Output:
             data_t: [n_batch, *outsize] tensor, transformed and interpolated data
         """
-        self._check_type(data)
-        self._check_type(theta)
+        self._check_type(data); self._check_device(data)
+        self._check_type(theta); self._check_device(theta)
         grid = self.uniform_meshgrid(outsize)
         grid_t = self.transform_grid(grid, theta)
         data_t = self.interpolate(data, grid_t, outsize)
@@ -286,19 +286,20 @@ class cpab(object):
     
     #%%
     def calc_vectorfield(self, grid, theta):
-        self._check_type(grid)
-        self._check_type(theta)
+        self._check_type(grid); self._check_device(grid)
+        self._check_type(theta); self._check_device(theta)
         v = self.backend.calc_vectorfield(grid, theta)
         return v
     
     #%%
-    def visualize_vectorfield(self, theta, nb_points = 10):
+    def visualize_vectorfield(self, theta, nb_points = 50):
         self._check_type(theta)
         
         # Calculate vectorfield and convert to numpy
         grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
         v = self.calc_vectorfield(grid, theta)
         v = self.backend.tonumpy(v)
+        grid = self.backend.tonumpy(grid)
         
         # Plot
         if self.params.ndim == 1:
@@ -343,6 +344,7 @@ class cpab(object):
         # Find cellindex and convert to numpy
         idx = self.backend.findcellidx(self.params.ndim, grid, self.params.nc)
         idx = self.backend.tonumpy(idx)
+        grid = self.backend.tonumpy(grid)
         
         # Plot
         if self.params.ndim == 1:
@@ -397,8 +399,14 @@ class cpab(object):
     def _check_type(self, x):
         """ """
         assert type(x) in self.backend.type(), \
-            ''' Input has type {0} but expected type {1} ''' % \
-            (type(x), self.backend.type())
+            ''' Input has type {0} but expected type {1} '''.format(
+            type(x), self.backend.type())
+            
+    #%%
+    def _check_device(self, x):
+        assert self.backend.check_device(x, self.device), '''Input is placed on 
+            device {0} but the class expects it to be on device {1}'''.format(
+            str(x.device), self.device)
             
     #%%
     def __repr__(self):

@@ -60,7 +60,7 @@ def interpolate2D(data, grid, outsize):
     n_batch = data.shape[0]
     width = data.shape[1]
     height = data.shape[2]
-    n_channelse = data.shape[3]
+    n_channels = data.shape[3]
     out_width, out_height = outsize
     
     # Extract points
@@ -129,7 +129,7 @@ def interpolate3D(data, grid, outsize):
     x0 = np.floor(x).astype(np.int32); x1 = x0+1
     y0 = np.floor(y).astype(np.int32); y1 = y0+1
     z0 = np.floor(z).astype(np.int32); z1 = z0+1
-
+    
     # Clip values
     x0 = np.clip(x0, 0, width-1)
     x1 = np.clip(x1, 0, width-1)

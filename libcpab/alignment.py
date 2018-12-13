@@ -9,10 +9,10 @@ Created on Wed Nov 28 16:13:00 2018
 from tqdm import tqdm
 
 #%%
-class alignment:
-    def __init__(self, T):
+class DataAligner:
+    def __init__(self, cpab_class):
         ''' T is an instance of the core cpab class '''
-        self.T = T
+        self.T = cpab_class
         
         if self.T.backend_name == 'numpy':
             from .numpy import functions as backend
@@ -46,16 +46,28 @@ class alignment:
         return current_sample    
     
     #%%
-    def alignment_by_gradient(self, x1, x2, maxiter=100):
+    def alignment_by_gradient(self, x1, x2, maxiter=100, lr=1e-4):
         ''' Gradient based minimization '''
         assert self.T.backend_name != 'numpy', \
             ''' Cannot do gradient decent when using the numpy backend '''
         self.T._check_type(x1)
         self.T._check_type(x2)
         
-#        theta = self.backend.Variable(self.T.identity())
-#        for i in tqdm(range(maxiter), desc='graident decent'):
-#            x1_trans = self.T.transform_data(x1, theta)
-#            loss = self.backend.norm(x1_trans - x2)
-#            self.backend.optimize(loss)
-#        return theta
+        # TODO: write this as general when tensorflow backend is done
+        import torch
+        theta = torch.autograd.Variable(self.T.identity(1, epsilon=1e-2))
+        theta.requires_grad = True
+        optimizer = torch.optim.Adam([theta], lr=lr)
+        
+        progress_bar = tqdm(desc='Gradient decent optimizer', 
+                            total=maxiter, unit='iterations')
+        for i in range(maxiter):
+            optimizer.zero_grad()
+            x1_trans = self.T.transform_data(x1, theta, outsize=x1.shape[2:])
+            loss = self.backend.norm(x1_trans - x2)
+            loss.backward()
+            optimizer.step()
+            progress_bar.update()
+            progress_bar.set_postfix({'loss': loss.item()})
+
+        return theta, x1_trans.detach()

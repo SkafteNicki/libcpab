@@ -108,9 +108,9 @@ def findcellidx3D(p, nx, ny, nz):
     zmod = np.mod(p2, inc_z)
     
     i = mymin(nx - 1, ((p0 - xmod) / inc_x))
-    hest = mymin(ny - 1, ((p1 - ymod) / inc_y))
+    j = mymin(ny - 1, ((p1 - ymod) / inc_y))
     k = mymin(nz - 1, ((p2 - zmod) / inc_z))
-    idx = 5 * (i + hest * nx + k * nx * ny)
+    idx = 5 * (i + j * nx + k * nx * ny)
 
     x = xmod / inc_x
     y = ymod / inc_y
@@ -118,10 +118,10 @@ def findcellidx3D(p, nx, ny, nz):
     
     # Find subcell location
     cond = np.logical_or(np.logical_or(np.logical_or(
-            ((k%2==0) & (i%2==0) & (hest%2==1)),
-            ((k%2==0) & (i%2==1) & (hest%2==0))),
-            ((k%2==1) & (i%2==0) & (hest%2==0))),
-            ((k%2==1) & (i%2==1) & (hest%2==1)))
+            ((k%2==0) & (i%2==0) & (j%2==1)),
+            ((k%2==0) & (i%2==1) & (j%2==0))),
+            ((k%2==1) & (i%2==0) & (j%2==0))),
+            ((k%2==1) & (i%2==1) & (j%2==1)))
 
     tmp = x.copy()
     x[cond] = y[cond]

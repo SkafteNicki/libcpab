@@ -13,12 +13,16 @@ from .findcellidx import findcellidx
 from ..core.utility import load_basis_as_struct
 
 #%%
-def to(x):
-    return torch.Tensor(x)
+def to(x, dtype=torch.float32, device=None):
+    return torch.tensor(x, dtype=dtype, device=device)
 
 #%%
 def tonumpy(x):
     return x.cpu().numpy()
+
+#%%
+def check_device(x, device_name):
+    return (x.is_cuda) == (device_name=="gpu")
 
 #%%
 def type():
@@ -41,7 +45,7 @@ def sample_transformation(d, n_sample=1, mean=None, cov=None, device='cpu'):
     mean = torch.zeros(d, dtype=torch.float32, device=device) if mean is None else mean
     cov = torch.eye(d, dtype=torch.float32, device=device) if cov is None else cov
     distribution = torch.distributions.MultivariateNormal(mean, cov)
-    return distribution.sample((n_sample,))
+    return distribution.sample((n_sample,)).to(device)
 
 #%%
 def identity(d, n_sample=1, epsilon=0, device='cpu'):
@@ -54,8 +58,8 @@ def uniform_meshgrid(ndim, domain_min, domain_max, n_points, device='cpu'):
     device = torch.device('cpu') if device=='cpu' else torch.device('cuda')
     lin = [torch.linspace(domain_min[i], domain_max[i], n_points[i], 
                           device=device) for i in range(ndim)]
-    mesh = torch.meshgrid(lin)
-    grid = torch.cat([g.reshape(1,-1) for g in mesh], dim=0)
+    mesh = torch.meshgrid(lin[::-1])
+    grid = torch.cat([g.reshape(1,-1) for g in mesh[::-1]], dim=0)
     return grid
 
 #%%
@@ -64,7 +68,8 @@ def calc_vectorfield(grid, theta):
     params = load_basis_as_struct()
     
     # Calculate velocity fields
-    Avees = torch.matmul(params.basis, theta)
+    B = to(params.basis, dtype=theta.dtype, device=theta.device)
+    Avees = torch.matmul(B, theta.flatten())
     As = torch.reshape(Avees, (params.nC, *params.Ashape))
     
     # Find cell index
@@ -74,7 +79,7 @@ def calc_vectorfield(grid, theta):
     Aidx = As[idx]
     
     # Convert to homogeneous coordinates
-    grid = torch.cat((grid, torch.ones(1, grid.shape[1])), dim=0)
+    grid = torch.cat((grid, torch.ones(1, grid.shape[1], device=grid.device)), dim=0)
     grid = grid[None].permute(2,1,0)
     
     # Do matrix multiplication
