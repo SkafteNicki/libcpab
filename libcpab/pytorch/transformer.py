@@ -7,70 +7,80 @@ Created on Tue Nov 20 10:27:16 2018
 
 #%%
 import torch
+from torch.utils.cpp_extension import load
 from .findcellidx import findcellidx
 from .expm import expm
-from ..core.utility import load_basis_as_struct
+from ..core.utility import load_basis_as_struct, get_dir
+
+class _notcompiled:
+    # Small class, with structure similear to the compiled modules we can default
+    # to. The class will never be called but the program can compile at run time
+    def __init__(self):
+        def f(*args):
+            return None
+        self.forward = f
+        self.backward = f
 
 #%%
-compiled = False
+_dir = get_dir(__file__)
+_verbose = False # TODO: set this flag in the main class, maybe
+# Jit compile cpu source
+try:
+    cpab_cpu = load(name = 'cpab_cpu',
+                    sources = [_dir + '/transformer.cpp',
+                               _dir + '/../core/cpab_ops.cpp'],
+                    verbose=_verbose)
+    _cpu_succes = True
+    if _verbose:
+        print(70*'=')
+        print('succesfully compiled cpu source')
+        print(70*'=')
+except Exception as e:
+    cpab_cpu = _notcompiled()
+    _cpu_succes = False
+    if _verbose:
+        print(70*'=')
+        print('Unsuccesfully compiled cpu source')
+        print('Error was: ')
+        print(e)
+        print(70*'=')
 
-##%%
-## Try to compile the cpu and gpu version. The warning statement will fix 
-## ABI-incompatible warning I am getting. Is not nessesary with a newer version
-## of gcc compiler. The try-statement makes sure that we default to a slower
-## version if we fail to compile one of the versions     
-#_verbose = False
-#_use_slow = False
-#_use_numeric = False
-#_dir = get_dir(__file__)        
-#
-## Jit compile cpu source
-#try:
-#    with warnings.catch_warnings(record=True):        
-#        cpab_cpu = load(name = 'cpab_cpu',
-#                        sources = [_dir + '/CPAB_ops.cpp'],
-#                        verbose=_verbose)
-#    _cpu_succes = True
-#    if _verbose:
-#        print(70*'=')
-#        print('succesfully compiled cpu source')
-#        print(70*'=')
-#except Exception as e:
-#    cpab_cpu = _notcompiled()
-#    _cpu_succes = False
-#    if _verbose:
-#        print(70*'=')
-#        print('Unsuccesfully compiled cpu source')
-#        print('Error was: ')
-#        print(e)
-#        print(70*'=')
-#
-## Jit compile gpu source
-#try:
-#    with warnings.catch_warnings(record=True):
-#        cpab_gpu = load(name = 'cpab_gpu',
-#                        sources = [_dir + '/CPAB_ops_cuda.cpp', 
-#                                   _dir + '/CPAB_ops_cuda_kernel.cu'],
-#                        verbose=_verbose)
-#    _gpu_succes = True
-#    if _verbose:
-#        print(70*'=')
-#        print('succesfully compiled gpu source')
-#        print(70*'=')
-#except Exception as e:
-#    cpab_gpu = _notcompiled()
-#    _gpu_succes = False
-#    if _verbose:
-#        print(70*'=')
-#        print('Unsuccesfully compiled gpu source')
-#        print('Error was: ')
-#        print(e)
+# Jit compile gpu source
+try:
+    cpab_gpu = load(name = 'cpab_gpu',
+                    sources = [_dir + '/transformer_cuda.cpp',
+                               _dir + '/transformer_cuda.cu',
+                               _dir + '/../core/cpab_ops.cu'],
+                    verbose=_verbose,
+                    with_cuda=True)
+    _gpu_succes = True
+    if _verbose:
+        print(70*'=')
+        print('succesfully compiled gpu source')
+        print(70*'=')
+except Exception as e:
+    cpab_gpu = _notcompiled()
+    _gpu_succes = False
+    if _verbose:
+        print(70*'=')
+        print('Unsuccesfully compiled gpu source')
+        print('Error was: ')
+        print(e)
 
 #%%
 def CPAB_transformer(points, theta):
-    if compiled: return CPAB_transformer_fast(points, theta)
-    else: return CPAB_transformer_slow(points, theta)
-    
+    params = load_basis_as_struct()
+    if points.is_cuda and theta.is_cuda:
+        if not params.use_slow and _gpu_succes:
+            return CPAB_transformer_fast(points, theta)
+        else:
+            return CPAB_transformer_slow(points, theta)
+    else:
+        if not params.use_slow and _cpu_succes:
+            return CPAB_transformer_fast(points, theta)
+        else:
+            return CPAB_transformer_slow(points, theta)
+        
 #%%
 def CPAB_transformer_slow(points, theta):
     # Problem parameters
@@ -114,8 +124,8 @@ def CPAB_transformer_slow(points, theta):
 #%%
 def CPAB_transformer_fast(points, theta):
     params = load_basis_as_struct()
-    if params.numeric_grad: _CPABFunction_NumericGrad.apply(points, theta)
-    else: _CPABFunction_AnalyticGrad.apply(points, theta)
+    if params.numeric_grad: return _CPABFunction_NumericGrad.apply(points, theta)
+    else: return _CPABFunction_AnalyticGrad.apply(points, theta)
 
 #%%
 class _CPABFunction_AnalyticGrad(torch.autograd.Function):
@@ -144,7 +154,7 @@ class _CPABFunction_AnalyticGrad(torch.autograd.Function):
         nstepsolver = torch.tensor(params.nstepsolver, dtype=torch.int32, 
                                    device=device).to(device)
         nc = torch.tensor(params.nc, dtype=torch.int32, device=device)
-        
+
         # Call integrator
         if points.is_cuda:
             newpoints = cpab_gpu.forward(points.contiguous(), 
@@ -156,7 +166,7 @@ class _CPABFunction_AnalyticGrad(torch.autograd.Function):
 												Trels.contiguous(), 
 												nstepsolver.contiguous(), 
 												nc.contiguous())
-            
+
         # Save of backward
         Bs = B.t().view(-1, params.nC, *params.Ashape)
         As = As.view(n_theta, params.nC, *params.Ashape)
@@ -169,7 +179,7 @@ class _CPABFunction_AnalyticGrad(torch.autograd.Function):
     def backward(ctx, grad): # grad [n_theta, ndim, n]
         # Grap input
         points, theta, As, Bs, nstepsolver, nc = ctx.saved_tensors
-        
+
         # Call integrator, gradient: [d, n_theta, ndim, n]
         if points.is_cuda:
             gradient = cpab_gpu.backward(points.contiguous(), 
@@ -229,9 +239,7 @@ class _CPABFunction_NumericGrad(torch.autograd.Function):
 												nc.contiguous())
             
         # Save of backward
-        Bs = B.t().view(-1, params.nC, *params.Ashape)
-        As = As.view(n_theta, params.nC, *params.Ashape)
-        ctx.save_for_backward(points, theta, As, Bs, nstepsolver, nc)
+        ctx.save_for_backward(points, theta, newpoints, nstepsolver, nc)
         # Output result
         return newpoints
         
@@ -239,7 +247,8 @@ class _CPABFunction_NumericGrad(torch.autograd.Function):
     @torch.autograd.function.once_differentiable
     def backward(ctx, grad): # grad [n_theta, ndim, n]
         # Grap input
-        points, theta, newpoints, nstepsolver, nc, params = ctx.saved_tensors
+        params = load_basis_as_struct()
+        points, theta, newpoints, nstepsolver, nc = ctx.saved_tensors
         device = points.device
         h = 0.01
         gradient = [ ]
@@ -249,8 +258,8 @@ class _CPABFunction_NumericGrad(torch.autograd.Function):
         
         for i in range(d):
             # Permute theta
-            temp = theta
-            temp[i] += h
+            temp = theta.clone()
+            temp[:,i] += h
             
             # Get velocity fields
             B = torch.Tensor(params.basis).to(device)
@@ -283,5 +292,5 @@ class _CPABFunction_NumericGrad(torch.autograd.Function):
         
         # Reshaping
         gradient = torch.stack(gradient, dim = 1) # [n_theta, d]
-        return gradient
+        return None, gradient
 

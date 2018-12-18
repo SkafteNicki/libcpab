@@ -24,7 +24,7 @@ class DataAligner:
     
     #%%
     def alignment_by_sampling(self, x1, x2, maxiter=100):
-        ''' MCMC sampling '''
+        ''' MCMC sampling minimization '''
         self.T._check_type(x1)
         self.T._check_type(x2)
         current_sample = self.T.identity(1)
@@ -54,13 +54,15 @@ class DataAligner:
         self.T._check_type(x2)
         
         # TODO: write this as general when tensorflow backend is done
+        assert self.T.backend_name == 'pytorch', \
+						''' Only works with the pytorch backend at the moment '''
         import torch
-        theta = torch.autograd.Variable(self.T.identity(1, epsilon=1e-2))
-        theta.requires_grad = True
+        theta = torch.autograd.Variable(self.T.identity(1, epsilon=1e-6), requires_grad=True)
         optimizer = torch.optim.Adam([theta], lr=lr)
         
         progress_bar = tqdm(desc='Gradient decent optimizer', 
                             total=maxiter, unit='iterations')
+        loss_list = [ ]
         for i in range(maxiter):
             optimizer.zero_grad()
             x1_trans = self.T.transform_data(x1, theta, outsize=x1.shape[2:])
@@ -69,5 +71,8 @@ class DataAligner:
             optimizer.step()
             progress_bar.update()
             progress_bar.set_postfix({'loss': loss.item()})
-
+            loss_list.append(loss.item())
+        progress_bar.close()
+        print('Initial loss:', loss_list[0])
+        print('Final loss:', loss_list[-1])
         return theta, x1_trans.detach()

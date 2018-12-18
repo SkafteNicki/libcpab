@@ -102,6 +102,8 @@ def load_basis_as_struct():
     params.nC = file['nC']
     params.nc = file['nc']
     params.nstepsolver = file['nstepsolver']
+    params.numeric_grad = file['numeric_grad']
+    params.use_slow = file['use_slow']
     return params
 
 #%%

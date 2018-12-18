@@ -299,11 +299,11 @@ class Tesselation2D(Tesselation):
             for v in self.verts[c]:
                 if(v[0] == xmin or v[0] == xmax): 
                     row = np.zeros(shape=(6*self.nC))
-                    row[(6*c):(6*(c+1))] = np.append(np.zeros((1,3)),v)
+                    row[(6*c):(6*(c+1))] = np.append(v,np.zeros((1,3)))
                     Ltemp = np.vstack((Ltemp, row))
                 if(v[1] == ymin or v[1] == ymax): 
                     row = np.zeros(shape=(6*self.nC))
-                    row[(6*c):(6*(c+1))] = np.append(v,np.zeros((1,3)))
+                    row[(6*c):(6*(c+1))] = np.append(np.zeros((1,3)),v)
                     Ltemp = np.vstack((Ltemp, row))
         return Ltemp
 

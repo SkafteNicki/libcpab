@@ -1,4 +1,8 @@
-int stride(int ndim, const int* nc){
+#include <math.h>
+#include <algorithm>
+#include <iostream>
+
+int stride(const int ndim, const int* nc){
     int s;
 		if(ndim == 1){ s = 2; } // two parameters per cell
 		if(ndim == 2){ s = 6 * 4; } // 6 parameters per triangle, 4 triangles per cell
@@ -9,26 +13,157 @@ int stride(int ndim, const int* nc){
     return s;
 }
 
-int param_pr_cell(int ndim){
-		if(ndim == 1){ return 2; } // two parameters per cell
-		if(ndim == 2){ return 6; } // 6 parameters per triangle
-		if(ndim == 3){ return 12; } // 12 parameters per pyramid
+int param_pr_cell(const int ndim){
+	if(ndim == 1){ return 2; } // two parameters per cell
+	if(ndim == 2){ return 6; } // 6 parameters per triangle
+	if(ndim == 3){ return 12; } // 12 parameters per pyramid
 }
 
-int mymin(int a, double b) {
+int mymin(const int a, const double b) {
     return !(b<a)?a:round(b);
 }
     
-int findcellidx_1D(const float* p, const int ncx) {           
-    return;
+int findcellidx_1D(const float* p, const int nx) {
+    // Floor value to find cell
+    int idx = std::floor(p[0] * nx);
+    idx = std::max(0, std::min(idx, nx-1));
+    return idx;
 }
 
-int findcellidx_2D(const float* p, const int ncx, const int ncy) {
-    return;
+int findcellidx_2D(const float* p, const int nx, const int ny) {
+    // Cell size
+    const float inc_x = 1.0 / nx;
+    const float inc_y = 1.0 / ny;
+
+    // Copy point                        
+    float point[2];
+    point[0] = p[0];
+    point[1] = p[1];
+    
+    // If point is outside [0, 1]x[0, 1] then we push it inside
+    if (point[0] < 0.0 || point[0] > 1.0 || point[1] < 0.0 || point[1] > 1.0) {
+        const float half = 0.5;
+        point[0] -= half;
+        point[1] -= half;
+        const float abs_x = std::abs(point[0]);
+        const float abs_y = std::abs(point[1]);
+
+        const float push_x = (abs_x < abs_y) ? half*inc_x : 0.0;
+        const float push_y = (abs_y < abs_x) ? half*inc_y : 0.0;
+        if (abs_x > half) {
+            point[0] = std::copysign(half - push_x, point[0]);
+        }
+        if (abs_y > half) {
+            point[1] = std::copysign(half - push_y, point[1]);
+        }
+        
+        point[0] += half;
+        point[1] += half;
+    }
+    
+    // Find initial row, col placement
+    const float p0 = std::min((float)(1.0 - 1e-8), point[0]);
+    const float p1 = std::min((float)(1.0 - 1e-8), point[1]);
+    const float p0ncx = p0*nx;
+    const float p1ncy = p1*ny;
+    const int ip0ncx = p0ncx; // rounds down
+    const int ip1ncy = p1ncy; // rounds down
+    int cell_idx = 4 * (ip0ncx + ip1ncy * nx);
+    
+    // Find (sub)triangle
+    const float x = p0ncx - ip0ncx;
+    const float y = p1ncy - ip1ncy;
+    if (x < y) {
+        if (1-x < y) {
+            cell_idx += 2;
+        } else {
+            cell_idx += 3;
+        }
+    } else if (1-x < y) {
+        cell_idx += 1;
+    }
+    
+    return cell_idx;
 }
 
 int findcellidx_3D(const float* p, const int nx, const int ny, const int nz) {
-    return;
+    // Cell size
+    const float inc_x = 1.0 / nx;
+    const float inc_y = 1.0 / ny;
+    const float inc_z = 1.0 / nz;
+    
+    // Copy point
+    float point[3];
+    point[0] = p[0];
+    point[1] = p[1];
+    point[2] = p[2];
+    
+    // If point is outside [0, 1]x[0, 1]x[0, 1] then we push it inside
+    if(point[0] < 0.0 || point[0] > 1.0 || point[1] < 0.0 || point[1] > 1.0) {
+        const float half = 0.5;
+        point[0] -= half;
+        point[1] -= half;
+        point[2] -= half;
+        const float abs_x = std::abs(point[0]);
+        const float abs_y = std::abs(point[1]);
+        const float abs_z = std::abs(point[2]);
+        
+        const float push_x = (abs_x < abs_y && abs_x < abs_z) ? half*inc_x : 0.0;
+        const float push_y = (abs_y < abs_x && abs_x < abs_z) ? half*inc_y : 0.0;
+        const float push_z = (abs_z < abs_x && abs_x < abs_y) ? half*inc_z : 0.0;
+        if(abs_x > half){point[0] = std::copysign(half - push_x, point[0]);}
+        if(abs_y > half){point[1] = std::copysign(half - push_y, point[1]);}
+        if(abs_z > half){point[2] = std::copysign(half - push_z, point[2]);}
+        point[0] += half;
+        point[1] += half;
+        point[2] += half;
+    }
+    float zero = 0.0;
+    float p0 = std::min((float)(nx*inc_x-1e-8),std::max(zero, point[0]));
+    float p1 = std::min((float)(ny*inc_y-1e-8),std::max(zero, point[1]));       
+    float p2 = std::min((float)(nz*inc_x-1e-8),std::max(zero, point[2])); 
+    
+    double xmod = fmod(p0,inc_x);
+    double ymod = fmod(p1,inc_y);
+    double zmod = fmod(p2,inc_z);
+    
+    int i = mymin(nx-1,((p0 - xmod)/inc_x));
+    int j = mymin(ny-1,((p1 - ymod)/inc_y));
+    int k = mymin(nz-1,((p2 - zmod)/inc_z));
+    
+    int cell_idx = 5*(i + j * nx + k * nx * ny);
+    
+    double x = xmod/inc_x;
+    double y = ymod/inc_y;
+    double z = zmod/inc_z;
+    
+    bool tf = false;              
+    if (k%2==0){
+        if ((i%2==0 && j%2==1) ||  (i%2==1 && j%2==0)){
+            tf = true;
+        }
+    }
+    else if((i%2==0 && j%2==0) ||  (i%2==1 && j%2==1)){
+        tf = true;
+    }              
+    if (tf){
+        double tmp = x;
+        x = y;
+        y = 1-tmp;
+    }
+    if (-x -y +z  >= 0){
+        cell_idx+=1;
+    }
+    else if (x+y+z - 2 >= 0){
+        cell_idx+=2;
+    }
+    else if (-x+y-z >= 0){
+        cell_idx+=3;
+    }
+    else if (x-y-z >= 0){
+        cell_idx+=4;
+    }
+    return cell_idx;
 }
 
 int findcellidx(int ndim, const float* p, const int* nc){
@@ -69,9 +204,9 @@ void A_times_b_linear(int ndim, float x[], const float* A, float* b){
     return;
 }
 
-void cpab_forward(  float* newpoints, const float* points, const float* trels,
-                    const int* nstepsolver, const float* nc,
-                    const int ndim, const int nP, const int batch_size){
+void cpab_forward_op(  float* newpoints, const float* points, const float* trels,
+                       const int* nstepsolver, const int* nc,
+                       const int ndim, const int nP, const int batch_size){
     // Main loop
     for(int t = 0; t < batch_size; t++) { // for all batches
         // Start index for batch
@@ -106,10 +241,10 @@ void cpab_forward(  float* newpoints, const float* points, const float* trels,
     }
 }
 
-void cpab_backward( float* grad, const float* points, const float* As,
-                    const float* Bs, const int* nstepsolver, const float* nc,
-                    const int n_theta, const int d,
-                    const int ndim, const int nP, const int nC) {
+void cpab_backward_op( float* grad, const float* points, const float* As,
+                       const float* Bs, const int* nstepsolver, const int* nc,
+                       const int n_theta, const int d,
+                       const int ndim, const int nP, const int nC) {
     // Make data structures for calculations
     float p[ndim], v[ndim], pMid[ndim], vMid[ndim], q[ndim], qMid[ndim];
     float B_times_T[ndim], A_times_dTdAlpha[ndim], u[ndim], uMid[ndim];
@@ -121,15 +256,15 @@ void cpab_backward( float* grad, const float* points, const float* As,
         for(int point_index = 0; point_index < nP; point_index++){
             // For all parameters in the transformations
             for(int dim_index = 0; dim_index < d; dim_index++){
-                int index = 2 * nP * batch_index + point_index;
-                int boxsize = 2 * nP * n_theta;
+                int index = ndim * nP * batch_index + point_index;
+                int boxsize = ndim * nP * n_theta;
                 
                 // Define start index for the matrices belonging to this batch
                 int start_idx = batch_index * stride(ndim, nc);
                 
                 // Get point
                 for(int j = 0; j < ndim; j++){
-                    p[j] = points[point_index + j*index];
+                    p[j] = points[point_index + j*nP];
                 }
                 
                 double h = (1.0 / nstepsolver[0]);
