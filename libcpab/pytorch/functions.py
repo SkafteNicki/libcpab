@@ -13,6 +13,14 @@ from .findcellidx import findcellidx
 from ..core.utility import load_basis_as_struct
 
 #%%
+def assert_version():
+    numbers = torch.__version__.split('.')
+    version = float(numbers[0] + '.' + numbers[1])
+    assert version >= 1.0, \
+        ''' You are using a older installation of pytorch, please install 1.0.0
+            or newer '''
+
+#%%
 def to(x, dtype=torch.float32, device=None):
     return torch.tensor(x, dtype=dtype, device=device)
 
@@ -38,6 +46,38 @@ def pdist(mat):
 #%%
 def norm(x):
     return torch.norm(x)
+
+#%%
+def matmul(x,y):
+    return torch.matmul(x,y)
+
+#%%
+def transpose(x):
+    return x.t()
+
+#%%
+def exp(x):
+    return torch.exp(x)
+
+#%%
+def zeros(*s):
+    return torch.zeros(*s)
+    
+#%%
+def ones(*s):
+    return torch.ones(*s)
+
+#%%
+def arange(x):
+    return torch.arange(x)
+    
+#%%
+def repeat(x, reps):
+    return x.repeat(reps)
+
+#%%
+def maximum(x):
+    return x.max()
 
 #%%
 def sample_transformation(d, n_sample=1, mean=None, cov=None, device='cpu'):

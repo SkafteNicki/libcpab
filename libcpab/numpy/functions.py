@@ -13,6 +13,14 @@ from .findcellidx import findcellidx
 from ..core.utility import load_basis_as_struct
 
 #%%
+def assert_version():
+    numbers = np.__version__.split('.')
+    version = float(numbers[0] + '.' + numbers[1])
+    assert version >= 1.15, \
+        ''' You are using a older installation of numpy, please install 1.15.
+            or newer '''
+
+#%%
 def to(x, dtype=np.float32, device=None): 
     return np.array(x)
 
@@ -39,6 +47,38 @@ def pdist(mat):
 def norm(x):
     return np.linalg.norm(x)
 
+#%%
+def matmul(x,y):
+    return np.matmul(x,y)
+
+#%%
+def transpose(x):
+    return x.T
+
+#%%
+def exp(x):
+    return np.exp(x)
+
+#%%
+def zeros(*s):
+    return np.zeros(*s)
+    
+#%%
+def ones(*s):
+    return np.ones(*s)
+
+#%%
+def arange(x):
+    return np.arange(x)
+    
+#%%
+def repeat(x, reps):
+    return np.repeat(x, reps)
+
+#%%
+def maximum(x):
+    return np.max(x)
+    
 #%%
 def sample_transformation(d, n_sample=1, mean=None, cov=None, device='cpu'):
     mean = np.zeros(d, dtype=np.float32) if mean is None else mean

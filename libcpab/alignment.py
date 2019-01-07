@@ -5,8 +5,6 @@ Created on Wed Nov 28 16:13:00 2018
 @author: nsde
 """
 
-#%%
-from tqdm import tqdm
 
 #%%
 class DataAligner:
@@ -30,7 +28,7 @@ class DataAligner:
         current_sample = self.T.identity(1)
         current_error = self.backend.norm(x1 - x2)
         accept_ratio = 0
-        for i in tqdm(range(maxiter), desc='mcmc sampling'):
+        for i in range(maxiter):
             # Sample and transform 
             theta = self.T.sample_transformation(1, mean=current_sample)
             x1_trans = self.T.transform_data(x1, theta)
@@ -60,8 +58,6 @@ class DataAligner:
         theta = torch.autograd.Variable(self.T.identity(1, epsilon=1e-6), requires_grad=True)
         optimizer = torch.optim.Adam([theta], lr=lr)
         
-        progress_bar = tqdm(desc='Gradient decent optimizer', 
-                            total=maxiter, unit='iterations')
         loss_list = [ ]
         for i in range(maxiter):
             optimizer.zero_grad()
@@ -69,10 +65,8 @@ class DataAligner:
             loss = self.backend.norm(x1_trans - x2)
             loss.backward()
             optimizer.step()
-            progress_bar.update()
-            progress_bar.set_postfix({'loss': loss.item()})
+            print('Epoch {0}/{1}, Loss {2}'.format(i+1, maxiter, loss.item()))
             loss_list.append(loss.item())
-        progress_bar.close()
         print('Initial loss:', loss_list[0])
         print('Final loss:', loss_list[-1])
         return theta, x1_trans.detach()

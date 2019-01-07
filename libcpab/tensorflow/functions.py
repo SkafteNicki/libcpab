@@ -38,6 +38,38 @@ def norm(x):
     return tf.norm(x)
 
 #%%
+def matmul(x,y):
+    return tf.matmul(x,y)
+
+#%%
+def transpose(x):
+    return tf.transpose(x)
+
+#%%
+def exp(x):
+    return tf.exp(x)
+
+#%%
+def zeros(*s):
+    return tf.zeros(*s)
+    
+#%%
+def ones(*s):
+    return tf.ones(*s)
+
+#%%
+def arange(x):
+    return tf.range(x)
+    
+#%%
+def repeat(x, reps):
+    return tf.tile([x], [reps])
+
+#%%
+def maximum(x):
+    return tf.reduce_max(x)
+
+#%%
 def sample_transformation(d, n_sample=1, mean=None, cov=None):
     mean = tf.zeros((d,), dtype=tf.float32) if mean is None else mean
     cov = tf.eye(d, dtype=tf.float32) if cov is None else cov

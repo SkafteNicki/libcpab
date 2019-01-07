@@ -92,12 +92,15 @@ class cpab(object):
                 self.params.zero_boundary, self.params.volume_perservation]
         if self.params.ndim == 1:
             self.params.nC = self.params.nc[0]
+            self.params.params_pr_cell = 2
             self.tesselation = Tesselation1D(*pdir)
         elif self.params.ndim == 2:
             self.params.nC = 4*np.prod(self.params.nc)
+            self.params.params_pr_cell = 6
             self.tesselation = Tesselation2D(*pdir)
         elif self.params.ndim == 3:
             self.params.nC = 5*np.prod(self.params.nc)
+            self.params.params_pr_cell = 12
             self.tesselation = Tesselation3D(*pdir)
         
         # Check if we have already created the basis
@@ -138,6 +141,9 @@ class cpab(object):
             from .pytorch import functions as backend
         self.backend = backend
         self.device = device
+        
+        # Assert that we have a recent version of the backend
+        self.backend.assert_version()
         
     #%%
     def get_theta_dim(self):
@@ -207,16 +213,56 @@ class cpab(object):
                                                   mean, cov, self.device)
     
     #%%
-    def sample_transformation_with_prior(self, n_sample=1):
-        """ Function for sampling smooth transformations """
+    def sample_transformation_with_prior(self, n_sample=1, mean=None, 
+                                         length_scale=0.1, output_variance=1):
+        """ Function for sampling smooth transformations. The smoothness is determined
+            by the distance between cell centers. The closer the cells are to each other,
+            the more the cell parameters should correlate -> smooth transistion in
+            parameters. The covariance in the D-space is calculated using the
+            squared exponential kernel.
+                
+        Arguments:
+            n_sample: integer, number of transformation to sample
+            mean: [d,] vector, mean of multivariate gaussian
+            length_scale: float>0, determines how fast the covariance declines 
+                between the cells 
+            output_variance: float>0, determines the overall variance from the mean
+        Output:
+            samples: [n_sample, d] matrix. Each row is a independen sample from
+                a multivariate gaussian
+        """
         
-#        # Get cell centers and convert to backend type
-#        centers = self.backend.to(self.tesselation.get_cell_centers())
-#        
-#        # Get distance between cell centers
-#        dist = self.backend.pdist(centers)
+        # Get cell centers and convert to backend type
+        centers = self.backend.to(self.tesselation.get_cell_centers())
         
-        raise NotImplementedError
+        # Get distance between cell centers
+        dist = self.backend.pdist(centers)
+        
+        # Make into a covariance matrix between parameters
+        ppc = self.params.params_pr_cell
+        cov_init = self.backend.zeros(self.params.D, self.params.D)
+        
+        for i in range(self.params.nC):
+            for j in range(self.params.nC):
+                # Make block matrix with large values
+                block = 100*self.backend.maximum(dist)*self.backend.ones(ppc, ppc)
+                # Fill in diagonal with actual values
+                block[self.backend.arange(ppc), self.backend.arange(ppc)] = \
+                    self.backend.repeat(dist[i,j], ppc)
+                # Fill block into the large covariance
+                cov_init[ppc*i:ppc*(i+1), ppc*j:ppc*(j+1)] = block
+        
+        # Squared exponential kernel
+        cov_avees = output_variance**2 * self.backend.exp(-(cov_init / (2*length_scale**2)))
+
+        # Transform covariance to theta space
+        B = self.backend.to(self.params.basis)
+        B_t = self.backend.transpose(B)
+        cov_theta = self.backend.matmul(B_t, self.backend.matmul(cov_avees, B))
+        
+        # Sample
+        samples = self.sample_transformation(n_sample, mean=mean, cov=cov_theta)
+        return samples
     
     #%%
     def identity(self, n_sample=1, epsilon=0):
