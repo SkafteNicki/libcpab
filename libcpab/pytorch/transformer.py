@@ -151,8 +151,7 @@ class _CPABFunction_AnalyticGrad(torch.autograd.Function):
         Trels = Trels[:,:params.ndim,:].view(n_theta, params.nC, *params.Ashape)
         
         # Convert to tensor
-        nstepsolver = torch.tensor(params.nstepsolver, dtype=torch.int32, 
-                                   device=device).to(device)
+        nstepsolver = torch.tensor(params.nstepsolver, dtype=torch.int32, device=device)
         nc = torch.tensor(params.nc, dtype=torch.int32, device=device)
 
         # Call integrator
@@ -222,10 +221,9 @@ class _CPABFunction_NumericGrad(torch.autograd.Function):
         Trels = Trels[:,:params.ndim,:].view(n_theta, params.nC, *params.Ashape)
         
         # Convert to tensor
-        nstepsolver = torch.tensor(params.nstepsolver, dtype=torch.int32, 
-                                   device=device).to(device)
-        nc = torch.tensor(params.nc, dtype=torch.int32, device=device)
-        
+        nstepsolver = torch.tensor([params.nstepsolver], dtype=torch.int32).to(device)
+        nc = torch.tensor(params.nc, dtype=torch.int32).to(device)
+
         # Call integrator
         if points.is_cuda:
             newpoints = cpab_gpu.forward(points.contiguous(), 

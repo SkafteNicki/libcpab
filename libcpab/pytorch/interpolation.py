@@ -37,8 +37,8 @@ def interpolate1D(data, grid, outsize):
     
     # Batch effect
     batch_size = out_width
-    batch_idx = (torch.arange(n_batch)*batch_size).repeat(batch_size)
-    
+    #batch_idx = (torch.arange(n_batch)*batch_size).repeat(batch_size)
+    batch_idx = torch.arange(n_batch).repeat(batch_size, 1).t().flatten()
     # Index
     c0 = data[batch_idx, :, x0]
     c1 = data[batch_idx, :, x1]
@@ -52,7 +52,7 @@ def interpolate1D(data, grid, outsize):
     # Reshape
     new_data = torch.reshape(c, (n_batch, out_width, n_channels))
     new_data = new_data.permute(0, 2, 1)
-    return new_data
+    return new_data.contiguous()
     
 #%%    
 def interpolate2D(data, grid, outsize):
@@ -83,7 +83,7 @@ def interpolate2D(data, grid, outsize):
     
     # Batch effect
     batch_size = out_width*out_height
-    batch_idx = (torch.arange(n_batch)*batch_size).repeat(batch_size)
+    batch_idx = torch.arange(n_batch).repeat(batch_size, 1).t().flatten()
     
     # Index
     c00 = data[batch_idx, :, x0, y0]
@@ -103,7 +103,7 @@ def interpolate2D(data, grid, outsize):
     # Reshape
     new_data = torch.reshape(c, (n_batch, out_height, out_width, n_channels))
     new_data = new_data.permute(0, 3, 2, 1)
-    return new_data
+    return new_data.contiguous()
     
 #%%    
 def interpolate3D(data, grid, outsize):
@@ -140,8 +140,8 @@ def interpolate3D(data, grid, outsize):
     
     # Batch effect
     batch_size = out_width*out_height*out_depth
-    batch_idx = (torch.arange(n_batch)*batch_size).repeat(batch_size)
-    
+    #batch_idx = (torch.arange(n_batch)*batch_size).repeat(batch_size)
+    batch_idx = torch.arange(n_batch).repeat(batch_size, 1).t().flatten()
     # Index
     c000 = data[batch_idx, :, x0, y0, z0]
     c001 = data[batch_idx, :, x0, y0, z1]
@@ -169,4 +169,4 @@ def interpolate3D(data, grid, outsize):
     # Reshape
     new_data = torch.reshape(c, (n_batch, out_depth, out_height, out_width, n_channels))
     new_data = new_data.permute(0, 4, 3, 2, 1)
-    return new_data
+    return new_data.contiguous()
