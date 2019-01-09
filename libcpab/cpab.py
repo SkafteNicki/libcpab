@@ -8,8 +8,7 @@ Created on Fri Nov 16 15:34:36 2018
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
-from .core.utility import params, get_dir, create_dir, check_if_file_exist, \
-                            save_obj, load_obj, null
+from .core.utility import params, get_dir, create_dir, load_obj, save_obj
 from .core.tesselation import Tesselation1D, Tesselation2D, Tesselation3D
 
 #%%
@@ -79,58 +78,33 @@ class cpab(object):
         
         # For saving the basis
         self._dir = get_dir(__file__) + '/../basis_files/'
-        self._basis_file = self._dir + \
-                            'cpab_basis_dim' + str(self.params.ndim) + '_tess' + \
-                            '_'.join([str(e) for e in self.params.nc]) + '_' + \
-                            'vo' + str(int(self.params.valid_outside)) + '_' + \
-                            'zb' + str(int(self.params.zero_boundary)) + '_' + \
-                            'vp' + str(int(self.params.volume_perservation))
         create_dir(self._dir)
         
         # Specific for the different dims
-        pdir = [self.params.nc, self.params.domain_min, self.params.domain_max, 
-                self.params.zero_boundary, self.params.volume_perservation]
         if self.params.ndim == 1:
             self.params.nC = self.params.nc[0]
             self.params.params_pr_cell = 2
-            self.tesselation = Tesselation1D(*pdir)
+            tesselation = Tesselation1D
         elif self.params.ndim == 2:
             self.params.nC = 4*np.prod(self.params.nc)
             self.params.params_pr_cell = 6
-            self.tesselation = Tesselation2D(*pdir)
+            tesselation = Tesselation2D
         elif self.params.ndim == 3:
             self.params.nC = 5*np.prod(self.params.nc)
             self.params.params_pr_cell = 12
-            self.tesselation = Tesselation3D(*pdir)
+            tesselation = Tesselation3D
+            
+        # Initialize tesselation
+        self.tesselation = tesselation(self.params.nc, self.params.domain_min, 
+                                       self.params.domain_max, self.params.zero_boundary, 
+                                       self.params.volume_perservation,
+                                       self._dir, override)
         
-        # Check if we have already created the basis
-        if not check_if_file_exist(self._basis_file+'.pkl') or override:
-            # Get constrain matrix
-            L = self.tesselation.get_constrain_matrix()
+        # Extract parameters from tesselation
+        self.params.constrain_mat = self.tesselation.L
+        self.params.basis = self.tesselation.B
+        self.params.D, self.params.d = self.params.basis.shape
                 
-            # Find null space of constrain matrix
-            B = null(L)
-            self.params.constrain_mat = L
-            self.params.basis = B
-            self.params.D, self.params.d = B.shape
-            
-            # Save basis as pkl file
-            obj = {'basis': self.params.basis, 'constrains': self.params.constrain_mat, 
-                   'ndim': self.params.ndim, 'D': self.params.D, 'd': self.params.d, 
-                   'nc': self.params.nc, 'nC': self.params.nC, 'Ashape': self.params.Ashape, 
-                   'nstepsolver': self.params.nstepsolver, 'numeric_grad': self.params.numeric_grad,
-                   'use_slow': self.params.use_slow}
-            save_obj(obj, self._basis_file)
-            save_obj(obj, self._dir + 'current_basis')
-        
-        else: # if it exist, just load it and save as current basis
-            file = load_obj(self._basis_file)
-            self.params.constrain_mat = file['constrains']
-            self.params.basis = file['basis']        
-            self.params.D = file['D']
-            self.params.d = file['d']
-            save_obj(file, self._dir + 'current_basis')
-            
         # Load backend and set device
         self.backend_name = backend
         if self.backend_name == 'numpy':
@@ -176,11 +150,9 @@ class cpab(object):
         assert type(nstepsolver) == int, '''nstepsolver must be integer'''
         assert type(numeric_grad) == bool, '''numeric_grad must be bool'''
         assert type(use_slow) == bool, '''use_slow must be bool'''
-        file = load_obj(self._basis_file)
-        file['nstepsolver'] = nstepsolver
-        file['numeric_grad'] = numeric_grad
-        file['use_slow'] = use_slow
-        save_obj(file, self._dir + 'current_basis')
+        self.params.nstepsolver = nstepsolver
+        self.params.numeric_grad = numeric_grad
+        self.params.use_slow = use_slow
         
     #%%    
     def uniform_meshgrid(self, n_points):
@@ -291,7 +263,7 @@ class cpab(object):
         """
         self._check_type(grid); self._check_device(grid)
         self._check_type(theta); self._check_device(theta)
-        transformed_grid = self.backend.transformer(grid, theta)
+        transformed_grid = self.backend.transformer(grid, theta, self.params)
         return transformed_grid
     
     #%%    

@@ -7,7 +7,7 @@ Created on Fri Nov 16 15:40:59 2018
 
 if __name__ == "__main__":
     import torch    
-    from libcpab import cpab, DataAligner, SequentialCpab
-    T = cpab([2,2], backend='pytorch')
-    theta = T.sample_transformation_with_prior(1)
+    from libcpab import cpab
+    T = cpab([3,3], backend='pytorch', device='gpu', zero_boundary=True, 
+             volume_perservation=False, override=False)
     

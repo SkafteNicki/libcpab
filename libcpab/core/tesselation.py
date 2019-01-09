@@ -7,10 +7,10 @@ Created on Sun Nov 18 14:23:25 2018
 
 #%%
 import numpy as np
-from .utility import make_hashable
+from .utility import make_hashable, check_if_file_exist, null, save_obj, load_obj
 
 #%%
-class Tesselation:
+class Tesselation(object):
     """ Base tesselation class. This function is not meant to be called,
         but descripes the base structure that needs to be implemented in
         1D, 2D, and 3D. Additionally, some functionallity is shared across
@@ -24,7 +24,6 @@ class Tesselation:
         volume_perservation: bool, if true volume is perserved
         
     Methods that should not be implemented in subclasses:
-        @get_constrain_matrix:
         @get_cell_centers:
         @create_continuity_constrains:
         @create_zero_trace_constrains:
@@ -36,7 +35,8 @@ class Tesselation:
         
     """
     def __init__(self, nc, domain_min, domain_max,
-                 zero_boundary = True, volume_perservation=False):
+                 zero_boundary = True, volume_perservation=False, 
+                 direc=None, override=False):
         """ Initilization of the class that create the constrain matrix L
         Arguments:
             nc: list, number of cells in each dimension
@@ -45,6 +45,9 @@ class Tesselation:
             zero_boundary: bool, determines is the velocity at the boundary is zero
             volume_perservation: bool, determine if the transformation is
                 volume perservating
+            direc: string, where to store the basis
+            override: bool, determines if we should calculate the basis even
+                if it already exists
         """
         
         # Save parameters
@@ -53,32 +56,46 @@ class Tesselation:
         self.domain_max = domain_max
         self.zero_boundary = zero_boundary
         self.volume_perservation = volume_perservation
-    
-        # Get vertices
-        self.find_verts()
+        self.dir = direc
+        self._basis_file = self.dir + \
+                            'cpab_basis_dim' + str(len(self.nc)) + '_tess' + \
+                            '_'.join([str(e) for e in self.nc]) + '_' + \
+                            'vo' + str(int(not self.zero_boundary)) + '_' + \
+                            'zb' + str(int(self.zero_boundary)) + '_' + \
+                            'vp' + str(int(self.volume_perservation))
         
-        # Find shared vertices
-        self.find_shared_verts()
-        
-        # find auxility vertices, if transformation is valid outside
-        if not zero_boundary: self.find_verts_outside()
-        
-        # Get continuity constrains
-        self.L = self.create_continuity_constrains()
-        
-        # If zero boundary, add constrains
-        if zero_boundary:
-            temp = self.create_zero_boundary_constrains()
-            self.L = np.concatenate((self.L, temp), axis=0)
+        # Check if file exist else calculate the basis
+        if not check_if_file_exist(self._basis_file+'.pkl') or override:
+            # Get vertices
+            self.find_verts()
             
-        # If volume perservation, add constrains
-        if volume_perservation:
-            temp = self.create_zero_trace_constrains()
-            self.L = np.concatenate((self.L, temp), axis=0)
-    
-    def get_constrain_matrix(self):
-        """ Function for getting the constructed constrain matrix L """
-        return self.L
+            # Find shared vertices
+            self.find_shared_verts()
+            
+            # find auxility vertices, if transformation is valid outside
+            if not zero_boundary: self.find_verts_outside()
+            
+            # Get continuity constrains
+            self.L = self.create_continuity_constrains()
+            
+            # If zero boundary, add constrains
+            if zero_boundary:
+                temp = self.create_zero_boundary_constrains()
+                self.L = np.concatenate((self.L, temp), axis=0)
+                
+            # If volume perservation, add constrains
+            if volume_perservation:
+                temp = self.create_zero_trace_constrains()
+                self.L = np.concatenate((self.L, temp), axis=0)
+            
+            # Find null space
+            self.B = null(self.L)
+        
+            # Save to file
+            save_obj(self.__dict__, self._basis_file)
+        
+        else:
+            self.__dict__ = load_obj(self._basis_file)
     
     def get_cell_centers(self):
         """ Get the centers of all the cells """
@@ -147,7 +164,8 @@ class Tesselation:
 #%%
 class Tesselation1D(Tesselation):
     def __init__(self, nc, domain_min, domain_max,
-                 zero_boundary = True, volume_perservation=False):
+                 zero_boundary = True, volume_perservation=False, 
+                 direc=None, override=False):
         # 1D parameters
         self.n_params = 2
         self.nC = np.prod(nc)
@@ -155,7 +173,7 @@ class Tesselation1D(Tesselation):
         
         # Initialize super class
         super(Tesselation1D, self).__init__(nc, domain_min, domain_max,
-             zero_boundary, volume_perservation)
+             zero_boundary, volume_perservation, direc, override)
         
     def find_verts(self):
         Vx = np.linspace(self.domain_min[0], self.domain_max[0], self.nc[0]+1)
@@ -184,7 +202,8 @@ class Tesselation1D(Tesselation):
 #%%
 class Tesselation2D(Tesselation):
     def __init__(self, nc, domain_min, domain_max,
-                 zero_boundary = True, volume_perservation=False):
+                 zero_boundary = True, volume_perservation=False, 
+                 direc=None, override=False):
         # 1D parameters
         self.n_params = 6 
         self.nC = 4*np.prod(nc) # 4 triangle per cell
@@ -192,7 +211,7 @@ class Tesselation2D(Tesselation):
         
         # Initialize super class
         super(Tesselation2D, self).__init__(nc, domain_min, domain_max,
-             zero_boundary, volume_perservation)
+             zero_boundary, volume_perservation, direc, override)
     
     def find_verts(self):
         Vx = np.linspace(self.domain_min[0], self.domain_max[0], self.nc[0]+1)
@@ -310,7 +329,8 @@ class Tesselation2D(Tesselation):
 #%%
 class Tesselation3D(Tesselation):
     def __init__(self, nc, domain_min, domain_max,
-                 zero_boundary = True, volume_perservation=False):
+                 zero_boundary = True, volume_perservation=False, 
+                 direc=None, override=False):
         # 1D parameters
         self.n_params = 12
         self.nC = 5*np.prod(nc) # 6 triangle per cell
@@ -318,7 +338,7 @@ class Tesselation3D(Tesselation):
         
         # Initialize super class
         super(Tesselation3D, self).__init__(nc, domain_min, domain_max,
-             zero_boundary, volume_perservation)
+             zero_boundary, volume_perservation, direc, override)
     
     def find_verts(self):
         Vx = np.linspace(self.domain_min[0], self.domain_max[0], self.nc[0]+1)

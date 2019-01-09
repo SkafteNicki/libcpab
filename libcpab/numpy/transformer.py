@@ -9,22 +9,20 @@ Created on Tue Nov 20 10:27:16 2018
 import numpy as np
 from scipy.linalg import expm
 from .findcellidx import findcellidx
-from ..core.utility import load_basis_as_struct
 
 #%%
 compiled = False
 
 #%%
-def CPAB_transformer(points, theta):
-    if compiled: return CPAB_transformer_fast(points, theta)
-    else: return CPAB_transformer_slow(points, theta)
+def CPAB_transformer(points, theta, params):
+    if compiled: return CPAB_transformer_fast(points, theta, params)
+    else: return CPAB_transformer_slow(points, theta, params)
 
 #%%
-def CPAB_transformer_slow(points, theta):
+def CPAB_transformer_slow(points, theta, params):
     # Problem parameters
     n_theta = theta.shape[0]
     n_points = points.shape[1]
-    params = load_basis_as_struct()
     
     # Create homogenous coordinates
     ones = np.ones((n_theta, 1, n_points))

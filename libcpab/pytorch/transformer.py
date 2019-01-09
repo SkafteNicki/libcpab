@@ -10,7 +10,7 @@ import torch
 from torch.utils.cpp_extension import load
 from .findcellidx import findcellidx
 from .expm import expm
-from ..core.utility import load_basis_as_struct, get_dir
+from ..core.utility import get_dir
 
 class _notcompiled:
     # Small class, with structure similear to the compiled modules we can default
@@ -68,25 +68,23 @@ except Exception as e:
         print(e)
 
 #%%
-def CPAB_transformer(points, theta):
-    params = load_basis_as_struct()
+def CPAB_transformer(points, theta, params):
     if points.is_cuda and theta.is_cuda:
         if not params.use_slow and _gpu_succes:
-            return CPAB_transformer_fast(points, theta)
+            return CPAB_transformer_fast(points, theta, params)
         else:
-            return CPAB_transformer_slow(points, theta)
+            return CPAB_transformer_slow(points, theta, params)
     else:
         if not params.use_slow and _cpu_succes:
-            return CPAB_transformer_fast(points, theta)
+            return CPAB_transformer_fast(points, theta, params)
         else:
-            return CPAB_transformer_slow(points, theta)
+            return CPAB_transformer_slow(points, theta, params)
         
 #%%
-def CPAB_transformer_slow(points, theta):
+def CPAB_transformer_slow(points, theta, params):
     # Problem parameters
     n_theta = theta.shape[0]
     n_points = points.shape[1]
-    params = load_basis_as_struct()
     
     # Create homogenous coordinates
     ones = torch.ones((n_theta, 1, n_points)).to(points.device)
@@ -122,18 +120,16 @@ def CPAB_transformer_slow(points, theta):
     return newpoints
 
 #%%
-def CPAB_transformer_fast(points, theta):
-    params = load_basis_as_struct()
-    if params.numeric_grad: return _CPABFunction_NumericGrad.apply(points, theta)
-    else: return _CPABFunction_AnalyticGrad.apply(points, theta)
+def CPAB_transformer_fast(points, theta, params):
+    if params.numeric_grad: return _CPABFunction_NumericGrad.apply(points, theta, params)
+    else: return _CPABFunction_AnalyticGrad.apply(points, theta, params)
 
 #%%
 class _CPABFunction_AnalyticGrad(torch.autograd.Function):
     # Function that connects the forward pass to the backward pass
     @staticmethod
-    def forward(ctx, points, theta):
+    def forward(ctx, points, theta, params):
         device = points.device
-        params = load_basis_as_struct()
         
         # Problem size
         n_theta = theta.shape[0]
@@ -195,15 +191,14 @@ class _CPABFunction_AnalyticGrad(torch.autograd.Function):
             
         # Backpropagate and reduce to [d, n_theta] matrix
         g = gradient.mul_(grad).sum(dim=(2,3))
-        return None, g.t() # transpose, since pytorch expects a [n_theta, d] matrix
+        return None, g.t(), None # transpose, since pytorch expects a [n_theta, d] matrix
 
 #%%
 class _CPABFunction_NumericGrad(torch.autograd.Function):
     # Function that connects the forward pass to the backward pass
     @staticmethod
-    def forward(ctx, points, theta):
+    def forward(ctx, points, theta, params):
         device = points.device
-        params = load_basis_as_struct()
         
         # Problem size
         n_theta = theta.shape[0]
@@ -237,7 +232,7 @@ class _CPABFunction_NumericGrad(torch.autograd.Function):
 												nc.contiguous())
             
         # Save of backward
-        ctx.save_for_backward(points, theta, newpoints, nstepsolver, nc)
+        ctx.save_for_backward(points, theta, newpoints, nstepsolver, nc, params)
         # Output result
         return newpoints
         
@@ -245,8 +240,7 @@ class _CPABFunction_NumericGrad(torch.autograd.Function):
     @torch.autograd.function.once_differentiable
     def backward(ctx, grad): # grad [n_theta, ndim, n]
         # Grap input
-        params = load_basis_as_struct()
-        points, theta, newpoints, nstepsolver, nc = ctx.saved_tensors
+        points, theta, newpoints, nstepsolver, nc, params = ctx.saved_tensors
         device = points.device
         h = 0.01
         gradient = [ ]

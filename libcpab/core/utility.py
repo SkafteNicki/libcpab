@@ -81,32 +81,6 @@ def check_if_file_exist(file):
     return os.path.isfile(file)
 
 #%%
-def load_basis():
-    """ Load the latest cpab basis created by cpab class """
-    basis_loc = get_dir(__file__) + '/../../basis_files/current_basis'
-    try:
-        basis = load_obj(basis_loc)
-    except:
-        raise ValueError('call the cpab class first to create basis')
-    return basis
-
-#%%
-def load_basis_as_struct():
-    file = load_basis()
-    class struct:
-        pass
-    params = struct()
-    params.basis = file['basis']
-    params.ndim = file['ndim']
-    params.Ashape = file['Ashape']
-    params.nC = file['nC']
-    params.nc = file['nc']
-    params.nstepsolver = file['nstepsolver']
-    params.numeric_grad = file['numeric_grad']
-    params.use_slow = file['use_slow']
-    return params
-
-#%%
 def uniqueid_generator(x):
     """ Function to generate uniquely id of x bits """
     seed = random.getrandbits(x)
