@@ -18,7 +18,78 @@ __device__ int findcellidx_1D(const float* p, const int ncx) {
     return idx;                            
 }
 
-__device__ int findcellidx_2D(const float* p, const int nx, const int ny) {
+__device__ int findcellidx_2D(const float* p, const int ncx, const int ncy) {
+    // Copy point
+    double point[2];
+    point[0] = p[0];
+    point[1] = p[1];
+    
+    // Cell size
+    const float inc_x = 1.0 / ncx;
+    const float inc_y = 1.0 / ncy;
+    
+    // Find initial row, col placement
+    double p0 = min((ncx * inc_x - 0.000000001), max(0.0, point[0]));
+    double p1 = min((ncy * inc_y - 0.000000001), max(0.0, point[1]));
+
+    double xmod = cuda_fmod((double)p0, (double)inc_x);
+    double ymod = cuda_fmod((double)p1, (double)inc_y);
+
+    double x = xmod / inc_x;
+    double y = ymod / inc_y;
+            
+    int cell_idx =  mymin(ncx-1, (p0 - xmod) / inc_x) + 
+                    mymin(ncy-1, (p1 - ymod) / inc_y) * ncx;        
+    cell_idx *= 4;
+            
+    // Out of bound (left)
+    if(point[0]<=0){
+        if(point[1] <= 0 && point[1]/inc_y<point[0]/inc_x){
+            // Nothing to do here
+        } else if(point[1] >= ncy * inc_y && point[1]/inc_y-ncy > -point[0]/inc_x) {
+            cell_idx += 2;
+        } else {
+            cell_idx += 3;
+        }
+        return cell_idx;
+    }
+            
+    // Out of bound (right)
+    if(point[0] >= ncx*inc_x){
+        if(point[1]<=0 && -point[1]/inc_y > point[0]/inc_x - ncx){
+            // Nothing to do here
+        } else if(point[1] >= ncy*inc_y && point[1]/inc_y - ncy > point[0]/inc_x-ncx){
+            cell_idx += 2;
+        } else {
+            cell_idx += 1;
+        }
+        return cell_idx;
+    }
+            
+    // Out of bound (up)
+    if(point[1] <= 0){
+        return cell_idx;
+    }
+            
+    // Out of bound (bottom)
+    if(point[1] >= ncy*inc_y){
+        cell_idx += 2;
+        return cell_idx;
+    }
+            
+    // OK, we are inbound
+    if(x<y){
+        if(1-x<y){
+            cell_idx += 2;
+        } else {
+            cell_idx += 3;
+        }
+    } else if(1-x<y) {
+        cell_idx += 1;
+    }
+                                
+    return cell_idx;
+    /*
     // Cell size
     const float inc_x = 1.0 / nx;
     const float inc_y = 1.0 / ny;
@@ -72,6 +143,7 @@ __device__ int findcellidx_2D(const float* p, const int nx, const int ny) {
     }
     
     return cell_idx;
+    */
 }
 
 __device__ int findcellidx_3D(const float* p, const int nx, const int ny, const int nz) {
@@ -242,11 +314,11 @@ __global__ void cpab_cuda_kernel_forward_2D(const int nP, const int batch_size,
         float point[2];
         point[0] = points[point_index];
         point[1] = points[point_index + nP];
-    
+        
         // Define start index for the matrices belonging to this batch
         // batch * num_elem * 4 triangles pr cell * cell in x * cell in y
         int start_idx = batch_index * 6 * 4 * nc[0] * nc[1]; 
-    
+        
         // Iterate in nStepSolver
         int cellidx;
         for(int n = 0; n < nStepSolver[0]; n++){
