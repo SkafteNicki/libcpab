@@ -76,6 +76,10 @@ def repeat(x, reps):
     return np.repeat(x, reps)
 
 #%%
+def batch_repeat(x, n_batch):
+    return np.repeat(x[None], n_batch, axis=0)
+
+#%%
 def maximum(x):
     return np.max(x)
     
@@ -99,10 +103,7 @@ def uniform_meshgrid(ndim, domain_min, domain_max, n_points, device='cpu'):
     return grid
 
 #%%
-def calc_vectorfield(grid, theta):
-    # Load parameters
-    params = load_basis_as_struct()
-    
+def calc_vectorfield(grid, theta, params):
     # Calculate velocity fields
     Avees = np.matmul(params.basis, theta.flatten())
     As = np.reshape(Avees, (params.nC, *params.Ashape))

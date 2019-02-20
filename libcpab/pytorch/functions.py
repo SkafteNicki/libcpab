@@ -76,6 +76,10 @@ def repeat(x, reps):
     return x.repeat(reps)
 
 #%%
+def batch_repeat(x, reps):
+    return x.repeat(reps, *(x.dim()*[1]))
+
+#%%
 def maximum(x):
     return x.max()
 
@@ -103,10 +107,7 @@ def uniform_meshgrid(ndim, domain_min, domain_max, n_points, device='cpu'):
     return grid
 
 #%%
-def calc_vectorfield(grid, theta):
-    # Load parameters
-    params = load_basis_as_struct()
-    
+def calc_vectorfield(grid, theta, params):   
     # Calculate velocity fields
     B = to(params.basis, dtype=theta.dtype, device=theta.device)
     Avees = torch.matmul(B, theta.flatten())

@@ -306,7 +306,7 @@ class cpab(object):
     def calc_vectorfield(self, grid, theta):
         self._check_type(grid); self._check_device(grid)
         self._check_type(theta); self._check_device(theta)
-        v = self.backend.calc_vectorfield(grid, theta)
+        v = self.backend.calc_vectorfield(grid, theta, self.params)
         return v
     
     #%%
@@ -315,7 +315,7 @@ class cpab(object):
         
         # Calculate vectorfield and convert to numpy
         grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
-        v = self.calc_vectorfield(grid, theta)
+        v = self.calc_vectorfield(grid, theta, self.params)
         v = self.backend.tonumpy(v)
         grid = self.backend.tonumpy(grid)
         
