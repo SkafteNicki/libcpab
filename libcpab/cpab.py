@@ -254,7 +254,9 @@ class cpab(object):
         """ Main method of the class. Integrates the grid using the parametrization
             in theta.
         Arguments:
-            grid: [ndim, n_points] matrix,
+            grid: [ndim, n_points] matrix or [n_batch, ndim, n_points] tensor i.e.
+                either a single grid for all theta values, or a grid for each theta
+                value
             theta: [n_batch, d] matrix,
         Output:
             transformed_grid: [n_batch, ndim, n_points] tensor, with the transformed
@@ -263,6 +265,10 @@ class cpab(object):
         """
         self._check_type(grid); self._check_device(grid)
         self._check_type(theta); self._check_device(theta)
+        if len(grid.shape) == 3: # check that grid and theta can broadcastes together
+            assert grid.shape[0] == theta.shape[0], '''When passing a 3D grid, expects
+                the first dimension to be of same length as the first dimension of
+                theta'''
         transformed_grid = self.backend.transformer(grid, theta, self.params)
         return transformed_grid
     
@@ -428,15 +434,19 @@ class cpab(object):
             
     #%%
     def __repr__(self):
-        output = '''CPAB transformer class. Parameters:
-        Tesselation size:           {0}
-        Total number of cells:      {1}
-        Theta size:                 {2}
-        Domain lower bound:         {3}
-        Domain upper bound:         {4}
-        Zero Boundary:              {5}
-        Volume perservation:        {6}
+        output = '''
+        CPAB transformer class. 
+            Parameters:
+                Tesselation size:           {0}
+                Total number of cells:      {1}
+                Theta size:                 {2}
+                Domain lower bound:         {3}
+                Domain upper bound:         {4}
+                Zero Boundary:              {5}
+                Volume perservation:        {6}
+            Backend:                        {7}
         '''.format(self.params.nc, self.params.nC, self.params.d, 
             self.params.domain_min, self.params.domain_max, 
-            self.params.zero_boundary, self.params.volume_perservation)
+            self.params.zero_boundary, self.params.volume_perservation,
+            self.backend_name)
         return output

@@ -63,7 +63,7 @@ class Tesselation(object):
                             'vo' + str(int(not self.zero_boundary)) + '_' + \
                             'zb' + str(int(self.zero_boundary)) + '_' + \
                             'vp' + str(int(self.volume_perservation))
-        
+
         # Check if file exist else calculate the basis
         if not check_if_file_exist(self._basis_file+'.pkl') or override:
             # Get vertices
