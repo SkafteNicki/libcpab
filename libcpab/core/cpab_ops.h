@@ -12,9 +12,11 @@ void A_times_b(int ndim, float x[], const float* A, const float* b);
 void A_times_b_linear(int ndim, float x[], const float* A, float* b);
 void cpab_forward_op(  float* newpoints, const float* points, const float* trels,
                        const int* nstepsolver, const int* nc,
-                       const int ndim, const int nP, const int batch_size);
+                       const int ndim, const int nP, const int batch_size,
+                       const int broadcast);
 void cpab_backward_op( float* grad, const float* points, const float* As,
                        const float* Bs, const int* nstepsolver, const int* nc,
                        const int n_theta, const int d,
-                       const int ndim, const int nP, const int nC);       
+                       const int ndim, const int nP, const int nC,
+                       const int broadcast);       
 #endif

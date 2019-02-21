@@ -10,7 +10,6 @@ import torch
 from .interpolation import interpolate
 from .transformer import CPAB_transformer as transformer
 from .findcellidx import findcellidx
-from ..core.utility import load_basis_as_struct
 
 #%%
 def assert_version():

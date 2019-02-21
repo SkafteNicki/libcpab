@@ -88,7 +88,8 @@ def CPAB_transformer_slow(points, theta, params):
     
     # Create homogenous coordinates
     ones = torch.ones((n_theta, 1, n_points)).to(points.device)
-    newpoints = points[None].repeat(n_theta, 1, 1) # [n_theta, ndim, n_points]
+    if len(points) == 2:
+        newpoints = points[None].repeat(n_theta, 1, 1) # [n_theta, ndim, n_points]
     newpoints = torch.cat((newpoints, ones), dim=1) # [n_theta, ndim+1, n_points]
     newpoints = newpoints.permute(0, 2, 1) # [n_theta, n_points, ndim+1]
     newpoints = torch.reshape(newpoints, (-1, params.ndim+1)) #[n_theta*n_points, ndim+1]]
@@ -153,14 +154,14 @@ class _CPABFunction_AnalyticGrad(torch.autograd.Function):
         # Call integrator
         if points.is_cuda:
             newpoints = cpab_gpu.forward(points.contiguous(), 
-												Trels.contiguous(), 
-												nstepsolver.contiguous(), 
-												nc.contiguous())
+                                         Trels.contiguous(), 
+                                         nstepsolver.contiguous(), 
+                                         nc.contiguous())
         else:            
             newpoints = cpab_cpu.forward(points.contiguous(), 
-												Trels.contiguous(), 
-												nstepsolver.contiguous(), 
-												nc.contiguous())
+                                         Trels.contiguous(), 
+                                         nstepsolver.contiguous(), 
+                                         nc.contiguous())
 
         # Save of backward
         Bs = B.t().view(-1, params.nC, *params.Ashape)
@@ -222,14 +223,14 @@ class _CPABFunction_NumericGrad(torch.autograd.Function):
         # Call integrator
         if points.is_cuda:
             newpoints = cpab_gpu.forward(points.contiguous(), 
-												Trels.contiguous(), 
-												nstepsolver.contiguous(), 
-												nc.contiguous())
+                                         Trels.contiguous(), 
+                                         nstepsolver.contiguous(), 
+                                         nc.contiguous())
         else:            
             newpoints = cpab_cpu.forward(points.contiguous(), 
-												Trels.contiguous(), 
-												nstepsolver.contiguous(), 
-												nc.contiguous())
+                                         Trels.contiguous(), 
+                                         nstepsolver.contiguous(), 
+                                         nc.contiguous())
             
         # Save of backward
         ctx.save_for_backward(points, theta, newpoints, nstepsolver, nc, params)
@@ -268,14 +269,14 @@ class _CPABFunction_NumericGrad(torch.autograd.Function):
             # Call integrator
             if points.is_cuda:
                 temp_points = cpab_gpu.forward(points.contiguous(), 
-                                             Trels.contiguous(), 
-        								nstepsolver.contiguous(), 
-    												nc.contiguous())
+                                               Trels.contiguous(), 
+                                               nstepsolver.contiguous(), 
+                                               nc.contiguous())
             else:            
                 temp_points = cpab_cpu.forward(points.contiguous(), 
-    												Trels.contiguous(), 
-    												nstepsolver.contiguous(), 
-    												nc.contiguous())
+                                               Trels.contiguous(), 
+                                               nstepsolver.contiguous(), 
+                                               nc.contiguous())
             
             diff = (temp_points - newpoints) / h
             

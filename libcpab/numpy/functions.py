@@ -91,7 +91,7 @@ def sample_transformation(d, n_sample=1, mean=None, cov=None, device='cpu'):
 
 #%%
 def identity(d, n_sample=1, epsilon=0, device='cpu'):
-    assert epsilon>=0, "epsilon need to be larger than 0"
+    assert epsilon>=0, "epsilon need to be larger than or 0"
     return np.zeros((n_sample, d), dtype=np.float32) + epsilon
 
 #%%

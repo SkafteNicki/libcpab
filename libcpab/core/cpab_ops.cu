@@ -196,14 +196,14 @@ __device__ void A_times_b_linear_3D(float x[], const float* A, float* b) {
 __global__ void cpab_cuda_kernel_forward_1D(const int nP, const int batch_size,
                                             float* newpoints, const float* points,
                                             const float* Trels, const int* nStepSolver,
-                                            const int* nc) {
+                                            const int* nc, const int broadcast) {
     
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
     if(point_index < nP && batch_index < batch_size) {
         // Get point
         float point[1];
-        point[0] = points[point_index];
+        point[0] = points[broadcast*batch_index*nP*1+point_index];
     
         // Define start index for the matrices belonging to this batch
         // batch * 2 params pr cell * cell in x
@@ -233,15 +233,15 @@ __global__ void cpab_cuda_kernel_forward_1D(const int nP, const int batch_size,
 __global__ void cpab_cuda_kernel_forward_2D(const int nP, const int batch_size,
                                             float* newpoints, const float* points,
                                             const float* Trels, const int* nStepSolver,
-                                            const int* nc) {
+                                            const int* nc, const int broadcast) {
 
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
     if(point_index < nP && batch_index < batch_size) {
         // Get point
         float point[2];
-        point[0] = points[point_index];
-        point[1] = points[point_index + nP];
+        point[0] = points[broadcast*batch_index*nP*2+point_index];
+        point[1] = points[broadcast*batch_index*nP*2+point_index + nP];
     
         // Define start index for the matrices belonging to this batch
         // batch * num_elem * 4 triangles pr cell * cell in x * cell in y
@@ -274,16 +274,16 @@ __global__ void cpab_cuda_kernel_forward_2D(const int nP, const int batch_size,
 __global__ void cpab_cuda_kernel_forward_3D(const int nP, const int batch_size,
                                             float* newpoints, const float* points, 
                                             const float* Trels, const int* nStepSolver,
-                                            const int* nc) {
+                                            const int* nc, const int broadcast) {
     
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
     if(point_index < nP && batch_index < batch_size) {
         // Get point
         float point[3];
-        point[0] = points[point_index];
-        point[1] = points[point_index + nP];
-        point[2] = points[point_index + 2*nP];
+        point[0] = points[broadcast*batch_index*nP*3+point_index];
+        point[1] = points[broadcast*batch_index*nP*3+point_index + nP];
+        point[2] = points[broadcast*batch_index*nP*3+point_index + 2*nP];
     
         // Define start index for the matrices belonging to this batch
         // batch * 12 params pr cell * 5 triangles pr cell * cell in x * cell in y * cell in z
@@ -317,7 +317,7 @@ __global__ void cpab_cuda_kernel_forward_3D(const int nP, const int batch_size,
 
 __global__ void cpab_cuda_kernel_backward_1D(dim3 nthreads, const int n_theta, const int d, const int nP, const int nC,
                                              float* grad, const float* points, const float* As, const float* Bs,
-                                             const int* nStepSolver, const int* nc) {
+                                             const int* nStepSolver, const int* nc, const int broadcast) {
         
         // Allocate memory for computations
         float p[1], v[1], pMid[1], vMid[1], q[1], qMid[1];
@@ -340,7 +340,7 @@ __global__ void cpab_cuda_kernel_backward_1D(dim3 nthreads, const int n_theta, c
             int start_idx = batch_index * 2 * nc[0]; 
 
             // Get point
-            p[0] = points[point_index];
+            p[0] = points[broadcast*batch_index*nP*1+point_index];
             
             // Step size for solver
             double h = (1.0 / nStepSolver[0]);
@@ -411,7 +411,7 @@ __global__ void cpab_cuda_kernel_backward_1D(dim3 nthreads, const int n_theta, c
 
 __global__ void   cpab_cuda_kernel_backward_2D(dim3 nthreads, const int n_theta, const int d, const int nP, const int nC,
                                                float* grad, const float* points, const float* As, const float* Bs,
-                                               const int* nStepSolver, const int* nc) {
+                                               const int* nStepSolver, const int* nc, const int broadcast) {
         
         // Allocate memory for computations
         float p[2], v[2], pMid[2], vMid[2], q[2], qMid[2];
@@ -434,8 +434,8 @@ __global__ void   cpab_cuda_kernel_backward_2D(dim3 nthreads, const int n_theta,
             int start_idx = batch_index * 6 * 4 * nc[0] * nc[1]; 
 
             // Get point
-            p[0] = points[point_index];
-            p[1] = points[point_index + nP];
+            p[0] = points[broadcast*batch_index*nP*2+point_index];
+            p[1] = points[broadcast*batch_index*nP*2+point_index + nP];
             
             // Step size for solver
             double h = (1.0 / nStepSolver[0]);
@@ -514,7 +514,7 @@ __global__ void   cpab_cuda_kernel_backward_2D(dim3 nthreads, const int n_theta,
 
 __global__ void   cpab_cuda_kernel_backward_3D(dim3 nthreads, const int n_theta, const int d, const int nP, const int nC,
                                                float* grad, const float* points, const float* As, const float* Bs,
-                                               const int* nStepSolver, const int* nc) {
+                                               const int* nStepSolver, const int* nc, const int broadcast) {
         
         // Allocate memory for computations
         float p[3], v[3], pMid[3], vMid[3], q[3], qMid[3];
@@ -537,9 +537,9 @@ __global__ void   cpab_cuda_kernel_backward_3D(dim3 nthreads, const int n_theta,
             int start_idx = batch_index * 12 * 5 * nc[0] * nc[1] * nc[2]; 
             
             // Get point
-            p[0] = points[point_index];
-            p[1] = points[point_index + nP];
-            p[2] = points[point_index + 2 * nP];
+            p[0] = points[broadcast*batch_index*nP*3+point_index];
+            p[1] = points[broadcast*batch_index*nP*3+point_index + nP];
+            p[2] = points[broadcast*batch_index*nP*3+point_index + 2 * nP];
             
             // Step size for solver
             double h = (1.0 / nStepSolver[0]);

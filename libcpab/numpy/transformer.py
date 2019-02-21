@@ -26,7 +26,8 @@ def CPAB_transformer_slow(points, theta, params):
     
     # Create homogenous coordinates
     ones = np.ones((n_theta, 1, n_points))
-    newpoints = np.tile(points, [n_theta, 1, 1]) # [n_theta, ndim, n_points]
+    if len(points)==2: # tile if 2D grid
+        newpoints = np.tile(points, [n_theta, 1, 1]) # [n_theta, ndim, n_points]
     newpoints = np.concatenate((newpoints, ones), axis=1) # [n_theta, ndim+1, n_points]
     newpoints = np.transpose(newpoints, (0, 2, 1)) # [n_theta, n_points, ndim+1]
     newpoints = np.reshape(newpoints, (-1, params.ndim+1)) #[n_theta*n_points, ndim+1]]
@@ -59,4 +60,5 @@ def CPAB_transformer_slow(points, theta, params):
 
 #%%
 def CPAB_transformer_fast(points, theta):
+    # TODO: jit compile cpp code into callable python code
     pass

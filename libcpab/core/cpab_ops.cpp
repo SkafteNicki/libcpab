@@ -31,58 +31,75 @@ int findcellidx_1D(const float* p, const int nx) {
 }
 
 int findcellidx_2D(const float* p, const int nx, const int ny) {
-    // Cell size
-    const float inc_x = 1.0 / nx;
-    const float inc_y = 1.0 / ny;
-
-    // Copy point                        
-    float point[2];
+    // Copy point
+    double point[2];
     point[0] = p[0];
     point[1] = p[1];
     
-    // If point is outside [0, 1]x[0, 1] then we push it inside
-    if (point[0] < 0.0 || point[0] > 1.0 || point[1] < 0.0 || point[1] > 1.0) {
-        const float half = 0.5;
-        point[0] -= half;
-        point[1] -= half;
-        const float abs_x = std::abs(point[0]);
-        const float abs_y = std::abs(point[1]);
-
-        const float push_x = (abs_x < abs_y) ? half*inc_x : 0.0;
-        const float push_y = (abs_y < abs_x) ? half*inc_y : 0.0;
-        if (abs_x > half) {
-            point[0] = std::copysign(half - push_x, point[0]);
-        }
-        if (abs_y > half) {
-            point[1] = std::copysign(half - push_y, point[1]);
-        }
-        
-        point[0] += half;
-        point[1] += half;
-    }
+    // Cell size
+    const float inc_x = 1.0 / nx;
+    const float inc_y = 1.0 / ny;
     
     // Find initial row, col placement
-    const float p0 = std::min((float)(1.0 - 1e-8), point[0]);
-    const float p1 = std::min((float)(1.0 - 1e-8), point[1]);
-    const float p0ncx = p0*nx;
-    const float p1ncy = p1*ny;
-    const int ip0ncx = p0ncx; // rounds down
-    const int ip1ncy = p1ncy; // rounds down
-    int cell_idx = 4 * (ip0ncx + ip1ncy * nx);
-    
-    // Find (sub)triangle
-    const float x = p0ncx - ip0ncx;
-    const float y = p1ncy - ip1ncy;
-    if (x < y) {
-        if (1-x < y) {
+    double p0 = std::min((nx * inc_x - 0.000000001), std::max(0.0, point[0]));
+    double p1 = sdt::min((ny * inc_y - 0.000000001), std::max(0.0, point[1]));
+
+    double xmod = std::fmod((double)p0, (double)inc_x);
+    double ymod = std::fmod((double)p1, (double)inc_y);
+
+    double x = xmod / inc_x;
+    double y = ymod / inc_y;
+            
+    int cell_idx =  mymin(ncx-1, (p0 - xmod) / inc_x) + 
+                    mymin(ncy-1, (p1 - ymod) / inc_y) * nx;        
+    cell_idx *= 4;
+            
+    // Out of bound (left)
+    if(point[0]<=0){
+        if(point[1] <= 0 && point[1]/inc_y<point[0]/inc_x){
+            // Nothing to do here
+        } else if(point[1] >= ny * inc_y && point[1]/inc_y-ny > -point[0]/inc_x) {
             cell_idx += 2;
         } else {
             cell_idx += 3;
         }
-    } else if (1-x < y) {
+        return cell_idx;
+    }
+            
+    // Out of bound (right)
+    if(point[0] >= nx*inc_x){
+        if(point[1]<=0 && -point[1]/inc_y > point[0]/inc_x - nx){
+            // Nothing to do here
+        } else if(point[1] >= ny*inc_y && point[1]/inc_y - ny > point[0]/inc_x-nx){
+            cell_idx += 2;
+        } else {
+            cell_idx += 1;
+        }
+        return cell_idx;
+    }
+            
+    // Out of bound (up)
+    if(point[1] <= 0){
+        return cell_idx;
+    }
+            
+    // Out of bound (bottom)
+    if(point[1] >= ny*inc_y){
+        cell_idx += 2;
+        return cell_idx;
+    }
+            
+    // OK, we are inbound
+    if(x<y){
+        if(1-x<y){
+            cell_idx += 2;
+        } else {
+            cell_idx += 3;
+        }
+    } else if(1-x<y) {
         cell_idx += 1;
     }
-    
+                                
     return cell_idx;
 }
 
@@ -206,7 +223,8 @@ void A_times_b_linear(int ndim, float x[], const float* A, float* b){
 
 void cpab_forward_op(  float* newpoints, const float* points, const float* trels,
                        const int* nstepsolver, const int* nc,
-                       const int ndim, const int nP, const int batch_size){
+                       const int ndim, const int nP, const int batch_size,
+                       const int broadcast){
     // Main loop
     for(int t = 0; t < batch_size; t++) { // for all batches
         // Start index for batch
@@ -216,7 +234,7 @@ void cpab_forward_op(  float* newpoints, const float* points, const float* trels
             // Current point
             float point[ndim];
             for(int j = 0; j < ndim; j++){
-                point[j] = points[i + j*nP];
+                point[j] = points[broadcast*t*nP*ndim + i + j*nP];
             }
             // Iterate in nStepSolver
             for(int n = 0; n < nstepsolver[0]; n++){
@@ -244,7 +262,8 @@ void cpab_forward_op(  float* newpoints, const float* points, const float* trels
 void cpab_backward_op( float* grad, const float* points, const float* As,
                        const float* Bs, const int* nstepsolver, const int* nc,
                        const int n_theta, const int d,
-                       const int ndim, const int nP, const int nC) {
+                       const int ndim, const int nP, const int nC,
+                       const int broadcast) {
     // Make data structures for calculations
     float p[ndim], v[ndim], pMid[ndim], vMid[ndim], q[ndim], qMid[ndim];
     float B_times_T[ndim], A_times_dTdAlpha[ndim], u[ndim], uMid[ndim];
@@ -264,7 +283,7 @@ void cpab_backward_op( float* grad, const float* points, const float* As,
                 
                 // Get point
                 for(int j = 0; j < ndim; j++){
-                    p[j] = points[point_index + j*nP];
+                    p[j] = points[broadcast*batch_index*ndim*nP+point_index + j*nP];
                 }
                 
                 double h = (1.0 / nstepsolver[0]);
