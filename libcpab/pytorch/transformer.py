@@ -12,6 +12,7 @@ from .findcellidx import findcellidx
 from .expm import expm
 from ..core.utility import get_dir
 
+#%%
 class _notcompiled:
     # Small class, with structure similear to the compiled modules we can default
     # to. The class will never be called but the program can compile at run time
