@@ -8,7 +8,7 @@ Created on Fri Nov 16 15:34:36 2018
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
-from .core.utility import params, get_dir, create_dir, load_obj, save_obj
+from .core.utility import params, get_dir, create_dir
 from .core.tesselation import Tesselation1D, Tesselation2D, Tesselation3D
 
 #%%
@@ -310,6 +310,14 @@ class cpab(object):
     
     #%%
     def calc_vectorfield(self, grid, theta):
+        """ For each point in grid, calculate the velocity of the point based
+            on the parametrization in theta
+        Arguments:
+            grid: [ndim, nP] matrix, with points
+            theta: [1, d] single parametrization vector
+        Output:    
+            v: [ndim, nP] matrix, with velocity vectors for each point
+        """
         self._check_type(grid); self._check_device(grid)
         self._check_type(theta); self._check_device(theta)
         v = self.backend.calc_vectorfield(grid, theta, self.params)
@@ -317,6 +325,15 @@ class cpab(object):
     
     #%%
     def visualize_vectorfield(self, theta, nb_points = 50):
+        """ Utility function that helps visualize the vectorfield for a specific
+            parametrization vector theta 
+        Arguments:    
+            theta: [1, d] single parametrization vector
+            nb_points: number of points in each dimension to plot i.e. in 2D
+                with nb_points=50 the function will plot 50*50=2500 arrows!
+        Output:
+            plot: handle to quiver plot
+        """
         self._check_type(theta)
         
         # Calculate vectorfield and convert to numpy
@@ -353,6 +370,13 @@ class cpab(object):
         
     #%%
     def visualize_tesselation(self, nb_points = 50, show_outside=False):
+        """ Utility function that helps visualize the tesselation.
+        Arguments:
+            nb_points: number of points in each dimension
+            show_outside: if true, will sample points outside the normal [0,1]^ndim
+                domain to show how the tesselation (or in fact the findcellidx)
+                function extends to outside domain.
+        """
         if show_outside:
             domain_size = [self.params.domain_max[i] - self.params.domain_min[i] 
                            for i in range(self.params.ndim)]
@@ -399,7 +423,8 @@ class cpab(object):
     #%%
     def _check_input(self, tess_size, backend, device, 
                      zero_boundary, volume_perservation):
-        """ """
+        """ Utility function used to check the input to the class.
+            Not meant to be called by the user. """
         assert len(tess_size) > 0 and len(tess_size) <= 3, \
             '''Transformer only supports 1D, 2D or 3D'''
         assert type(tess_size) == list or type(tess_size) == tuple, \
@@ -421,13 +446,18 @@ class cpab(object):
             
     #%%
     def _check_type(self, x):
-        """ """
+        """ Assert that the type of x is compatible with the class i.e
+                numpy backend expects np.array
+                pytorch backend expects torch.tensor
+                tensorflow backend expects tf.tensor
+        """
         assert type(x) in self.backend.type(), \
             ''' Input has type {0} but expected type {1} '''.format(
             type(x), self.backend.type())
             
     #%%
     def _check_device(self, x):
+        """ Asssert that x is on the same device (cpu or gpu) as the class """
         assert self.backend.check_device(x, self.device), '''Input is placed on 
             device {0} but the class expects it to be on device {1}'''.format(
             str(x.device), self.device)

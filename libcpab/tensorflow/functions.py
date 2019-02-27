@@ -11,11 +11,19 @@ import tensorflow_probability as tfp
 from .interpolation import interpolate
 from .transformer import CPAB_transformer as transformer
 from .findcellidx import findcellidx
-from ..core.utility import load_basis_as_struct
 
 #%%
-def to(x):
-    return tf.cast(x, dtype=x.dtype)
+def asssert_version():
+    numbers = tf.__version__.split('.')
+    version = float(numbers[0] + '.' + numbers[1])
+    raise NotImplemented
+#    assert version >= 2.0, \
+#        ''' You are using a older installation of pytorch, please install 1.0.0
+#            or newer '''
+
+#%%
+def to(x, dtype=tf.float32, device=None):
+    return tf.cast(x, dtype=x.dtype, device=device)
 
 #%%
 def tonumpy(x):
@@ -66,23 +74,30 @@ def repeat(x, reps):
     return tf.tile([x], [reps])
 
 #%%
+def batch_repeat(x, reps):
+    return x.repeat(reps, *(x.dim()*[1]))
+
+#%%
 def maximum(x):
     return tf.reduce_max(x)
 
 #%%
-def sample_transformation(d, n_sample=1, mean=None, cov=None):
+def sample_transformation(d, n_sample=1, mean=None, cov=None, device='cpu'):
+    device = tf.device('cpu') if device=='cpu' else tf.device('gpu')
     mean = tf.zeros((d,), dtype=tf.float32) if mean is None else mean
     cov = tf.eye(d, dtype=tf.float32) if cov is None else cov
     distribution = tfp.distributions.MultivariateNormalFullCovariance(mean, cov)
-    return distribution.sample(n_sample)
+    return distribution.sample(n_sample).to(device)
 
 #%%
-def identity(d, n_sample=1, epsilon=0):
+def identity(d, n_sample=1, epsilon=0, device='cpu'):
     assert epsilon>=0, "epsilon need to be larger than 0"
+    device = tf.device('cpu') if device=='cpu' else tf.device('gpu')
     return tf.zeros((n_sample, d), dtype=tf.float32) + epsilon
 
 #%%
-def uniform_meshgrid(ndim, domain_min, domain_max, n_points):
+def uniform_meshgrid(ndim, domain_min, domain_max, n_points, device='cpu'):
+    device = tf.device('cpu') if device=='cpu' else tf.device('gpu')
     lin = [tf.linspace(tf.cast(domain_min[i], tf.float32), 
            tf.cast(domain_max[i], tf.float32), n_points[i]) for i in range(ndim)]
     mesh = tf.meshgrid(*lin[::-1])
@@ -90,12 +105,10 @@ def uniform_meshgrid(ndim, domain_min, domain_max, n_points):
     return grid
 
 #%%
-def calc_vectorfield(grid, theta):
-    # Load parameters
-    params = load_basis_as_struct()
-    
+def calc_vectorfield(grid, theta, params):
     # Calculate velocity fields
-    Avees = tf.matmul(params.basis, theta)
+    B = to(params.basis, dtype=theta.dtype, device=theta.device)
+    Avees = tf.matmul(B, theta.flatten())
     As = tf.reshape(Avees, (params.nC, *params.Ashape))
     
     # Find cell index
@@ -105,8 +118,9 @@ def calc_vectorfield(grid, theta):
     Aidx = As[idx]
     
     # Convert to homogeneous coordinates
-    grid = grid
+    grid = tf.concat((grid, tf.ones((1, grid.shape[1]), device=grid.device)), axis=0)
+    grid = grid[None].permute(2,1,0)
     
     # Do matrix multiplication
     v = tf.matmul(Aidx, grid)
-    return v
+    return v[:,:,0].t()
