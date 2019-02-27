@@ -23,7 +23,7 @@ class _notcompiled:
 
 #%%
 _dir = get_dir(__file__)
-_verbose = False # TODO: set this flag in the main class, maybe
+_verbose = True # TODO: set this flag in the main class, maybe
 # Jit compile cpu source
 try:
     cpab_cpu = load(name = 'cpab_cpu',
@@ -71,25 +71,31 @@ except Exception as e:
 def CPAB_transformer(points, theta, params):
     if points.is_cuda and theta.is_cuda:
         if not params.use_slow and _gpu_succes:
+            if _verbose: print('using fast gpu implementation')
             return CPAB_transformer_fast(points, theta, params)
         else:
+            if _verbose: print('using slow gpu implementation')
             return CPAB_transformer_slow(points, theta, params)
     else:
         if not params.use_slow and _cpu_succes:
+            if _verbose: print('using fast cpu implementation')
             return CPAB_transformer_fast(points, theta, params)
         else:
+            if _verbose: print('using slow cpu implementation')
             return CPAB_transformer_slow(points, theta, params)
         
 #%%
 def CPAB_transformer_slow(points, theta, params):
     # Problem parameters
     n_theta = theta.shape[0]
-    n_points = points.shape[1]
+    n_points = points.shape[1] if len(points.shape) == 2 else points.shape[2]
     
     # Create homogenous coordinates
     ones = torch.ones((n_theta, 1, n_points)).to(points.device)
-    if len(points) == 2:
+    if len(points.shape) == 2:
         newpoints = points[None].repeat(n_theta, 1, 1) # [n_theta, ndim, n_points]
+    else:
+        newpoints = points
     newpoints = torch.cat((newpoints, ones), dim=1) # [n_theta, ndim+1, n_points]
     newpoints = newpoints.permute(0, 2, 1) # [n_theta, n_points, ndim+1]
     newpoints = torch.reshape(newpoints, (-1, params.ndim+1)) #[n_theta*n_points, ndim+1]]

@@ -42,7 +42,7 @@ int findcellidx_2D(const float* p, const int nx, const int ny) {
     
     // Find initial row, col placement
     double p0 = std::min((nx * inc_x - 0.000000001), std::max(0.0, point[0]));
-    double p1 = sdt::min((ny * inc_y - 0.000000001), std::max(0.0, point[1]));
+    double p1 = std::min((ny * inc_y - 0.000000001), std::max(0.0, point[1]));
 
     double xmod = std::fmod((double)p0, (double)inc_x);
     double ymod = std::fmod((double)p1, (double)inc_y);
@@ -50,8 +50,8 @@ int findcellidx_2D(const float* p, const int nx, const int ny) {
     double x = xmod / inc_x;
     double y = ymod / inc_y;
             
-    int cell_idx =  mymin(ncx-1, (p0 - xmod) / inc_x) + 
-                    mymin(ncy-1, (p1 - ymod) / inc_y) * nx;        
+    int cell_idx =  mymin(nx-1, (p0 - xmod) / inc_x) + 
+                    mymin(ny-1, (p1 - ymod) / inc_y) * nx;        
     cell_idx *= 4;
             
     // Out of bound (left)

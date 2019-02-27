@@ -22,12 +22,14 @@ def CPAB_transformer(points, theta, params):
 def CPAB_transformer_slow(points, theta, params):
     # Problem parameters
     n_theta = theta.shape[0]
-    n_points = points.shape[1]
+    n_points = points.shape[1] if len(points.shape)==2 else points.shape[2]
     
     # Create homogenous coordinates
     ones = np.ones((n_theta, 1, n_points))
-    if len(points)==2: # tile if 2D grid
+    if len(points.shape)==2: # tile if 2D grid
         newpoints = np.tile(points, [n_theta, 1, 1]) # [n_theta, ndim, n_points]
+    else:
+        newpoints = points
     newpoints = np.concatenate((newpoints, ones), axis=1) # [n_theta, ndim+1, n_points]
     newpoints = np.transpose(newpoints, (0, 2, 1)) # [n_theta, n_points, ndim+1]
     newpoints = np.reshape(newpoints, (-1, params.ndim+1)) #[n_theta*n_points, ndim+1]]

@@ -2,22 +2,17 @@
 #include "../core/cpab_ops.h"
 #include <iostream>
 
-at::Tensor cpab_forward(at::Tensor points_in, //[ndim, n_points]
+at::Tensor cpab_forward(at::Tensor points_in, //[ndim, n_points] or [batch_size, ndim, n_points]
                         at::Tensor trels_in,  //[batch_size, nC, ndim, ndim+1]
                         at::Tensor nstepsolver_in, // scalar
                         at::Tensor nc_in){ // ndim length tensor
     
     // Determine if grid is matrix or tensor
-    const int broadcast = (int)(points.ndim() == 3 && points_in.size(0) == trels_in.size(0));
+    const int broadcast = (int)(points_in.dim() == 3 & points_in.size(0) == trels_in.size(0));
     
     // Problem size
-    if(broadcast) {
-        const auto ndim = points_in.size(1);
-        const auto nP = points_in.size(2)   
-    } else {
-        const auto ndim = points_in.size(0);
-        const auto nP = points_in.size(1);
-    }
+    const int ndim = (broadcast) ? points_in.size(1) : points_in.size(0);
+    const int nP = (broadcast) ? points_in.size(2) : points_in.size(1);
     const auto batch_size = trels_in.size(0);
 
     // Allocate output
@@ -36,22 +31,17 @@ at::Tensor cpab_forward(at::Tensor points_in, //[ndim, n_points]
     return output;
 }
 
-at::Tensor cpab_backward(at::Tensor points_in, // [ndim, nP]
+at::Tensor cpab_backward(at::Tensor points_in, // [ndim, nP] or [batch_size, ndim, n_points]
                          at::Tensor As_in, // [n_theta, nC, ndim, ndim+1]
                          at::Tensor Bs_in, // [d, nC, ndim, ndim+1]
                          at::Tensor nstepsolver_in, // scalar
                          at::Tensor nc_in){ // ndim length tensor
     // Determine if grid is matrix or tensor
-    const int broadcast = (int)(points.ndim() == 3 && points_in.size(0) == trels_in.size(0));
+    const int broadcast = (int)(points_in.dim() == 3 & points_in.size(0) == As_in.size(0));
     
     // Problem size
-    if(broadcast) {
-        const auto ndim = points_in.size(1);
-        const auto nP = points_in.size(2)   
-    } else {
-        const auto ndim = points_in.size(0);
-        const auto nP = points_in.size(1);
-    }
+    const int ndim = (broadcast) ? points_in.size(1) : points_in.size(0);
+    const int nP = (broadcast) ? points_in.size(2) : points_in.size(1);
     const auto n_theta = As_in.size(0);
     const auto d = Bs_in.size(0);
     const auto nC = Bs_in.size(1);

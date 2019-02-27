@@ -37,8 +37,8 @@ def interpolate1D(data, grid, outsize):
     
     # Batch effect
     batch_size = out_width
-    #batch_idx = (torch.arange(n_batch)*batch_size).repeat(batch_size)
     batch_idx = torch.arange(n_batch).repeat(batch_size, 1).t().flatten()
+    
     # Index
     c0 = data[batch_idx, :, x0]
     c1 = data[batch_idx, :, x1]

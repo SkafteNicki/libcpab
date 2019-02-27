@@ -5,6 +5,16 @@
 
 #define DIV_UP(a, b) (((a) + (b)-1) / (b))
 
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+   if (code != cudaSuccess) 
+   {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
+
 at::Tensor cpab_cuda_forward(at::Tensor points_in, 
                              at::Tensor trels_in,  
                              at::Tensor nstepsolver_in, 
@@ -12,13 +22,8 @@ at::Tensor cpab_cuda_forward(at::Tensor points_in,
                              const int broadcast,
 							 at::Tensor output){
     // Problem size
-    if(broadcast) {
-        const auto ndim = points_in.size(1);
-        const auto nP = points_in.size(2)   
-    } else {
-        const auto ndim = points_in.size(0);
-        const auto nP = points_in.size(1);
-    }
+    const int ndim = (broadcast) ? points_in.size(1) : points_in.size(0);
+    const int nP = (broadcast) ? points_in.size(2) : points_in.size(1);
     const auto batch_size = trels_in.size(0);        
     
     // Kernel configuration
@@ -53,7 +58,8 @@ at::Tensor cpab_cuda_forward(at::Tensor points_in,
                                                  nstepsolver_in.data<int>(),
                                                  nc_in.data<int>(),
                                                  broadcast);
-    }                                  
+    }
+    gpuErrchk( cudaPeekAtLastError() );                           
     return output;           
 }
 
@@ -66,13 +72,8 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
                               at::Tensor output){
                               
     // Problem size
-    if(broadcast) {
-        const auto ndim = points_in.size(1);
-        const auto nP = points_in.size(2)   
-    } else {
-        const auto ndim = points_in.size(0);
-        const auto nP = points_in.size(1);
-    }
+    const int ndim = (broadcast) ? points_in.size(1) : points_in.size(0);
+    const int nP = (broadcast) ? points_in.size(2) : points_in.size(1);
     const auto n_theta = As_in.size(0);
     const auto d = Bs_in.size(0);
     const auto nC = Bs_in.size(1);

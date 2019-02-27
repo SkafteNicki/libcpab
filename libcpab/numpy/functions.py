@@ -15,7 +15,7 @@ from .findcellidx import findcellidx
 def assert_version():
     numbers = np.__version__.split('.')
     version = float(numbers[0] + '.' + numbers[1])
-    assert version >= 1.15, \
+    assert version >= 1.14, \
         ''' You are using a older installation of numpy, please install 1.15.
             or newer '''
 

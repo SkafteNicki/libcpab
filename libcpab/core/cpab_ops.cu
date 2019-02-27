@@ -237,7 +237,7 @@ __global__ void cpab_cuda_kernel_forward_2D(const int nP, const int batch_size,
 
     int point_index = blockIdx.x * blockDim.x + threadIdx.x;
     int batch_index = blockIdx.y * blockDim.y + threadIdx.y;
-    if(point_index < nP && batch_index < batch_size) {
+    if(point_index < nP && batch_index < batch_size) {    
         // Get point
         float point[2];
         point[0] = points[broadcast*batch_index*nP*2+point_index];
