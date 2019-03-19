@@ -28,8 +28,6 @@ def findcellidx1D(p, nx):
 
 #%%
 def findcellidx2D(p, nx, ny):
-    p = p.copy()
-    
     inc_x = 1.0 / nx
     inc_y = 1.0 / ny
     
@@ -47,34 +45,36 @@ def findcellidx2D(p, nx, ny):
     idx *= 4
     
     # Out of bound left
-    cond1 = (p[0]<=0) & (p[1]<=0 & p[1]/inc_y<p[0]/inc_x)
-    cond2 = (not cond1) & (p[0]<=0) & (p[1] >= ny * inc_y & p[1]/inc_y - ny > -p[0]/inc_x)
-    cond3 = (not cond1) & (not cond2) & (p[0]<=0)
+    cond1 = (p[0]<=0) & ((p[1]<=0) & (p[1]/inc_y<p[0]/inc_x))
+    cond2 = (~ cond1) & (p[0]<=0) & ((p[1] >= ny * inc_y) & (p[1]/inc_y - ny > -p[0]/inc_x))
+    cond3 = (~ cond1) & (~ cond2) & (p[0]<=0)
     idx[cond2] += 2
     idx[cond3] += 3
 
     # Out of bound right
-    cond4 = (p[0] >= nx*inc_x) & (p[1]<=0 & -p[1]/inc_y > p[0]/inc_x - nx)
-    cond5 = (not cond4) & (p[0] >= nx*inc_x) & (p[1] >= ny*inc_y & p[1]/inc_y - ny > p[0]/inc_x-nx)
-    cond6 = (not cond4) & (not cond5) & (p[0] >= nx*inc_x)
+    out = cond1 | cond2 | cond3
+    cond4 = (~ out) & (p[0] >= nx*inc_x) & ((p[1]<=0) & (-p[1]/inc_y > p[0]/inc_x - nx))
+    cond5 = (~ out) & (~ cond4) & (p[0] >= nx*inc_x) & ((p[1] >= ny*inc_y) & (p[1]/inc_y - ny > p[0]/inc_x-nx))
+    cond6 = (~ out) & (~ cond4) & (~ cond5) & (p[0] >= nx*inc_x)
     idx[cond5] += 2
     idx[cond6] += 1
     
     # Out of bound up, nothing to do
     
     # Out of bound down
-    cond7 = (p[1] >= ny*inc_y)
+    out = out | cond4 | cond5 | cond6
+    cond7 = (~ out) & (p[1] >= ny*inc_y)
     idx[cond7] += 2
 
     # Ok, we are inbound
-    cond8 = (x<y) & (1-x<y)
-    cond9 = (not cond8) & (x<y)
-    cond10 = (x>=y) & (1-x<y)
+    out = out | cond7
+    cond8 = (~ out) & (x<y) & (1-x<y)
+    cond9 = (~ out) & (~ cond8) & (x<y)
+    cond10 = (~ out) & (~ cond8) & (~ cond9) & (x>=y) & (1-x<y)
     idx[cond8] += 2
     idx[cond9] += 3
     idx[cond10] += 1
-    idx = idx.flatten().to(torch.int64)
-    return idx
+    return idx.flatten().to(torch.int64)
     
 #%%
 def findcellidx3D(p, nx, ny, nz):

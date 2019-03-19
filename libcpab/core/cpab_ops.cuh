@@ -24,15 +24,24 @@ __global__ void cpab_cuda_kernel_forward_3D(const int nP, const int batch_size,
                                             float* newpoints, const float* points, 
                                             const float* Trels, const int* nStepSolver,
                                             const int* nc, const int broadcast);
-__global__ void cpab_cuda_kernel_backward_1D(dim3 nthreads, const int n_theta, const int d, const int nP, const int nC,
-                                             float* grad, const float* points, const float* As, const float* Bs,
-                                             const int* nStepSolver, const int* nc, const int broadcast);
-__global__ void   cpab_cuda_kernel_backward_2D(dim3 nthreads, const int n_theta, const int d, const int nP, const int nC,
-                                               float* grad, const float* points, const float* As, const float* Bs,
-                                               const int* nStepSolver, const int* nc, const int broadcast);
-__global__ void   cpab_cuda_kernel_backward_3D(dim3 nthreads, const int n_theta, const int d, const int nP, const int nC,
-                                               float* grad, const float* points, const float* As, const float* Bs,
-                                               const int* nStepSolver, const int* nc, const int broadcast);
+__global__ void cpab_cuda_kernel_backward_1D(dim3 nthreads, const int n_theta, 
+                                             const int d, const int nP, const int nC,
+                                             float* grad, const float* points, 
+                                             const float* As, const float* Bs,
+                                             const int* nStepSolver, const int* nc, 
+                                             const int broadcast);
+__global__ void cpab_cuda_kernel_backward_2D(dim3 nthreads, const int n_theta, 
+                                             const int d, const int nP, const int nC,
+                                             float* grad, const float* points, 
+                                             const float* As, const float* Bs,
+                                             const int* nStepSolver, const int* nc, 
+                                             const int broadcast);
+__global__ void cpab_cuda_kernel_backward_3D(dim3 nthreads, const int n_theta, 
+                                             const int d, const int nP, const int nC,
+                                             float* grad, const float* points, 
+                                             const float* As, const float* Bs,
+                                             const int* nStepSolver, const int* nc, 
+                                             const int broadcast);
 
 
 #endif

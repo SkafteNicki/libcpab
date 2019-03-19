@@ -33,7 +33,7 @@ def check_device(x, device_name):
 
 #%%
 def type():
-    return [torch.Tensor]
+    return torch.Tensor
 
 #%%
 def pdist(mat):

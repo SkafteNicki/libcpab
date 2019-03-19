@@ -8,31 +8,35 @@ Created on Fri Nov 16 16:01:52 2018
 #%%
 import tensorflow as tf
 import tensorflow_probability as tfp
+from tensorflow.python.framework.ops import Tensor
 from .interpolation import interpolate
 from .transformer import CPAB_transformer as transformer
 from .findcellidx import findcellidx
 
 #%%
-def asssert_version():
+def assert_version():
     numbers = tf.__version__.split('.')
     version = float(numbers[0] + '.' + numbers[1])
-    raise NotImplemented
-#    assert version >= 2.0, \
-#        ''' You are using a older installation of pytorch, please install 1.0.0
-#            or newer '''
+    assert version >= 2.0, \
+        ''' You are using a older installation of pytorch, please install 2.0.0
+            or newer '''
 
 #%%
 def to(x, dtype=tf.float32, device=None):
-    return tf.cast(x, dtype=x.dtype, device=device)
+    with tf.device(device):
+        return tf.cast(x, dtype=dtype)
 
 #%%
 def tonumpy(x):
     return x.cpu().numpy()
 
 #%%
+def check_device(x, device_name):
+    return ('GPU' in x.device) == (device_name=="gpu")
+
+#%%
 def type():
-    return [tf.python.ops.variables.RefVariable,
-            tf.python.framework.ops.Tensor]
+    return Tensor
 
 #%%
 def pdist(mat):
@@ -83,26 +87,26 @@ def maximum(x):
 
 #%%
 def sample_transformation(d, n_sample=1, mean=None, cov=None, device='cpu'):
-    device = tf.device('cpu') if device=='cpu' else tf.device('gpu')
     mean = tf.zeros((d,), dtype=tf.float32) if mean is None else mean
     cov = tf.eye(d, dtype=tf.float32) if cov is None else cov
     distribution = tfp.distributions.MultivariateNormalFullCovariance(mean, cov)
-    return distribution.sample(n_sample).to(device)
+    with tf.device(device):
+        return distribution.sample(n_sample)
 
 #%%
 def identity(d, n_sample=1, epsilon=0, device='cpu'):
     assert epsilon>=0, "epsilon need to be larger than 0"
-    device = tf.device('cpu') if device=='cpu' else tf.device('gpu')
-    return tf.zeros((n_sample, d), dtype=tf.float32) + epsilon
+    with tf.device(device):
+        return tf.zeros((n_sample, d), dtype=tf.float32) + epsilon
 
 #%%
 def uniform_meshgrid(ndim, domain_min, domain_max, n_points, device='cpu'):
-    device = tf.device('cpu') if device=='cpu' else tf.device('gpu')
-    lin = [tf.linspace(tf.cast(domain_min[i], tf.float32), 
-           tf.cast(domain_max[i], tf.float32), n_points[i]) for i in range(ndim)]
-    mesh = tf.meshgrid(*lin[::-1])
-    grid = tf.concat([tf.reshape(array, (1, -1)) for array in mesh[::-1]], axis=0)
-    return grid
+    with tf.device(device):
+        lin = [tf.linspace(tf.cast(domain_min[i], tf.float32), 
+               tf.cast(domain_max[i], tf.float32), n_points[i]) for i in range(ndim)]
+        mesh = tf.meshgrid(*lin[::-1])
+        grid = tf.concat([tf.reshape(array, (1, -1)) for array in mesh[::-1]], axis=0)
+        return grid
 
 #%%
 def calc_vectorfield(grid, theta, params):

@@ -14,7 +14,7 @@ from ..core.utility import get_dir
 
 #%%
 class _notcompiled:
-    # Small class, with structure similear to the compiled modules we can default
+    # Small class, with structure similar to the compiled modules we can default
     # to. The class will never be called but the program can compile at run time
     def __init__(self):
         def f(*args):
@@ -24,7 +24,7 @@ class _notcompiled:
 
 #%%
 _dir = get_dir(__file__)
-_verbose = True # TODO: set this flag in the main class, maybe
+_verbose = False # TODO: set this flag in the main class, maybe
 # Jit compile cpu source
 try:
     cpab_cpu = load(name = 'cpab_cpu',

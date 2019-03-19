@@ -40,8 +40,8 @@ at::Tensor cpab_backward(at::Tensor points_in, // [ndim, nP] or [batch_size, ndi
     const int broadcast = (int)(points_in.dim() == 3 & points_in.size(0) == As_in.size(0));
     
     // Problem size
-    const int ndim = (broadcast) ? points_in.size(1) : points_in.size(0);
-    const int nP = (broadcast) ? points_in.size(2) : points_in.size(1);
+    const auto ndim = (broadcast) ? points_in.size(1) : points_in.size(0);
+    const auto nP = (broadcast) ? points_in.size(2) : points_in.size(1);
     const auto n_theta = As_in.size(0);
     const auto d = Bs_in.size(0);
     const auto nC = Bs_in.size(1);

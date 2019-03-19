@@ -33,7 +33,7 @@ def check_device(x, device_name):
 
 #%%
 def type():
-    return [np.ndarray]
+    return np.ndarray
 
 #%%
 def pdist(mat):

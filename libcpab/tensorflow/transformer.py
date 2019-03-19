@@ -9,9 +9,34 @@ Created on Tue Nov 20 10:27:16 2018
 import tensorflow as tf
 from .findcellidx import findcellidx
 from .expm import expm
+from ..helper.utility import get_dir
+from sys import platform as _platform
 
 #%%
-compiled = False
+# Small helper function that does nothing
+def f(*args):
+    return None
+
+import pdb
+pdb.set_trace()
+
+#%%
+_verbose = False
+try:
+    dir_path = get_dir(__file__)
+    transformer_module = tf.load_op_library(dir_path + '/./transformer.so')
+    transformer_op = transformer_module.calc_trans
+    grad_op = transformer_module.calc_grad
+    compiled = True
+except Exception as e:
+    transformer_op = f
+    grad_op = f
+    compiled = False
+    if _verbose:
+        print(70*'=')
+        print('Unsuccesfully compiled gpu source')
+        print('Error was: ')
+        print(e)
 
 #%%
 def CPAB_transformer(points, theta, params):
@@ -63,9 +88,33 @@ def CPAB_transformer_slow(points, theta, params):
 #%%
 @tf.custom_gradient
 def CPAB_transformer_fast(points, theta, params):
+    device = theta.device
+    n_theta = theta.shape[0]
     
-    newpoints = points
-    def grad():
-        pass
+    # Get Volocity fields
+    B = tf.cast(params.basis, dtype=tf.float32, device=device)
+    Avees = tf.matmul(B, tf.transpose(theta))
+    As = tf.reshape(tf.transpose(Avees), (n_theta*params.nC, *params.Ashape))
+    zero_row = tf.zeros((n_theta*params.nC, 1, params.ndim+1), device=device)
+    AsSquare = tf.concat([As, zero_row], axis=1)
+    
+    # Take matrix exponential
+    dT = 1.0 / params.nstepsolver
+    Trels = expm(dT * AsSquare)
+    Trels = tf.reshape(Trels[:,:params.ndim,:], (n_theta, params.nC, *params.Ashape))
+    
+    # Convert to tensor
+    nstepsolver = tf.cast(params.nstepsolver, dtype=tf.int32, device=device)
+    nc = tf.cast(params.nc, dtype=tf.int32, device=device)
+    
+    # Call integrator
+    newpoints = transformer_op(points, Trels, nstepsolver, nc)
+    Bs = tf.reshape(tf.transpose(B), (-1, params.nC, *params.Ashape))
+    As = tf.reshape(As, (n_theta, params.nC, *params.Ashape))
+    
+    def grad(grad):
+        gradient = grad_op(points, As, Bs, nstepsolver, nc)
+        g = tf.reduce_sum(gradient * grad, axis=[2,3])
+        return None, g, None
     
     return newpoints, grad

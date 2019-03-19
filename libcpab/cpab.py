@@ -114,7 +114,7 @@ class cpab(object):
         elif self.backend_name == 'pytorch':
             from .pytorch import functions as backend
         self.backend = backend
-        self.device = device
+        self.device = device.lower()
         
         # Assert that we have a recent version of the backend
         self.backend.assert_version()
@@ -205,14 +205,14 @@ class cpab(object):
         """
         
         # Get cell centers and convert to backend type
-        centers = self.backend.to(self.tesselation.get_cell_centers())
+        centers = self.backend.to(self.tesselation.get_cell_centers(), device=self.device)
         
         # Get distance between cell centers
         dist = self.backend.pdist(centers)
         
         # Make into a covariance matrix between parameters
         ppc = self.params.params_pr_cell
-        cov_init = self.backend.zeros(self.params.D, self.params.D)
+        cov_init = self.backend.zeros(self.params.D, self.params.D, device=self.device)
         
         for i in range(self.params.nC):
             for j in range(self.params.nC):
@@ -228,7 +228,7 @@ class cpab(object):
         cov_avees = output_variance**2 * self.backend.exp(-(cov_init / (2*length_scale**2)))
 
         # Transform covariance to theta space
-        B = self.backend.to(self.params.basis)
+        B = self.backend.to(self.params.basis, self.device)
         B_t = self.backend.transpose(B)
         cov_theta = self.backend.matmul(B_t, self.backend.matmul(cov_avees, B))
         
@@ -451,7 +451,7 @@ class cpab(object):
                 pytorch backend expects torch.tensor
                 tensorflow backend expects tf.tensor
         """
-        assert type(x) in self.backend.type(), \
+        assert isinstance(x, self.backend.type()), \
             ''' Input has type {0} but expected type {1} '''.format(
             type(x), self.backend.type())
             
