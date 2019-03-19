@@ -5,14 +5,25 @@
 
 #define DIV_UP(a, b) (((a) + (b)-1) / (b))
 
+#define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
+{
+   if (code != cudaSuccess) 
+   {
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if (abort) exit(code);
+   }
+}
+
 at::Tensor cpab_cuda_forward(at::Tensor points_in, 
                              at::Tensor trels_in,  
                              at::Tensor nstepsolver_in, 
                              at::Tensor nc_in, 
+                             const int broadcast,
 							 at::Tensor output){
     // Problem size
-    const auto ndim = points_in.size(0);
-    const auto nP = points_in.size(1);
+    const int ndim = (broadcast) ? points_in.size(1) : points_in.size(0);
+    const int nP = (broadcast) ? points_in.size(2) : points_in.size(1);
     const auto batch_size = trels_in.size(0);        
     
     // Kernel configuration
@@ -27,7 +38,8 @@ at::Tensor cpab_cuda_forward(at::Tensor points_in,
                                                   points_in.data<float>(),
                                                   trels_in.data<float>(),
                                                   nstepsolver_in.data<int>(),
-                                                  nc_in.data<int>());
+                                                  nc_in.data<int>(),
+                                                  broadcast);
 	}
 	if(ndim == 2){
          cpab_cuda_kernel_forward_2D<<<bc, tpb>>>(nP, batch_size,
@@ -35,16 +47,19 @@ at::Tensor cpab_cuda_forward(at::Tensor points_in,
                                                   points_in.data<float>(),
                                                   trels_in.data<float>(),
                                                   nstepsolver_in.data<int>(),
-                                                  nc_in.data<int>());
+                                                  nc_in.data<int>(),
+                                                  broadcast);
 	}
 	if(ndim == 3){
-        	cpab_cuda_kernel_forward_3D<<<bc, tpb>>>(nP, batch_size,
-                                                	 output.data<float>(),
-                                                     points_in.data<float>(),
-                                                     trels_in.data<float>(),
-                                                     nstepsolver_in.data<int>(),
-                                                     nc_in.data<int>());
-    }                                  
+        cpab_cuda_kernel_forward_3D<<<bc, tpb>>>(nP, batch_size,
+                                               	 output.data<float>(),
+                                                 points_in.data<float>(),
+                                                 trels_in.data<float>(),
+                                                 nstepsolver_in.data<int>(),
+                                                 nc_in.data<int>(),
+                                                 broadcast);
+    }
+    gpuErrchk( cudaPeekAtLastError() );                           
     return output;           
 }
 
@@ -53,13 +68,14 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
                               at::Tensor Bs_in, 
                               at::Tensor nstepsolver_in,
                               at::Tensor nc_in,
+                              const int broadcast,
                               at::Tensor output){
                               
     // Problem size
+    const int ndim = (broadcast) ? points_in.size(1) : points_in.size(0);
+    const int nP = (broadcast) ? points_in.size(2) : points_in.size(1);
     const auto n_theta = As_in.size(0);
     const auto d = Bs_in.size(0);
-    const auto ndim = points_in.size(0);
-    const auto nP = points_in.size(1);
     const auto nC = Bs_in.size(1);
     
     // Kernel configuration
@@ -76,7 +92,8 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
                                                    As_in.data<float>(), 
                                                    Bs_in.data<float>(),
                                                    nstepsolver_in.data<int>(), 
-                                                   nc_in.data<int>());
+                                                   nc_in.data<int>(),
+                                                   broadcast);
 	}
 	if(ndim == 2){
          cpab_cuda_kernel_backward_2D<<<bc, tpb>>>(vtc, n_theta, d, nP, nC,
@@ -85,7 +102,8 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
                                                    As_in.data<float>(), 
                                                    Bs_in.data<float>(),
                                                    nstepsolver_in.data<int>(), 
-                                                   nc_in.data<int>());
+                                                   nc_in.data<int>(),
+                                                   broadcast);
 	}
  	if(ndim == 3){
          cpab_cuda_kernel_backward_3D<<<bc, tpb>>>(vtc, n_theta, d, nP, nC,
@@ -94,7 +112,8 @@ at::Tensor cpab_cuda_backward(at::Tensor points_in,
                                                    As_in.data<float>(), 
                                                    Bs_in.data<float>(),
                                                    nstepsolver_in.data<int>(), 
-                                                   nc_in.data<int>());
-    }                                         
+                                                   nc_in.data<int>(),
+                                                   broadcast);
+    }
     return output;
 }

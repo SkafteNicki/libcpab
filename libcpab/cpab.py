@@ -8,8 +8,7 @@ Created on Fri Nov 16 15:34:36 2018
 #%%
 import numpy as np
 import matplotlib.pyplot as plt
-from .core.utility import params, get_dir, create_dir, check_if_file_exist, \
-                            save_obj, load_obj, null
+from .core.utility import params, get_dir, create_dir
 from .core.tesselation import Tesselation1D, Tesselation2D, Tesselation3D
 
 #%%
@@ -79,58 +78,33 @@ class cpab(object):
         
         # For saving the basis
         self._dir = get_dir(__file__) + '/../basis_files/'
-        self._basis_file = self._dir + \
-                            'cpab_basis_dim' + str(self.params.ndim) + '_tess' + \
-                            '_'.join([str(e) for e in self.params.nc]) + '_' + \
-                            'vo' + str(int(self.params.valid_outside)) + '_' + \
-                            'zb' + str(int(self.params.zero_boundary)) + '_' + \
-                            'vp' + str(int(self.params.volume_perservation))
         create_dir(self._dir)
         
         # Specific for the different dims
-        pdir = [self.params.nc, self.params.domain_min, self.params.domain_max, 
-                self.params.zero_boundary, self.params.volume_perservation]
         if self.params.ndim == 1:
             self.params.nC = self.params.nc[0]
             self.params.params_pr_cell = 2
-            self.tesselation = Tesselation1D(*pdir)
+            tesselation = Tesselation1D
         elif self.params.ndim == 2:
             self.params.nC = 4*np.prod(self.params.nc)
             self.params.params_pr_cell = 6
-            self.tesselation = Tesselation2D(*pdir)
+            tesselation = Tesselation2D
         elif self.params.ndim == 3:
             self.params.nC = 5*np.prod(self.params.nc)
             self.params.params_pr_cell = 12
-            self.tesselation = Tesselation3D(*pdir)
+            tesselation = Tesselation3D
+            
+        # Initialize tesselation
+        self.tesselation = tesselation(self.params.nc, self.params.domain_min, 
+                                       self.params.domain_max, self.params.zero_boundary, 
+                                       self.params.volume_perservation,
+                                       self._dir, override)
         
-        # Check if we have already created the basis
-        if not check_if_file_exist(self._basis_file+'.pkl') or override:
-            # Get constrain matrix
-            L = self.tesselation.get_constrain_matrix()
+        # Extract parameters from tesselation
+        self.params.constrain_mat = self.tesselation.L
+        self.params.basis = self.tesselation.B
+        self.params.D, self.params.d = self.params.basis.shape
                 
-            # Find null space of constrain matrix
-            B = null(L)
-            self.params.constrain_mat = L
-            self.params.basis = B
-            self.params.D, self.params.d = B.shape
-            
-            # Save basis as pkl file
-            obj = {'basis': self.params.basis, 'constrains': self.params.constrain_mat, 
-                   'ndim': self.params.ndim, 'D': self.params.D, 'd': self.params.d, 
-                   'nc': self.params.nc, 'nC': self.params.nC, 'Ashape': self.params.Ashape, 
-                   'nstepsolver': self.params.nstepsolver, 'numeric_grad': self.params.numeric_grad,
-                   'use_slow': self.params.use_slow}
-            save_obj(obj, self._basis_file)
-            save_obj(obj, self._dir + 'current_basis')
-        
-        else: # if it exist, just load it and save as current basis
-            file = load_obj(self._basis_file)
-            self.params.constrain_mat = file['constrains']
-            self.params.basis = file['basis']        
-            self.params.D = file['D']
-            self.params.d = file['d']
-            save_obj(file, self._dir + 'current_basis')
-            
         # Load backend and set device
         self.backend_name = backend
         if self.backend_name == 'numpy':
@@ -140,7 +114,7 @@ class cpab(object):
         elif self.backend_name == 'pytorch':
             from .pytorch import functions as backend
         self.backend = backend
-        self.device = device
+        self.device = device.lower()
         
         # Assert that we have a recent version of the backend
         self.backend.assert_version()
@@ -176,11 +150,9 @@ class cpab(object):
         assert type(nstepsolver) == int, '''nstepsolver must be integer'''
         assert type(numeric_grad) == bool, '''numeric_grad must be bool'''
         assert type(use_slow) == bool, '''use_slow must be bool'''
-        file = load_obj(self._basis_file)
-        file['nstepsolver'] = nstepsolver
-        file['numeric_grad'] = numeric_grad
-        file['use_slow'] = use_slow
-        save_obj(file, self._dir + 'current_basis')
+        self.params.nstepsolver = nstepsolver
+        self.params.numeric_grad = numeric_grad
+        self.params.use_slow = use_slow
         
     #%%    
     def uniform_meshgrid(self, n_points):
@@ -233,14 +205,14 @@ class cpab(object):
         """
         
         # Get cell centers and convert to backend type
-        centers = self.backend.to(self.tesselation.get_cell_centers())
+        centers = self.backend.to(self.tesselation.get_cell_centers(), device=self.device)
         
         # Get distance between cell centers
         dist = self.backend.pdist(centers)
         
         # Make into a covariance matrix between parameters
         ppc = self.params.params_pr_cell
-        cov_init = self.backend.zeros(self.params.D, self.params.D)
+        cov_init = self.backend.zeros(self.params.D, self.params.D, device=self.device)
         
         for i in range(self.params.nC):
             for j in range(self.params.nC):
@@ -256,7 +228,7 @@ class cpab(object):
         cov_avees = output_variance**2 * self.backend.exp(-(cov_init / (2*length_scale**2)))
 
         # Transform covariance to theta space
-        B = self.backend.to(self.params.basis)
+        B = self.backend.to(self.params.basis, self.device)
         B_t = self.backend.transpose(B)
         cov_theta = self.backend.matmul(B_t, self.backend.matmul(cov_avees, B))
         
@@ -282,7 +254,9 @@ class cpab(object):
         """ Main method of the class. Integrates the grid using the parametrization
             in theta.
         Arguments:
-            grid: [ndim, n_points] matrix,
+            grid: [ndim, n_points] matrix or [n_batch, ndim, n_points] tensor i.e.
+                either a single grid for all theta values, or a grid for each theta
+                value
             theta: [n_batch, d] matrix,
         Output:
             transformed_grid: [n_batch, ndim, n_points] tensor, with the transformed
@@ -291,7 +265,11 @@ class cpab(object):
         """
         self._check_type(grid); self._check_device(grid)
         self._check_type(theta); self._check_device(theta)
-        transformed_grid = self.backend.transformer(grid, theta)
+        if len(grid.shape) == 3: # check that grid and theta can broadcastes together
+            assert grid.shape[0] == theta.shape[0], '''When passing a 3D grid, expects
+                the first dimension to be of same length as the first dimension of
+                theta'''
+        transformed_grid = self.backend.transformer(grid, theta, self.params)
         return transformed_grid
     
     #%%    
@@ -332,18 +310,35 @@ class cpab(object):
     
     #%%
     def calc_vectorfield(self, grid, theta):
+        """ For each point in grid, calculate the velocity of the point based
+            on the parametrization in theta
+        Arguments:
+            grid: [ndim, nP] matrix, with points
+            theta: [1, d] single parametrization vector
+        Output:    
+            v: [ndim, nP] matrix, with velocity vectors for each point
+        """
         self._check_type(grid); self._check_device(grid)
         self._check_type(theta); self._check_device(theta)
-        v = self.backend.calc_vectorfield(grid, theta)
+        v = self.backend.calc_vectorfield(grid, theta, self.params)
         return v
     
     #%%
     def visualize_vectorfield(self, theta, nb_points = 50):
+        """ Utility function that helps visualize the vectorfield for a specific
+            parametrization vector theta 
+        Arguments:    
+            theta: [1, d] single parametrization vector
+            nb_points: number of points in each dimension to plot i.e. in 2D
+                with nb_points=50 the function will plot 50*50=2500 arrows!
+        Output:
+            plot: handle to quiver plot
+        """
         self._check_type(theta)
         
         # Calculate vectorfield and convert to numpy
         grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
-        v = self.calc_vectorfield(grid, theta)
+        v = self.calc_vectorfield(grid, theta, self.params)
         v = self.backend.tonumpy(v)
         grid = self.backend.tonumpy(grid)
         
@@ -375,6 +370,13 @@ class cpab(object):
         
     #%%
     def visualize_tesselation(self, nb_points = 50, show_outside=False):
+        """ Utility function that helps visualize the tesselation.
+        Arguments:
+            nb_points: number of points in each dimension
+            show_outside: if true, will sample points outside the normal [0,1]^ndim
+                domain to show how the tesselation (or in fact the findcellidx)
+                function extends to outside domain.
+        """
         if show_outside:
             domain_size = [self.params.domain_max[i] - self.params.domain_min[i] 
                            for i in range(self.params.ndim)]
@@ -421,7 +423,8 @@ class cpab(object):
     #%%
     def _check_input(self, tess_size, backend, device, 
                      zero_boundary, volume_perservation):
-        """ """
+        """ Utility function used to check the input to the class.
+            Not meant to be called by the user. """
         assert len(tess_size) > 0 and len(tess_size) <= 3, \
             '''Transformer only supports 1D, 2D or 3D'''
         assert type(tess_size) == list or type(tess_size) == tuple, \
@@ -443,28 +446,37 @@ class cpab(object):
             
     #%%
     def _check_type(self, x):
-        """ """
-        assert type(x) in self.backend.type(), \
+        """ Assert that the type of x is compatible with the class i.e
+                numpy backend expects np.array
+                pytorch backend expects torch.tensor
+                tensorflow backend expects tf.tensor
+        """
+        assert isinstance(x, self.backend.type()), \
             ''' Input has type {0} but expected type {1} '''.format(
             type(x), self.backend.type())
             
     #%%
     def _check_device(self, x):
+        """ Asssert that x is on the same device (cpu or gpu) as the class """
         assert self.backend.check_device(x, self.device), '''Input is placed on 
             device {0} but the class expects it to be on device {1}'''.format(
             str(x.device), self.device)
             
     #%%
     def __repr__(self):
-        output = '''CPAB transformer class. Parameters:
-        Tesselation size:           {0}
-        Total number of cells:      {1}
-        Theta size:                 {2}
-        Domain lower bound:         {3}
-        Domain upper bound:         {4}
-        Zero Boundary:              {5}
-        Volume perservation:        {6}
+        output = '''
+        CPAB transformer class. 
+            Parameters:
+                Tesselation size:           {0}
+                Total number of cells:      {1}
+                Theta size:                 {2}
+                Domain lower bound:         {3}
+                Domain upper bound:         {4}
+                Zero Boundary:              {5}
+                Volume perservation:        {6}
+            Backend:                        {7}
         '''.format(self.params.nc, self.params.nC, self.params.d, 
             self.params.domain_min, self.params.domain_max, 
-            self.params.zero_boundary, self.params.volume_perservation)
+            self.params.zero_boundary, self.params.volume_perservation,
+            self.backend_name)
         return output

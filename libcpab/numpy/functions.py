@@ -10,13 +10,12 @@ import numpy as np
 from .interpolation import interpolate
 from .transformer import CPAB_transformer as transformer
 from .findcellidx import findcellidx
-from ..core.utility import load_basis_as_struct
 
 #%%
 def assert_version():
     numbers = np.__version__.split('.')
     version = float(numbers[0] + '.' + numbers[1])
-    assert version >= 1.15, \
+    assert version >= 1.14, \
         ''' You are using a older installation of numpy, please install 1.15.
             or newer '''
 
@@ -34,7 +33,7 @@ def check_device(x, device_name):
 
 #%%
 def type():
-    return [np.ndarray]
+    return np.ndarray
 
 #%%
 def pdist(mat):
@@ -76,6 +75,10 @@ def repeat(x, reps):
     return np.repeat(x, reps)
 
 #%%
+def batch_repeat(x, n_batch):
+    return np.repeat(x[None], n_batch, axis=0)
+
+#%%
 def maximum(x):
     return np.max(x)
     
@@ -88,7 +91,7 @@ def sample_transformation(d, n_sample=1, mean=None, cov=None, device='cpu'):
 
 #%%
 def identity(d, n_sample=1, epsilon=0, device='cpu'):
-    assert epsilon>=0, "epsilon need to be larger than 0"
+    assert epsilon>=0, "epsilon need to be larger than or 0"
     return np.zeros((n_sample, d), dtype=np.float32) + epsilon
 
 #%%
@@ -99,10 +102,7 @@ def uniform_meshgrid(ndim, domain_min, domain_max, n_points, device='cpu'):
     return grid
 
 #%%
-def calc_vectorfield(grid, theta):
-    # Load parameters
-    params = load_basis_as_struct()
-    
+def calc_vectorfield(grid, theta, params):
     # Calculate velocity fields
     Avees = np.matmul(params.basis, theta.flatten())
     As = np.reshape(Avees, (params.nC, *params.Ashape))

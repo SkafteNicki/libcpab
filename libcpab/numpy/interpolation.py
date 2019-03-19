@@ -37,7 +37,7 @@ def interpolate1D(data, grid, outsize):
     
     # Batch effect
     batch_size = out_width
-    batch_idx = (np.arange(n_batch)*batch_size).repeat(batch_size)
+    batch_idx = np.arange(n_batch).repeat(batch_size)
     
     # Index
     c0 = data[batch_idx, x0, :]
@@ -83,7 +83,7 @@ def interpolate2D(data, grid, outsize):
     
     # Batch effect
     batch_size = out_width*out_height
-    batch_idx = (np.arange(n_batch)*batch_size).repeat(batch_size)
+    batch_idx = np.arange(n_batch).repeat(batch_size)
     
     # Index
     c00 = data[batch_idx, x0, y0, :]
@@ -140,7 +140,7 @@ def interpolate3D(data, grid, outsize):
     
     # Batch effect
     batch_size = out_width*out_height*out_depth
-    batch_idx = (np.arange(n_batch)*batch_size).repeat(batch_size)
+    batch_idx = np.arange(n_batch).repeat(batch_size)
     
     # Index
     c000 = data[batch_idx, x0, y0, z0, :]

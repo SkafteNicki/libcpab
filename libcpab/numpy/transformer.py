@@ -9,26 +9,27 @@ Created on Tue Nov 20 10:27:16 2018
 import numpy as np
 from scipy.linalg import expm
 from .findcellidx import findcellidx
-from ..core.utility import load_basis_as_struct
 
 #%%
 compiled = False
 
 #%%
-def CPAB_transformer(points, theta):
-    if compiled: return CPAB_transformer_fast(points, theta)
-    else: return CPAB_transformer_slow(points, theta)
+def CPAB_transformer(points, theta, params):
+    if compiled: return CPAB_transformer_fast(points, theta, params)
+    else: return CPAB_transformer_slow(points, theta, params)
 
 #%%
-def CPAB_transformer_slow(points, theta):
+def CPAB_transformer_slow(points, theta, params):
     # Problem parameters
     n_theta = theta.shape[0]
-    n_points = points.shape[1]
-    params = load_basis_as_struct()
+    n_points = points.shape[1] if len(points.shape)==2 else points.shape[2]
     
     # Create homogenous coordinates
     ones = np.ones((n_theta, 1, n_points))
-    newpoints = np.tile(points, [n_theta, 1, 1]) # [n_theta, ndim, n_points]
+    if len(points.shape)==2: # tile if 2D grid
+        newpoints = np.tile(points, [n_theta, 1, 1]) # [n_theta, ndim, n_points]
+    else:
+        newpoints = points
     newpoints = np.concatenate((newpoints, ones), axis=1) # [n_theta, ndim+1, n_points]
     newpoints = np.transpose(newpoints, (0, 2, 1)) # [n_theta, n_points, ndim+1]
     newpoints = np.reshape(newpoints, (-1, params.ndim+1)) #[n_theta*n_points, ndim+1]]
@@ -61,4 +62,5 @@ def CPAB_transformer_slow(points, theta):
 
 #%%
 def CPAB_transformer_fast(points, theta):
+    # TODO: jit compile cpp code into callable python code
     pass

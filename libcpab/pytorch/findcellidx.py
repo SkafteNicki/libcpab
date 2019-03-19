@@ -28,43 +28,53 @@ def findcellidx1D(p, nx):
 
 #%%
 def findcellidx2D(p, nx, ny):
-    # Conditions for points outside
-    cond = (p[0,:] < 0.0) | (p[0,:] > 1.0) | (p[1,:] < 0.0) | (p[1,:] > 1.0)
-    
-    # Push the points inside boundary
     inc_x = 1.0 / nx
     inc_y = 1.0 / ny
-    half = 0.5
-    points_outside = p[:, cond]
-    points_outside -= half
-    abs_x = torch.abs(points_outside[0])
-    abs_y = torch.abs(points_outside[1])
-    push_x = ((half*inc_x)*(abs_x < abs_y)).to(torch.float32)
-    push_y = ((half*inc_y)*(abs_x > abs_y)).to(torch.float32)
-    cond_x = abs_x > half
-    cond_y = abs_y > half
-    points_outside[0,cond_x] = points_outside[0, cond_x].sign() * (half - push_x[cond_x])
-    points_outside[1,cond_y] = points_outside[1, cond_y].sign() * (half - push_y[cond_y])
-    points_outside += half
-    p[:, cond] = points_outside
     
-    # Find initial cell index
-    p0 = torch.min(torch.tensor(1.0 - 1e-5).to(p.device), p[0,:])
-    p1 = torch.min(torch.tensor(1.0 - 1e-5).to(p.device), p[1,:])
-    p0nx = p0 * nx
-    p1ny = p1 * ny
-    ip0nx = torch.floor(p0nx)
-    ip1ny = torch.floor(p1ny)
-    idx = 4 * (ip0nx + ip1ny * nx)
+    p0 = torch.min(nx * inc_x - 1e-8, torch.max(0.0, p[0]))
+    p1 = torch.min(ny * inc_y - 1e-8, torch.max(0.0, p[1]))
     
-    # Subtriangle
-    x = p0nx - ip0nx
-    y = p1ny - ip1ny
-    idx[(x < y) & (1-x <= y)] += 2
-    idx[(x < y) & (1-x > y)] += 3
-    idx[(x >= y) & (1-x < y)] += 1
-    idx = idx.flatten().to(torch.int64)
-    return idx
+    xmod = torch.fmod(p0, inc_x)
+    ymod = torch.fmod(p1, inc_y)
+    
+    x = xmod / inc_x
+    y = ymod / inc_y
+    
+    idx = mymin(nx-1, (p0-xmod) / inc_x) + \
+          mymin(ny-1, (p1-ymod) / inc_y) * nx
+    idx *= 4
+    
+    # Out of bound left
+    cond1 = (p[0]<=0) & ((p[1]<=0) & (p[1]/inc_y<p[0]/inc_x))
+    cond2 = (~ cond1) & (p[0]<=0) & ((p[1] >= ny * inc_y) & (p[1]/inc_y - ny > -p[0]/inc_x))
+    cond3 = (~ cond1) & (~ cond2) & (p[0]<=0)
+    idx[cond2] += 2
+    idx[cond3] += 3
+
+    # Out of bound right
+    out = cond1 | cond2 | cond3
+    cond4 = (~ out) & (p[0] >= nx*inc_x) & ((p[1]<=0) & (-p[1]/inc_y > p[0]/inc_x - nx))
+    cond5 = (~ out) & (~ cond4) & (p[0] >= nx*inc_x) & ((p[1] >= ny*inc_y) & (p[1]/inc_y - ny > p[0]/inc_x-nx))
+    cond6 = (~ out) & (~ cond4) & (~ cond5) & (p[0] >= nx*inc_x)
+    idx[cond5] += 2
+    idx[cond6] += 1
+    
+    # Out of bound up, nothing to do
+    
+    # Out of bound down
+    out = out | cond4 | cond5 | cond6
+    cond7 = (~ out) & (p[1] >= ny*inc_y)
+    idx[cond7] += 2
+
+    # Ok, we are inbound
+    out = out | cond7
+    cond8 = (~ out) & (x<y) & (1-x<y)
+    cond9 = (~ out) & (~ cond8) & (x<y)
+    cond10 = (~ out) & (~ cond8) & (~ cond9) & (x>=y) & (1-x<y)
+    idx[cond8] += 2
+    idx[cond9] += 3
+    idx[cond10] += 1
+    return idx.flatten().to(torch.int64)
     
 #%%
 def findcellidx3D(p, nx, ny, nz):
