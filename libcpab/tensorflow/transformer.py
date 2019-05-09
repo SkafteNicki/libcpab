@@ -17,24 +17,24 @@ from sys import platform as _platform
 def f(*args):
     return None
 
-import pdb
-pdb.set_trace()
-
 #%%
-_verbose = False
+_verbose = True
 try:
     dir_path = get_dir(__file__)
     transformer_module = tf.load_op_library(dir_path + '/./transformer.so')
     transformer_op = transformer_module.calc_trans
     grad_op = transformer_module.calc_grad
     compiled = True
+    if _verbose:
+        print(70*'=')
+        print('Succesfully loaded c++ source')
 except Exception as e:
     transformer_op = f
     grad_op = f
     compiled = False
     if _verbose:
         print(70*'=')
-        print('Unsuccesfully compiled gpu source')
+        print('Unsuccesfully loaded c++ source')
         print('Error was: ')
         print(e)
 
