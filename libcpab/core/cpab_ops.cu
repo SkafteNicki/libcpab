@@ -2,7 +2,7 @@
 #include <cuda_runtime.h>
 #include <iostream>
 
-__device__ int mymin(int a, double b) {
+__device__ int cuda_mymin(int a, double b) {
     return !(b<a)?a:round(b);
 }
 
@@ -11,14 +11,14 @@ __device__ double cuda_fmod(double numer, double denom){
     return numer - tquou * denom;
 }
 
-__device__ int findcellidx_1D(const float* p, const int ncx) {           
+__device__ int cuda_findcellidx_1D(const float* p, const int ncx) {           
     // Floor value to find cell
     int idx = floor(p[0] * ncx);
     idx = max(0, min(idx, ncx-1));
     return idx;                            
 }
 
-__device__ int findcellidx_2D(const float* p, const int ncx, const int ncy) {
+__device__ int cuda_findcellidx_2D(const float* p, const int ncx, const int ncy) {
     // Copy point
     double point[2];
     point[0] = p[0];
@@ -38,8 +38,8 @@ __device__ int findcellidx_2D(const float* p, const int ncx, const int ncy) {
     double x = xmod / inc_x;
     double y = ymod / inc_y;
             
-    int cell_idx =  mymin(ncx-1, (p0 - xmod) / inc_x) + 
-                    mymin(ncy-1, (p1 - ymod) / inc_y) * ncx;        
+    int cell_idx =  cuda_mymin(ncx-1, (p0 - xmod) / inc_x) + 
+                    cuda_mymin(ncy-1, (p1 - ymod) / inc_y) * ncx;        
     cell_idx *= 4;
             
     // Out of bound (left)
@@ -146,7 +146,7 @@ __device__ int findcellidx_2D(const float* p, const int ncx, const int ncy) {
     */
 }
 
-__device__ int findcellidx_3D(const float* p, const int nx, const int ny, const int nz) {
+__device__ int cuda_findcellidx_3D(const float* p, const int nx, const int ny, const int nz) {
     // Cell size
     const float inc_x = 1.0 / nx;
     const float inc_y = 1.0 / ny;
@@ -187,9 +187,9 @@ __device__ int findcellidx_3D(const float* p, const int nx, const int ny, const 
     double ymod = cuda_fmod(p1,inc_y);
     double zmod = cuda_fmod(p2,inc_z);
     
-    int i = mymin(nx-1,((p0 - xmod)/inc_x));
-    int j = mymin(ny-1,((p1 - ymod)/inc_y));
-    int k = mymin(nz-1,((p2 - zmod)/inc_z));
+    int i = cuda_mymin(nx-1,((p0 - xmod)/inc_x));
+    int j = cuda_mymin(ny-1,((p1 - ymod)/inc_y));
+    int k = cuda_mymin(nz-1,((p2 - zmod)/inc_z));
     
     int cell_idx = 5*(i + j * nx + k * nx * ny);
     
@@ -285,7 +285,7 @@ __global__ void cpab_cuda_kernel_forward_1D(const int nP, const int batch_size,
         int cellidx;
         for(int n = 0; n < nStepSolver[0]; n++){
             // Find cell idx
-            cellidx = findcellidx_1D(point, nc[0]);
+            cellidx = cuda_findcellidx_1D(point, nc[0]);
             
             // Extract the mapping in the cell
             const float* Trels_idx = Trels + 2*cellidx + start_idx;                
@@ -323,7 +323,7 @@ __global__ void cpab_cuda_kernel_forward_2D(const int nP, const int batch_size,
         int cellidx;
         for(int n = 0; n < nStepSolver[0]; n++){
             // Find cell idx
-            cellidx = findcellidx_2D(point, nc[0], nc[1]);
+            cellidx = cuda_findcellidx_2D(point, nc[0], nc[1]);
             
             // Extract the mapping in the cell
             const float* Trels_idx = Trels + 6*cellidx + start_idx;                
@@ -365,7 +365,7 @@ __global__ void cpab_cuda_kernel_forward_3D(const int nP, const int batch_size,
         int cellidx;
         for(int n = 0; n < nStepSolver[0]; n++){
             // Find cell idx
-            cellidx = findcellidx_3D(point, nc[0], nc[1], nc[2]);
+            cellidx = cuda_findcellidx_3D(point, nc[0], nc[1], nc[2]);
             
             // Extract the mapping in the cell
             const float* Trels_idx = Trels + 12*cellidx + start_idx;                
@@ -420,7 +420,7 @@ __global__ void cpab_cuda_kernel_backward_1D(dim3 nthreads, const int n_theta, c
             // Iterate a number of times
             for(int t=0; t<nStepSolver[0]; t++) {
                 // Get current cell
-                cellidx = findcellidx_1D(p, nc[0]);
+                cellidx = cuda_findcellidx_1D(p, nc[0]);
                 
                 // Get index of A
                 int As_idx = 2*cellidx;
@@ -515,7 +515,7 @@ __global__ void   cpab_cuda_kernel_backward_2D(dim3 nthreads, const int n_theta,
             // Iterate a number of times
             for(int t=0; t<nStepSolver[0]; t++) {
                 // Get current cell
-                cellidx = findcellidx_2D(p, nc[0], nc[1]);
+                cellidx = cuda_findcellidx_2D(p, nc[0], nc[1]);
                 
                 // Get index of A
                 int As_idx = 6*cellidx;
@@ -619,7 +619,7 @@ __global__ void   cpab_cuda_kernel_backward_3D(dim3 nthreads, const int n_theta,
             // Iterate a number of times
             for(int t=0; t<nStepSolver[0]; t++) {
                 // Get current cell
-                cellidx = findcellidx_3D(p, nc[0], nc[1], nc[2]);
+                cellidx = cuda_findcellidx_3D(p, nc[0], nc[1], nc[2]);
                 
                 // Get index of A
                 int As_idx = 12*cellidx;

@@ -1,11 +1,11 @@
 #ifndef CPAB_OPS_GPU
 #define CPAB_OPS_GPU
 
-__device__ int mymin(int a, double b);
+__device__ int cuda_mymin(int a, double b);
 __device__ double cuda_fmod(double numer, double denom);
-__device__ int findcellidx_1D(const float* p, const int nx);
-__device__ int findcellidx_2D(const float* p, const int nx, const int ny);
-__device__ int findcellidx_3D(const float* p, const int nx, const int ny, const int nz);
+__device__ int cuda_findcellidx_1D(const float* p, const int nx);
+__device__ int cuda_findcellidx_2D(const float* p, const int nx, const int ny);
+__device__ int cuda_findcellidx_3D(const float* p, const int nx, const int ny, const int nz);
 __device__ void A_times_b_1D(float x[], const float* A, float* b);
 __device__ void A_times_b_2D(float x[], const float* A, float* b);
 __device__ void A_times_b_3D(float x[], const float* A, float* b);

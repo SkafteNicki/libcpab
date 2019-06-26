@@ -11,12 +11,22 @@ if __name__ == "__main__":
     import matplotlib.pyplot as plt
     from libcpab import cpab
     
-    #%% numpy test
-    im = np.tile(plt.imread('cat.jpg')[None] / 255, (2, 1, 1, 1))
+    T = cpab([3,3], backend='tensorflow', device='gpu', zero_boundary=True,
+         volume_perservation=False, override=False)
+
+    theta = T.sample_transformation()
     
-    T = cpab([2,], backend='numpy', device='cpu', zero_boundary=True, 
-             volume_perservation=False, override=False)
-    
+    grid = T.uniform_meshgrid([200, 200])
+
+    grid_t = T.transform_grid(grid, theta)
+    print(grid_t.shape)    
+
+    #%% numpy test)
+#    im = np.tile(plt.imread('cat.jpg')[None] / 255, (2, 1, 1, 1))
+#    
+#    T = cpab([2,], backend='numpy', device='cpu', zero_boundary=True, 
+#             volume_perservation=False, override=False)
+#    
 #    theta = T.sample_transformation()
 #    theta = np.tile(theta, (2, 1))
 #    
@@ -55,8 +65,7 @@ if __name__ == "__main__":
 #    #%% tensorflow test
 #    im = tf.cast(plt.imread('cat.jpg')[None] / 255, tf.float32)
 #    
-    T = cpab([3,3], backend='tensorflow', device='cpu', zero_boundary=True,
-             volume_perservation=False, override=False)
+
 #    
 ##    theta = T.sample_transformation()
 ##    theta = theta.repeat(2,1)

@@ -9,7 +9,7 @@ Created on Tue Nov 20 10:27:16 2018
 import tensorflow as tf
 from .findcellidx import findcellidx
 from .expm import expm
-from ..helper.utility import get_dir
+from ..core.utility import get_dir
 from sys import platform as _platform
 
 #%%
@@ -18,10 +18,10 @@ def f(*args):
     return None
 
 #%%
-_verbose = True
+_verbose = False
 try:
     dir_path = get_dir(__file__)
-    transformer_module = tf.load_op_library(dir_path + '/./transformer.so')
+    transformer_module = tf.load_op_library(dir_path + '/trans_op.so')
     transformer_op = transformer_module.calc_trans
     grad_op = transformer_module.calc_grad
     compiled = True
@@ -61,7 +61,8 @@ def CPAB_transformer_slow(points, theta, params):
     newpoints = newpoints[:,:,None] # [n_theta*n_points, ndim+1, 1]
 
     # Get velocity fields
-    B = tf.cast(params.basis, dtype=tf.float32, device=theta.device)
+    with tf.device(theta.device):
+        B = tf.cast(params.basis, dtype=tf.float32)
     Avees = tf.matmul(B, tf.transpose(theta))
     As = tf.reshape(tf.transpose(Avees), (n_theta*params.nC, *params.Ashape))
     zero_row = tf.zeros((n_theta*params.nC, 1, params.ndim+1), device=As.device)
@@ -86,35 +87,44 @@ def CPAB_transformer_slow(points, theta, params):
     return newpoints
 
 #%%
-@tf.custom_gradient
 def CPAB_transformer_fast(points, theta, params):
-    device = theta.device
-    n_theta = theta.shape[0]
+    # This is just stupid. We need the tf.custom_gradient decorator to equip the fast
+    # gpu version with the gradient operation. But by using the decorator, we can only
+    # call the actual function with tensor-input, and params is a dict. Therefore, this
+    # small work around
+    @tf.custom_gradient
+    def actual_function(points, theta):
+        device = theta.device
+        n_theta = theta.shape[0]
+        
+        # Get Volocity fields
+        with tf.device(device):
+            B = tf.cast(params.basis, dtype=tf.float32)
+        Avees = tf.matmul(B, tf.transpose(theta))
+        As = tf.reshape(tf.transpose(Avees), (n_theta*params.nC, *params.Ashape))
+        with tf.device(device):
+            zero_row = tf.zeros((n_theta*params.nC, 1, params.ndim+1))
+        AsSquare = tf.concat([As, zero_row], axis=1)
+        
+        # Take matrix exponential
+        dT = 1.0 / params.nstepsolver
+        Trels = expm(dT * AsSquare)
+        Trels = tf.reshape(Trels[:,:params.ndim,:], (n_theta, params.nC, *params.Ashape))
+        
+        # Convert to tensor
+        with tf.device(device):
+            nstepsolver = tf.cast(params.nstepsolver, dtype=tf.int32)
+            nc = tf.cast(params.nc, dtype=tf.int32)
+        
+        # Call integrator
+        newpoints = transformer_op(points, Trels, nstepsolver, nc)
+        Bs = tf.reshape(tf.transpose(B), (-1, params.nC, *params.Ashape))
+        As = tf.reshape(As, (n_theta, params.nC, *params.Ashape))
+        
+        def grad(grad):
+            gradient = grad_op(points, As, Bs, nstepsolver, nc)
+            g = tf.reduce_sum(gradient * grad, axis=[2,3])
+            return None, g, None
     
-    # Get Volocity fields
-    B = tf.cast(params.basis, dtype=tf.float32, device=device)
-    Avees = tf.matmul(B, tf.transpose(theta))
-    As = tf.reshape(tf.transpose(Avees), (n_theta*params.nC, *params.Ashape))
-    zero_row = tf.zeros((n_theta*params.nC, 1, params.ndim+1), device=device)
-    AsSquare = tf.concat([As, zero_row], axis=1)
-    
-    # Take matrix exponential
-    dT = 1.0 / params.nstepsolver
-    Trels = expm(dT * AsSquare)
-    Trels = tf.reshape(Trels[:,:params.ndim,:], (n_theta, params.nC, *params.Ashape))
-    
-    # Convert to tensor
-    nstepsolver = tf.cast(params.nstepsolver, dtype=tf.int32, device=device)
-    nc = tf.cast(params.nc, dtype=tf.int32, device=device)
-    
-    # Call integrator
-    newpoints = transformer_op(points, Trels, nstepsolver, nc)
-    Bs = tf.reshape(tf.transpose(B), (-1, params.nC, *params.Ashape))
-    As = tf.reshape(As, (n_theta, params.nC, *params.Ashape))
-    
-    def grad(grad):
-        gradient = grad_op(points, As, Bs, nstepsolver, nc)
-        g = tf.reduce_sum(gradient * grad, axis=[2,3])
-        return None, g, None
-    
-    return newpoints, grad
+        return newpoints, grad
+    return actual_function(points, theta)
