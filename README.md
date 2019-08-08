@@ -1,5 +1,3 @@
-![orignal](https://raw.githubusercontent.com/SkafteNicki/libcpab/version2.0/cat.png) ![velocity](https://raw.githubusercontent.com/SkafteNicki/libcpab/version2.0/velocity_field.png) ![deform](https://raw.githubusercontent.com/SkafteNicki/libcpab/version2.0/deform_cat.png) 
-
 # libcpab
 CPAB Transformations [1]: finite-dimensional spaces of simple, fast, and 
 highly-expressive diffeomorphisms derived from parametric, 
@@ -14,6 +12,12 @@ The library supports diffiomorphic transformations in 1D (time series),
 
 This code is based on the original implementation CPAB transformations by
 Oren Freifeld (Github repo: [cpabDiffeo](https://github.com/freifeld/cpabDiffeo)).
+
+<p float="center">
+  <img src="cat.png" width="280" />
+  <img src="velocity_field.png" width="280" /> 
+  <img src="deform_cat.png" width="280" />
+</p>
 
 ## Author of this software
 
@@ -135,14 +139,6 @@ and this [github repo](https://github.com/SkafteNicki/ddtn).
 
 ```
 
-## Known bugs
-* It seems that the identity transformation theta=0, is somewhat degenerate case
-  that results in the gradient being `Nan`. This means that most optimization
-  procedures will fail in both tensorflow and pytorch. Therefore, if you plan 
-  to initialize the transformations to the identity and calculate gradients of 
-  this, use T.identity(n_sample, epsilon) and set epsilon to a small number.
-  I will look into this at some points in the future.
-  
 ## Versions
 
 * ----------, Version 2.0 - Major overhaul of the library, many changes
