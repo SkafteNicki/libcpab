@@ -1,3 +1,5 @@
+![orignal](https://raw.githubusercontent.com/SkafteNicki/libcpab/version2.0/cat.png) ![velocity](https://raw.githubusercontent.com/SkafteNicki/libcpab/version2.0/velocity_field.png) ![deform](https://raw.githubusercontent.com/SkafteNicki/libcpab/version2.0/deform_cat.png) 
+
 # libcpab
 CPAB Transformations [1]: finite-dimensional spaces of simple, fast, and 
 highly-expressive diffeomorphisms derived from parametric, 
@@ -47,6 +49,11 @@ Add this directory to your PYTHONPATH
 export PYTHONPATH=$PYTHONPATH:$YOUR_FOLDER_PATH/libcpab
 ```
 
+or use the supplied setup script
+```
+python setup.py install
+```
+
 ## How to use
 The interface is simple to use and only have a couple of different methods that 
 should get you started with diffiomorphic transformations. You have the choice 
@@ -88,10 +95,9 @@ The class have a number of methods
     data_t2 = T.transform_data(data, theta)   # combination of the two last methods
     plot1 = T.visualize_vectorfield(theta)    # visualize the vectorfield of a given parametrization
     plot2 = visualize_tesselation(...)        # visualize the chosen tesselation
-    
 ```
 
-We supply 3 demo files (in the demo folder) for each backend:
+We supply 3 demo files (comming soon) for each backend:
 * *_demo1.py: simple use of the library to transform data
 * *_demo2.py: image registration by incorporating the library in a tensorflow/pytorch optimization rutine
 * *_demo3.py: time series alignment by sampling approch
