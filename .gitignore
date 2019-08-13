@@ -5,3 +5,4 @@ cat.jpg
 ana_small.pkl
 *.so
 *.o
+*.pyc
