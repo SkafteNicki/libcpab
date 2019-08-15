@@ -24,7 +24,7 @@ Oren Freifeld (Github repo: [cpabDiffeo](https://github.com/freifeld/cpabDiffeo)
 Nicki Skafte Detlefsen (email: nsde@dtu.dk)
 
 Thanks to Tobias Slott Jensen and Asger Ougaard for suppling the base code 
-for the 1D and 3D cases.
+for the 1D and 3D cases. Thanks to Pola Schwoebel for suppling one of the demos.
 
 This software is released under the MIT License (included with the software). 
 Note, however, that using this code (and/or the results of running it) to support
