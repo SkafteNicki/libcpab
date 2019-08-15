@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 Created on Fri Nov 16 15:34:36 2018
@@ -12,7 +13,7 @@ from .core.utility import params, get_dir, create_dir
 from .core.tesselation import Tesselation1D, Tesselation2D, Tesselation3D
 
 #%%
-class cpab(object):
+class Cpab(object):
     """ Core class for this library. This class contains all the information
         about the tesselation, transformation ect. The user is not meant to
         use anything else than this specific class.
@@ -181,8 +182,10 @@ class cpab(object):
         """
         if mean is not None: self._check_type(mean); self._check_device(mean)
         if cov is not None: self._check_type(cov); self._check_device(cov)
-        return self.backend.sample_transformation(self.params.d, n_sample, 
-                                                  mean, cov, self.device)
+        samples = self.backend.sample_transformation(self.params.d, n_sample, 
+                                                     mean, cov, self.device)
+        return self.backend.to(samples, device=self.device)
+        
     
     #%%
     def sample_transformation_with_prior(self, n_sample=1, mean=None, 
@@ -274,7 +277,24 @@ class cpab(object):
     
     #%%    
     def interpolate(self, data, grid, outsize):
-        """ """
+        """ Linear interpolation method
+        Arguments:
+            data: [n_batch, *data_shape] tensor, with input data. The format of
+                the data_shape depends on the dimension of the data AND the
+                backend that is being used. In tensorflow and numpy:
+                    In 1D: [n_batch, number_of_features, n_channels]
+                    In 2D: [n_batch, width, height, n_channels]
+                    In 3D: [n_batch, width, height, depth, n_channels]
+                In pytorch:
+                    In 1D: [n_batch, n_channels, number_of_features]
+                    In 2D: [n_batch, n_channels, width, height]
+                    In 3D: [n_batch, n_channels, width, height, depth]
+            grid: [n_batch, ndim, n_points] tensor with grid points that are 
+                used to interpolate the data
+            outsize: list, with number of points in the output
+        Output:
+            interlated: [n_batch, *outsize] tensor with the interpolated data
+        """            
         self._check_type(data); self._check_device(data)
         self._check_type(grid); self._check_device(grid)
         return self.backend.interpolate(self.params.ndim, data, grid, outsize)
@@ -338,7 +358,7 @@ class cpab(object):
         
         # Calculate vectorfield and convert to numpy
         grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
-        v = self.calc_vectorfield(grid, theta, self.params)
+        v = self.calc_vectorfield(grid, theta)
         v = self.backend.tonumpy(v)
         grid = self.backend.tonumpy(grid)
         
@@ -390,7 +410,7 @@ class cpab(object):
             grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
         
         # Find cellindex and convert to numpy
-        idx = self.backend.findcellidx(self.params.ndim, grid, self.params.nc)
+        idx = self.backend.findcellidx(self.params.ndim, grid)
         idx = self.backend.tonumpy(idx)
         grid = self.backend.tonumpy(grid)
         

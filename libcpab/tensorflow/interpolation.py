@@ -65,23 +65,22 @@ def interpolate1D(data, grid, outsize):
 def interpolate2D(data, grid, outsize):
     data, grid = tf.cast(data, tf.float32), tf.cast(grid, tf.float32)
     
-    # Constants
-    n_batch = tf_shape_i(data,0)
-    height = tf_shape_i(data,1)
-    width = tf_shape_i(data,2)
-    n_channels = tf_shape_i(data,3)
-
+    # Problem size
+    n_batch = data.shape[0]
+    width = data.shape[1]
+    height = data.shape[2]
+    n_channels = data.shape[3]
+    out_width, out_height = outsize
+    
     # Cast value to float dtype
     x = tf.reshape(grid[:,0], (-1, ))
     y = tf.reshape(grid[:,1], (-1, ))
-    height_f = tf.cast(height, tf.float32)
-    width_f = tf.cast(width, tf.float32)
     max_x = tf.cast(width - 1, tf.int32)
     max_y = tf.cast(height - 1, tf.int32)
 
     # Scale indices from [0, 1] to [0, width/height]
-    x = x * width_f
-    y = y * height_f
+    x = x * (width-1)
+    y = y * (height-1)
 
     # Do sampling
     x0 = tf.cast(tf.floor(x), tf.int32)
@@ -89,44 +88,33 @@ def interpolate2D(data, grid, outsize):
     y0 = tf.cast(tf.floor(y), tf.int32)
     y1 = y0 + 1
 
-    # Find index of each corner point
+    # Clip values
     x0 = tf.clip_by_value(x0, 0, max_x)
     x1 = tf.clip_by_value(x1, 0, max_x)
     y0 = tf.clip_by_value(y0, 0, max_y)
     y1 = tf.clip_by_value(y1, 0, max_y)
-    dim1 = width*height
-    dim2 = width
-    base = tf_repeat(tf.range(n_batch)*dim1, dim1)
-    base_y0 = base + y0*dim2
-    base_y1 = base + y1*dim2
-    idx_a = base_y0 + x0
-    idx_b = base_y1 + x0
-    idx_c = base_y0 + x1
-    idx_d = base_y1 + x1
-
-    # Use indices to lookup pixels in the flat image and restore
-    # channels dim
-    data_flat = tf.reshape(data, (-1, n_channels))
-    data_flat = tf.cast(data_flat, tf.float32)
-    Ia = tf.gather(data_flat, idx_a)
-    Ib = tf.gather(data_flat, idx_b)
-    Ic = tf.gather(data_flat, idx_c)
-    Id = tf.gather(data_flat, idx_d)
-
-    # And finally calculate interpolated values
-    x0_f = tf.cast(x0, tf.float32)
-    x1_f = tf.cast(x1, tf.float32)
-    y0_f = tf.cast(y0, tf.float32)
-    y1_f = tf.cast(y1, tf.float32)
-    wa = tf.expand_dims(((x1_f-x) * (y1_f-y)), 1)
-    wb = tf.expand_dims(((x1_f-x) * (y-y0_f)), 1)
-    wc = tf.expand_dims(((x-x0_f) * (y1_f-y)), 1)
-    wd = tf.expand_dims(((x-x0_f) * (y-y0_f)), 1)
-    newim = tf.add_n([wa*Ia, wb*Ib, wc*Ic, wd*Id])
     
-    # Reshape into image format and take care of numeric underflow/overflow
-    newim = tf.reshape(newim, (n_batch, height, width, n_channels))
-    newim = tf.clip_by_value(newim, 0.0, 1.0)
+    # Batch effect
+    batch_size = out_width*out_height
+    batch_idx = tf.tile(tf.range(n_batch), (batch_size,))
+    
+    # Index
+    c00 = tf.gather_nd(data, tf.stack([batch_idx, x0, y0], axis=1))
+    c01 = tf.gather_nd(data, tf.stack([batch_idx, x0, y1], axis=1))
+    c10 = tf.gather_nd(data, tf.stack([batch_idx, x1, y0], axis=1))
+    c11 = tf.gather_nd(data, tf.stack([batch_idx, x1, y1], axis=1))
+
+    # Interpolation weights
+    xd = tf.reshape(x-tf.cast(x0, tf.float32), (-1,1))
+    yd = tf.reshape(y-tf.cast(y0, tf.float32), (-1,1))
+    
+    # Do interpolation
+    c0 = c00*(1-xd) + c10*xd
+    c1 = c01*(1-xd) + c11*xd
+    c = c0*(1-yd) + c1*yd
+    
+    # Reshape
+    newim = tf.reshape(c, (n_batch, out_height, out_width, n_channels))
     return newim
 
 #%%    

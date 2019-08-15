@@ -7,8 +7,8 @@ Created on Thu Aug 30 12:57:19 2018
 """
 
 #%%
-from .cpab import cpab
-from .alignment import DataAligner
-from .sequential import SequentialCpab
+from .cpab import Cpab
+from .alignment import CpabAligner
+from .sequential import CpabSequential
 
 

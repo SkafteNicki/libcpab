@@ -115,7 +115,7 @@ def CPAB_transformer_slow(points, theta, params):
     
     # Take care of batch effect
     batch_idx = params.nC*(torch.ones(n_points, n_theta, dtype=torch.int64) * torch.arange(n_theta))
-    batch_idx = batch_idx.flatten().to(theta.device)
+    batch_idx = batch_idx.t().flatten().to(theta.device)
     
     # Do integration
     for i in range(params.nstepsolver):

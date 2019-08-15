@@ -87,12 +87,12 @@ def maximum(x):
 
 #%%
 def sample_transformation(d, n_sample=1, mean=None, cov=None, device='cpu'):
-    mean = tf.zeros((d,), dtype=tf.float32) if mean is None else mean
-    cov = tf.eye(d, dtype=tf.float32) if cov is None else cov
-    distribution = tfp.distributions.MultivariateNormalFullCovariance(mean, cov)
     with tf.device(device):
+        mean = tf.zeros((d,), dtype=tf.float32) if mean is None else mean
+        cov = tf.eye(d, dtype=tf.float32) if cov is None else cov
+        distribution = tfp.distributions.MultivariateNormalFullCovariance(mean, cov)
         return distribution.sample(n_sample)
-
+    
 #%%
 def identity(d, n_sample=1, epsilon=0, device='cpu'):
     assert epsilon>=0, "epsilon need to be larger than 0"
@@ -112,19 +112,21 @@ def uniform_meshgrid(ndim, domain_min, domain_max, n_points, device='cpu'):
 def calc_vectorfield(grid, theta, params):
     # Calculate velocity fields
     B = to(params.basis, dtype=theta.dtype, device=theta.device)
-    Avees = tf.matmul(B, theta.flatten())
+    Avees = tf.tensordot(B, tf.reshape(theta, (-1,)), 1)
     As = tf.reshape(Avees, (params.nC, *params.Ashape))
     
     # Find cell index
     idx = findcellidx(params.ndim, grid, params.nc)
     
     # Do indexing
-    Aidx = As[idx]
+    Aidx = tf.gather(As, idx)
     
     # Convert to homogeneous coordinates
-    grid = tf.concat((grid, tf.ones((1, grid.shape[1]), device=grid.device)), axis=0)
-    grid = grid[None].permute(2,1,0)
+    with tf.device(grid.device):
+        onerow = tf.ones((1, grid.shape[1]))
+    grid = tf.concat((grid, onerow), axis=0)
+    grid = tf.transpose(grid[None], perm=[2,1,0])
     
     # Do matrix multiplication
     v = tf.matmul(Aidx, grid)
-    return v[:,:,0].t()
+    return tf.transpose(tf.squeeze(v))
