@@ -1,7 +1,6 @@
 .spyproject
 __pycache__
 basis_files/
-cat.jpg
 ana_small.pkl
 *.so
 *.o
