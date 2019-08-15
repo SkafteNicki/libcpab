@@ -14,9 +14,9 @@ This code is based on the original implementation CPAB transformations by
 Oren Freifeld (Github repo: [cpabDiffeo](https://github.com/freifeld/cpabDiffeo)).
 
 <p float="center">
-  <img src="cat.png" width="280" />
-  <img src="velocity_field.png" width="280" /> 
-  <img src="deform_cat.png" width="280" />
+  <img src="data/cat.jpg" width="280" />
+  <img src="data/velocity_field.jpg" width="280" /> 
+  <img src="data/deform_cat.jpg" width="280" />
 </p>
 
 ## Author of this software
