@@ -34,6 +34,7 @@ def argparser():
 
 #%%
 if __name__ == "__main__":
+    # Input arguments
     args = argparser()
 
     # Load some data
@@ -41,7 +42,7 @@ if __name__ == "__main__":
     data = np.expand_dims(data, 0)  # create batch effect
 
     # Create transformer class
-    T = Cpab([2, 2], backend=args.backend, device=args.device, zero_boundary=True,
+    T = Cpab([1, 1], backend=args.backend, device=args.device, zero_boundary=True,
              volume_perservation=False, override=False)
 
     # Sample random transformation
@@ -83,7 +84,10 @@ if __name__ == "__main__":
     data = T.backend.tonumpy(data)
     transformed_data = T.backend.tonumpy(transformed_data)
     trans_est = T.backend.to(trans_est)
-
+    
+    print('Theta:    ', T.backend.tonumpy(theta))
+    print('Theta est:', T.backend.tonumpy(theta_est))
+    
     plt.subplots(1, 3)
     plt.subplot(1, 3, 1)
     plt.imshow(data[0])
@@ -98,3 +102,5 @@ if __name__ == "__main__":
     plt.axis('off')
     plt.title('Estimate')
     plt.show()
+    
+    

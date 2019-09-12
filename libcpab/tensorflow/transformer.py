@@ -125,7 +125,7 @@ def CPAB_transformer_fast(points, theta, params):
         def grad(grad):
             gradient = grad_op(points, As, Bs, nstepsolver, nc)
             g = tf.reduce_sum(gradient * grad, axis=[2,3])
-            return None, g, None
+            return None, tf.transpose(g)
     
         return newpoints, grad
     

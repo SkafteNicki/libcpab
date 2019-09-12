@@ -476,7 +476,7 @@ class Cpab(object):
         """
         assert isinstance(x, self.backend.backend_type()), \
             ''' Input has type {0} but expected type {1} '''.format(
-            type(x), self.backend.type())
+            type(x), self.backend.backend_type())
             
     #%%
     def _check_device(self, x):

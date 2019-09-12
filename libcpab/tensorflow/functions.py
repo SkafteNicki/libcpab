@@ -9,6 +9,7 @@ Created on Fri Nov 16 16:01:52 2018
 import tensorflow as tf
 import tensorflow_probability as tfp
 from tensorflow.python.framework.ops import Tensor
+from tensorflow.python.ops.resource_variable_ops import ResourceVariable
 from .interpolation import interpolate
 from .transformer import CPAB_transformer as transformer
 from .findcellidx import findcellidx
@@ -37,7 +38,7 @@ def check_device(x, device_name):
 
 #%%
 def backend_type():
-    return Tensor
+    return (Tensor, ResourceVariable)
 
 #%%
 def pdist(mat):

@@ -29,7 +29,7 @@ class CpabAligner(object):
         self.backend = backend
     
     #%%
-    def alignment_by_sampling(self, x1, x2, maxiter=100, verbose=True):
+    def alignment_by_sampling(self, x1, x2, maxiter=100):
         ''' MCMC sampling minimization '''
         self.T._check_type(x1)
         self.T._check_type(x2)
@@ -57,29 +57,51 @@ class CpabAligner(object):
         return current_sample    
     
     #%%
-    def alignment_by_gradient(self, x1, x2, maxiter=100, lr=1e-4):
+    def alignment_by_gradient(self, x1, x2, maxiter=100, lr=1e-2):
         ''' Gradient based minimization '''
         assert self.T.backend_name != 'numpy', \
             ''' Cannot do gradient decent when using the numpy backend '''
         self.T._check_type(x1)
         self.T._check_type(x2)
+        assert x1.shape == x2.shape,' Two data points does not have the same shape '
+        outsize = (x2.shape[1], x2.shape[2]) if self.T.backend_name != 'pytorch' else  \
+            (x2.shape[2], x2.shape[3])
         
-        # TODO: write this as general when tensorflow backend is done
-        assert self.T.backend_name == 'pytorch', \
-						''' Only works with the pytorch backend at the moment '''
-        import torch
-        theta = torch.autograd.Variable(self.T.identity(1, epsilon=1e-6), requires_grad=True)
-        optimizer = torch.optim.Adam([theta], lr=lr)
+        if self.T.backend_name == 'pytorch':
+            import torch
+            theta = torch.autograd.Variable(self.T.identity(1, epsilon=1e-6), requires_grad=True)
+            optimizer = torch.optim.Adam([theta], lr=lr)
         
-        loss_list = [ ]
-        for i in range(maxiter):
-            optimizer.zero_grad()
-            x1_trans = self.T.transform_data(x1, theta, outsize=x1.shape[2:])
-            loss = self.backend.norm(x1_trans - x2)
-            loss.backward()
-            optimizer.step()
-            print('Epoch {0}/{1}, Loss {2}'.format(i+1, maxiter, loss.item()))
-            loss_list.append(loss.item())
-        print('Initial loss:', loss_list[0])
-        print('Final loss:', loss_list[-1])
-        return theta, x1_trans.detach()
+            pb = tqdm(desc='Alignment of samples', unit='iters', total=maxiter)
+            for i in range(maxiter):
+                optimizer.zero_grad()
+                x1_trans = self.T.transform_data(x1, theta, outsize=x1.shape[2:])
+                loss = self.backend.norm(x1_trans - x2)
+                loss.backward()
+                optimizer.step()
+                
+                pb.update()
+                pb.set_postfix({'loss': loss.item()})
+            pb.close()
+            
+            return theta
+        
+        if self.T.backend_name == 'tensorflow':
+            import tensorflow as tf
+            theta = tf.Variable(self.T.identity(1, epsilon=1e-6))
+            optimizer = tf.keras.optimizers.Adam(lr=lr)
+            
+            pb = tqdm(desc='Alignment of samples', unit='iters', total=maxiter)
+            for i in range(maxiter):
+                with tf.GradientTape() as tape:
+                    x1_trans = self.T.transform_data(x1, theta, outsize=outsize)
+                    loss = self.backend.norm(x1_trans - x2)
+                    grads = tape.gradient(loss, theta)
+                optimizer.apply_gradients(zip([grads], [theta]))
+            
+                pb.update()
+                pb.set_postfix({'loss': loss.numpy()})
+            pb.close()
+            
+            return theta.value()
+                
