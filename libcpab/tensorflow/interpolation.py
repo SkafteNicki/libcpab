@@ -64,7 +64,7 @@ def interpolate1D(data, grid, outsize):
 #%%    
 def interpolate2D(data, grid, outsize):
     data, grid = tf.cast(data, tf.float32), tf.cast(grid, tf.float32)
-    
+
     # Problem size
     n_batch = data.shape[0]
     width = data.shape[1]

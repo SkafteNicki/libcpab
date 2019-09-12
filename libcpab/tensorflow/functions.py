@@ -24,7 +24,8 @@ def assert_version():
 #%%
 def to(x, dtype=tf.float32, device=None):
     with tf.device(device):
-        return tf.cast(x, dtype=dtype)
+        x = tf.identity(tf.cast(x, dtype=dtype))
+        return x
 
 #%%
 def tonumpy(x):
@@ -35,7 +36,7 @@ def check_device(x, device_name):
     return ('GPU' in x.device) == (device_name=="gpu")
 
 #%%
-def type():
+def backend_type():
     return Tensor
 
 #%%

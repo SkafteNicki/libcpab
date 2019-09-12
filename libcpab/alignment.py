@@ -34,15 +34,16 @@ class CpabAligner(object):
         self.T._check_type(x1)
         self.T._check_type(x2)
         assert x1.shape == x2.shape,' Two data points does not have the same shape '
-        outsize = (x2.shape[1], x2.shape[2]) if self.backend != 'pytorch' else  \
+        outsize = (x2.shape[1], x2.shape[2]) if self.T.backend_name != 'pytorch' else  \
             (x2.shape[2], x2.shape[3])
 
         current_sample = self.T.identity(1)
         current_error = self.backend.norm(x1 - x2)
         accept_ratio = 0
+        
         for i in tqdm(range(maxiter), desc='Alignment of samples', unit='samples'):
             # Sample and transform 
-            theta = self.T.sample_transformation(1, mean=current_sample.flatten())
+            theta = 1e-1*self.T.sample_transformation(1, mean=current_sample.flatten())
             x1_trans = self.T.transform_data(x1, theta, outsize=outsize)
             
             # Calculate new error

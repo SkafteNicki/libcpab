@@ -50,12 +50,15 @@ def CPAB_transformer_slow(points, theta, params):
     with tf.device(points.device):
         # Problem parameters
         n_theta = theta.shape[0]
-        n_points = points.shape[1]
+        n_points = points.shape[-1]
     
         # Create homogenous coordinates
         ones = tf.ones((n_theta, 1, n_points))
         if len(points) == 2:
             newpoints = tf.tile(points[None], (n_theta, 1, 1)) # [n_theta, ndim, n_points]
+        else:
+            newpoints = points
+
         newpoints = tf.concat((newpoints, ones), axis=1) # [n_theta, ndim+1, n_points]
         newpoints = tf.transpose(newpoints, perm=(0, 2, 1)) # [n_theta, n_points, ndim+1]
         newpoints = tf.reshape(newpoints, (-1, params.ndim+1)) #[n_theta*n_points, ndim+1]]
@@ -80,8 +83,9 @@ def CPAB_transformer_slow(points, theta, params):
         for i in range(params.nstepsolver):
             idx = findcellidx(params.ndim, tf.transpose(newpoints[:,:,0]), params.nc) + batch_idx
             Tidx = tf.gather(Trels, idx)
-            newpoints = tf.matmul(Tidx, newpoints)
-    
+            newpoints = tf.cast(tf.matmul(tf.cast(Tidx, tf.float64), 
+                                          tf.cast(newpoints, tf.float64)), tf.float32)
+
         newpoints = tf.transpose(tf.squeeze(newpoints)[:,:params.ndim])
         newpoints = tf.transpose(tf.reshape(newpoints, (params.ndim, n_theta, n_points)), perm=[1,0,2])
         return newpoints
@@ -98,12 +102,10 @@ def CPAB_transformer_fast(points, theta, params):
         n_theta = theta.shape[0]
         
         # Get Volocity fields
-        with tf.device(device):
-            B = tf.cast(params.basis, dtype=tf.float32)
+        B = tf.cast(params.basis, dtype=tf.float32)
         Avees = tf.matmul(B, tf.transpose(theta))
         As = tf.reshape(tf.transpose(Avees), (n_theta*params.nC, *params.Ashape))
-        with tf.device(device):
-            zero_row = tf.zeros((n_theta*params.nC, 1, params.ndim+1))
+        zero_row = tf.zeros((n_theta*params.nC, 1, params.ndim+1))
         AsSquare = tf.concat([As, zero_row], axis=1)
         
         # Take matrix exponential
@@ -112,10 +114,9 @@ def CPAB_transformer_fast(points, theta, params):
         Trels = tf.reshape(Trels[:,:params.ndim,:], (n_theta, params.nC, *params.Ashape))
         
         # Convert to tensor
-        with tf.device(device):
-            nstepsolver = tf.cast(params.nstepsolver, dtype=tf.int32)
-            nc = tf.cast(params.nc, dtype=tf.int32)
-        
+        nstepsolver = tf.cast(params.nstepsolver, dtype=tf.int32)
+        nc = tf.cast(params.nc, dtype=tf.int32)
+    
         # Call integrator
         newpoints = transformer_op(points, Trels, nstepsolver, nc)
         Bs = tf.reshape(tf.transpose(B), (-1, params.nC, *params.Ashape))
@@ -127,4 +128,6 @@ def CPAB_transformer_fast(points, theta, params):
             return None, g, None
     
         return newpoints, grad
-    return actual_function(points, theta)
+    
+    with tf.device(points.device):
+        return actual_function(points, theta)

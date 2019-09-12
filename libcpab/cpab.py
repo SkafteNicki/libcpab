@@ -321,6 +321,7 @@ class Cpab(object):
         Output:
             data_t: [n_batch, *outsize] tensor, transformed and interpolated data
         """
+
         self._check_type(data); self._check_device(data)
         self._check_type(theta); self._check_device(theta)
         grid = self.uniform_meshgrid(outsize)
@@ -396,6 +397,8 @@ class Cpab(object):
             show_outside: if true, will sample points outside the normal [0,1]^ndim
                 domain to show how the tesselation (or in fact the findcellidx)
                 function extends to outside domain.
+        Output:
+            plot: handle to tesselation plot
         """
         if show_outside:
             domain_size = [self.params.domain_max[i] - self.params.domain_min[i] 
@@ -410,7 +413,7 @@ class Cpab(object):
             grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
         
         # Find cellindex and convert to numpy
-        idx = self.backend.findcellidx(self.params.ndim, grid)
+        idx = self.backend.findcellidx(self.params.ndim, grid, self.params.nc)
         idx = self.backend.tonumpy(idx)
         grid = self.backend.tonumpy(grid)
         
@@ -471,7 +474,7 @@ class Cpab(object):
                 pytorch backend expects torch.tensor
                 tensorflow backend expects tf.tensor
         """
-        assert isinstance(x, self.backend.type()), \
+        assert isinstance(x, self.backend.backend_type()), \
             ''' Input has type {0} but expected type {1} '''.format(
             type(x), self.backend.type())
             

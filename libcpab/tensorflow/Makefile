@@ -7,7 +7,7 @@ CUDALIB = /usr/local/cuda-10.0/lib64/
 trans_op.so: transformer.cpp transformer.cu.o cpab_ops.c.o cpab_ops.cu.o
 	g++ -std=c++11 transformer.cpp transformer.cu.o cpab_ops.c.o cpab_ops.cu.o \
 	-shared -o trans_op.so -I $(CPPFLAG) -fPIC -O2 -lcudart -L $(CUDALIB) \
-	-L $(LDFLAGS) -ltensorflow_framework -D_GLIBCXX_USE_CXX11_ABI=1 -Wl,--no-undefined
+	-L $(LDFLAGS) -l:libtensorflow_framework.so.1 -D_GLIBCXX_USE_CXX11_ABI=1 -Wl,--no-undefined
 
 transformer.cu.o: transformer_cuda.cu
 	nvcc transformer_cuda.cu -std=c++11 -c -o transformer.cu.o -I $(CPPFLAG) \
@@ -17,7 +17,7 @@ transformer.cu.o: transformer_cuda.cu
 cpab_ops.c.o: $(realpath ../core/cpab_ops.cpp)
 	g++ -std=c++11 -c $(realpath ../core/cpab_ops.cpp) -o cpab_ops.c.o  \
 	-I $(CPPFLAG) -fPIC -O2 -lcudart -L $(CUDALIB) -L $(LDFLAGS) \
-	-ltensorflow_framework -D_GLIBCXX_USE_CXX11_ABI=1 
+	-D_GLIBCXX_USE_CXX11_ABI=1 
 
 cpab_ops.cu.o: $(realpath ../core/cpab_ops.cu)
 	nvcc $(realpath ../core/cpab_ops.cu) -std=c++11 -c -o cpab_ops.cu.o -I $(CPPFLAG) \

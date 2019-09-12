@@ -9,6 +9,8 @@ Created on Wed Jan  2 10:45:48 2019
 #%%
 from .cpab import Cpab
 
+import matplotlib.pyplot as plt
+
 #%%
 class CpabSequential(object):
     ''' Helper class meant to make it easy to work with a sequence of transformers.
@@ -27,7 +29,7 @@ class CpabSequential(object):
         self.cpab = cpab
         
         # Assert that all cpab classes are valid
-        for i in range(self.n_trans):
+        for i in range(self.n_cpab):
             assert isinstance(self.cpab[i], Cpab), \
                 ''' Class {0} is not a member of the cpab core class '''.format(i)
         
@@ -35,9 +37,19 @@ class CpabSequential(object):
         self.ndim = self.cpab[0].params.ndim
         for i in range(1, self.n_cpab):
             assert self.ndim == self.cpab[i].params.ndim, \
-                ''' Mismatching dimensionality of transformers. Transformer 0
+                ''' Mismatching dimensionality of transformers. Transformer 1
                 have dimensionality {0} but transformer {1} have dimensionality
-                {2}'''.format(self.ndim, i, self.cpab[i].params.ndim) 
+                {2}'''.format(self.ndim, i+1, self.cpab[i].params.ndim)
+                
+        # Assert that all cpab classes have same backend
+        self.backend = self.cpab[0].backend
+        self.backend_name = self.cpab[0].backend_name
+        for i in range(1, self.n_cpab):
+            assert self.backend_name == self.cpab[i].backend_name, \
+                ''' Mismatch in backend. Transformer 1 have backend {0} but
+                transformer {1} have backend {2}'''.format(
+                self.backend_name, i+1, self.cpab[i].backend_name)
+        
                 
     #%%
     def get_theta_dim(self):
@@ -57,6 +69,17 @@ class CpabSequential(object):
     
     #%%
     def sample_transformation(self, n_sample, means=None, covs=None):
+        if means==None:
+            means = self.n_cpab * [None]
+        else:
+            assert len(means)==self.n_cpab, ''' The number of supplied means
+                should be equal to the number of transformations '''
+        if covs==None:
+            covs = self.n_cpab * [None]
+        else:
+            assert len(covs)==self.n_cpab, ''' The number of supplied covariances
+                should be equal to the number of transformations '''
+
         return [c.sample_transformation(n_sample, mean, cov) for c,mean,cov in 
                 zip(self.cpab, means, covs)]
         
@@ -68,7 +91,7 @@ class CpabSequential(object):
     def transform_grid(self, grid, thetas, output_all=False):
         # Check shapes of thetas
         self._assert_theta_shape(thetas)
-        
+
         if not output_all:
             # Transform in sequence
             for i in range(self.n_cpab):
@@ -87,7 +110,7 @@ class CpabSequential(object):
         
         if not output_all:
             # Transform in sequence
-            grid = self.meshgrid(outsize)
+            grid = self.uniform_meshgrid(outsize)
             grid_t = self.transform_grid(grid, thetas, output_all=output_all)
             
             # Interpolate using final grid
@@ -95,7 +118,7 @@ class CpabSequential(object):
             return data_t
         else:
             # Transform in sequence
-            grid = self.meshgrid(outsize)
+            grid = self.uniform_meshgrid(outsize)
             grid_t = self.transform_grid(grid, thetas, output_all=output_all)
             
             # Interpolate all grids
@@ -105,7 +128,7 @@ class CpabSequential(object):
             return data_t
     
     #%%
-    def _assert_theta_shapes(self, thetas):
+    def _assert_theta_shape(self, thetas):
         n_theta = len(thetas)
         assert n_theta == self.n_cpab, \
             ''' Number of parametrizations needed are {0}'''.format(self.n_trans)

@@ -9,36 +9,36 @@ Created on Thu Feb 21 17:06:05 2019
 import tensorflow as tf
 
 #%%
-#try:
-#    expm = tf.linalg.expm
-#except:
-def expm(A):
-    """ """
-    n_A = A.shape[0]
-    A_fro = tf.sqrt(tf.reduce_sum(tf.pow(tf.abs(A), 2.0), axis=[1,2], keepdims=True))
-    
-    # Scaling step
-    with tf.device(A.device):
-        maxnorm = tf.cast([5.371920351148152], dtype=A.dtype)
-        zero = tf.cast([0.0], dtype=A.dtype)
-    n_squarings = tf.maximum(zero, tf.math.ceil(log2(A_fro / maxnorm)))
-    Ascaled = A / 2.0**n_squarings
-    n_squarings = tf.cast(tf.reshape(n_squarings, (-1, )), tf.int64)
-    
-    # Pade 13 approximation
-    U, V = pade13(Ascaled)
-    P = U + V
-    Q = -U + V
-    R = tf.linalg.solve(Q, P)
-    
-    # Unsquaring step
-    n = tf.reduce_max(n_squarings)
-    res = [R]
-    for i in range(n):
-        res.append(tf.matmul(res[-1], res[-1]))
-    R = tf.stack(res)
-    expmA = tf.gather_nd(R, tf.transpose(tf.stack([n_squarings, tf.range(n_A, dtype=tf.int64)])))
-    return expmA
+try:
+    expm = tf.linalg.expm
+except:
+    def expm(A):
+        """ """
+        n_A = A.shape[0]
+        A_fro = tf.sqrt(tf.reduce_sum(tf.pow(tf.abs(A), 2.0), axis=[1,2], keepdims=True))
+        
+        # Scaling step
+        with tf.device(A.device):
+            maxnorm = tf.cast([5.371920351148152], dtype=A.dtype)
+            zero = tf.cast([0.0], dtype=A.dtype)
+        n_squarings = tf.maximum(zero, tf.math.ceil(log2(A_fro / maxnorm)))
+        Ascaled = A / 2.0**n_squarings
+        n_squarings = tf.cast(tf.reshape(n_squarings, (-1, )), tf.int64)
+        
+        # Pade 13 approximation
+        U, V = pade13(Ascaled)
+        P = U + V
+        Q = -U + V
+        R = tf.linalg.solve(Q, P)
+        
+        # Unsquaring step
+        n = tf.reduce_max(n_squarings)
+        res = [R]
+        for i in range(n):
+            res.append(tf.matmul(res[-1], res[-1]))
+        R = tf.stack(res)
+        expmA = tf.gather_nd(R, tf.transpose(tf.stack([n_squarings, tf.range(n_A, dtype=tf.int64)])))
+        return expmA
 
 #%%
 def log2(x):

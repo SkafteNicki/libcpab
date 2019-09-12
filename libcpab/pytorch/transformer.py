@@ -89,7 +89,7 @@ def CPAB_transformer(points, theta, params):
 def CPAB_transformer_slow(points, theta, params):
     # Problem parameters
     n_theta = theta.shape[0]
-    n_points = points.shape[1] if len(points.shape) == 2 else points.shape[2]
+    n_points = points.shape[-1]
     
     # Create homogenous coordinates
     ones = torch.ones((n_theta, 1, n_points)).to(points.device)

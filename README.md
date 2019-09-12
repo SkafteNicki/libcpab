@@ -58,6 +58,13 @@ or use the supplied setup script
 python setup.py install
 ```
 
+### Note to ensorflow users
+To run the fast c++ or cuda version using the tensorflow backend, you probably
+need to compile the source files yourself into a dynamic library. The repo only contains
+the dynamic library compiled on my own desktop, so there is a good chance it wont
+work on yours. After installing the library navigate to ```libcpab/libcpab/tensorflow``` 
+folder and type ```make```. This requires you to have a newer version of ```gcc``` and ```nvcc``` installed.
+
 ## How to use
 The interface is simple to use and only have a couple of different methods that 
 should get you started with diffiomorphic transformations. You have the choice 
@@ -82,10 +89,10 @@ The class have a number of methods
 
 ```
     # Import library
-    from libcpab import cpab
+    from libcpab import Cpab
  
     # Define a transformation class
-    T = cpab(tess_size, backend, device, zero_boundary, volume_perservation)
+    T = Cpab(tess_size, backend, device, zero_boundary, volume_perservation)
     
     # Important methods
     g = T.uniform_meshgrid(...)               # sample uniform grid of points in transformer domain
@@ -101,10 +108,15 @@ The class have a number of methods
     plot2 = visualize_tesselation(...)        # visualize the chosen tesselation
 ```
 
-We supply 3 demo files (comming soon) for each backend:
-* *_demo1.py: simple use of the library to transform data
-* *_demo2.py: image registration by incorporating the library in a tensorflow/pytorch optimization rutine
-* *_demo3.py: time series alignment by sampling approch
+Additionally we supply two other main classes, a ```CpabSequential``` class that can be used to efficiently
+do multiple wraps in a sequential manner and a ```CpabAlignment``` class for easy use of the CPAB-transformations
+to do data alignment. 
+
+We supply 4 demo files::
+* demo1.py: simple use of the library to transform data
+* demo2.py: demonstration of the ```CpabSequential``` class.
+* demo3.py: demonstration of the ```CpabAlignment``` class. 
+* time_demo.ipyht: a jupyter notebook, that goes through a data analysis case using libcpab
 
 For a specific use of the transformations in a greater context, 
 see this [paper](http://www2.compute.dtu.dk/~sohau/papers/cvpr2018/detlefsen_cvpr_2018.pdf)[3] 

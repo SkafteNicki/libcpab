@@ -113,12 +113,13 @@ def show_images(images, cols='auto', title=None, scaling=False):
         a = fig.add_subplot(cols, rows, n + 1)
         if image.ndim == 2: plt.gray()
         a.imshow(image)
-        a.axis('on')
+        a.axis('off')
         a.axis('equal')
         a.set_xticklabels([])
         a.set_yticklabels([])
     if scaling: fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
     fig.subplots_adjust(wspace=0, hspace=0)
+    plt.tight_layout()
     plt.show()
 
 #%%

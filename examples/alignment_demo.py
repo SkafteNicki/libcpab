@@ -9,6 +9,7 @@ Created on Fri Aug  9 12:51:31 2019
 #%%
 from libcpab import Cpab
 from libcpab import CpabAligner
+from libcpab.core.utility import get_dir
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -36,22 +37,22 @@ if __name__ == "__main__":
     args = argparser()
 
     # Load some data
-    data = plt.imread('cat.jpg') / 255
+    data = plt.imread(get_dir(__file__) + '/../data/cat.jpg') / 255
     data = np.expand_dims(data, 0)  # create batch effect
 
     # Create transformer class
-    T = Cpab([3, 3], backend=args.backend, device=args.device, zero_boundary=True,
+    T = Cpab([2, 2], backend=args.backend, device=args.device, zero_boundary=True,
              volume_perservation=False, override=False)
 
     # Sample random transformation
-    theta = T.sample_transformation(1)
+    theta = 0.5*T.sample_transformation(1)
 
     # Convert data to the backend format
     data = T.backend.to(data, device=args.device)
 
     # Pytorch have other data format than tensorflow and numpy, color information
     # is the second dim. We need to correct this before and after
-    data = data.permute(0, 2, 3, 1) if args.backend == 'pytorch' else data
+    data = data.permute(0, 3, 1, 2) if args.backend == 'pytorch' else data
 
     # Transform the images
     transformed_data = T.transform_data(data, theta, outsize=(350, 350))
@@ -59,19 +60,24 @@ if __name__ == "__main__":
     # Now lets see if we can esimate the transformation we just used, by
     # iteratively trying to transform the data
     A = CpabAligner(T)
-
+    
     # Do by sampling, work for all backends
     if args.alignment_type == 'sampling':
         theta_est = A.alignment_by_sampling(
             data, transformed_data, maxiter=args.maxiter)
+    # Or do it by gradient descend (only tensorflow and pytorch)
     else:
         theta_est = A.alignment_by_gradient(
             data, transformed_data, maxiter=args.maxiter)
 
     # Lets see what we converged to
     trans_est = T.transform_data(data, theta_est, outsize=(350, 350))
-    trans_est = trans_est.permute(
-        0, 2, 3, 1) if args.backend == 'pytorch' else trans_est
+    
+    # Revert pytorch format
+    if args.backend == 'pytorch':
+        data = data.permute(0, 2, 3, 1)
+        transformed_data = transformed_data.permute(0, 2, 3, 1)
+        trans_est = trans_est.permute(0, 2, 3, 1)
 
     # Show the results
     data = T.backend.tonumpy(data)

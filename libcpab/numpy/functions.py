@@ -32,7 +32,7 @@ def check_device(x, device_name):
     return True # always return true, because device can only be cpu
 
 #%%
-def type():
+def backend_type():
     return np.ndarray
 
 #%%
