@@ -15,27 +15,27 @@ if __name__ == "__main__":
     
     class mylayer(keras.layers.Layer):
         def __init__(self):
-            self.cpab = Cpab([3,3], backend='tensorflow', device='cpu')
+            self.cpab = Cpab([5,], backend='tensorflow', device='gpu')
             super().__init__()
             
         def call(self, x):
-            return self.cpab.transform_data(x, 
+            return self.cpab.transform_data(x,
                                             self.cpab.sample_transformation(100),
-                                            outsize=(28,28))
+                                            outsize=(50,))
             
     model = keras.Sequential()
-    model.add(keras.layers.InputLayer(input_shape=(28,28,1,), batch_size=100))
+    model.add(keras.layers.InputLayer(input_shape=(50,10), batch_size=100))
     model.add(mylayer())
-    model.add(keras.layers.Conv2D(32, 7, activation='relu'))
-    model.add(keras.layers.Conv2D(64, 5, activation='relu'))
-    model.add(keras.layers.Conv2D(128, 3, activation='relu'))
+    model.add(keras.layers.Conv1D(32, 7, activation='relu'))
+    model.add(keras.layers.Conv1D(64, 5, activation='relu'))
+    model.add(keras.layers.Conv1D(128, 3, activation='relu'))
     model.add(keras.layers.Flatten())
     model.add(keras.layers.Dense(10, activation='softmax'))
     
     model.compile(optimizer='adam', loss='categorical_crossentropy')
     
-    X = np.random.rand(200,28,28,1)
-    y = np.random.random_integers(0,9,200)
+    X = np.random.rand(1000,50,10)
+    y = np.random.random_integers(0,9,1000)
     y = keras.utils.to_categorical(y, 10)
     
     model.fit(X,y,batch_size=100,epochs=10)

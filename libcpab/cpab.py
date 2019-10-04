@@ -59,7 +59,7 @@ class Cpab(object):
                  override=False):
         # Check input
         self._check_input(tess_size, backend, device, 
-                          zero_boundary, volume_perservation)
+                          zero_boundary, volume_perservation, override)
         
         # Parameters
         self.params = params()
@@ -445,7 +445,7 @@ class Cpab(object):
     
     #%%
     def _check_input(self, tess_size, backend, device, 
-                     zero_boundary, volume_perservation):
+                     zero_boundary, volume_perservation, override):
         """ Utility function used to check the input to the class.
             Not meant to be called by the user. """
         assert len(tess_size) > 0 and len(tess_size) <= 3, \
@@ -466,6 +466,8 @@ class Cpab(object):
             '''Argument zero_boundary must be True or False'''
         assert type(volume_perservation) == bool, \
             '''Argument volume_perservation must be True or False'''
+        assert type(override) == bool, \
+            '''Argument override must be True or False '''
             
     #%%
     def _check_type(self, x):

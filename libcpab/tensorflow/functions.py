@@ -34,7 +34,10 @@ def tonumpy(x):
 
 #%%
 def check_device(x, device_name):
-    return ('GPU' in x.device) == (device_name=="gpu")
+    if x.device=='': # if x is placeholder, accept
+        return True
+    else: # else check if we match
+        return ('GPU' in x.device) == (device_name=="gpu")
 
 #%%
 def backend_type():

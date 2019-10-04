@@ -15,53 +15,50 @@ def interpolate(ndim, data, grid, outsize):
     elif ndim==2: return interpolate2D(data, grid, outsize)
     elif ndim==3: return interpolate3D(data, grid, outsize)
 
-#%%    
+#%%
 def interpolate1D(data, grid, outsize):
     data, grid = tf.cast(data, tf.float32), tf.cast(grid, tf.float32)
-        
+
     # Constants
-    n_batch = tf_shape_i(data,0)
-    length_d = tf_shape_i(data,1)
-    n_channel = tf_shape_i(data,2)
-    length_g = tf_shape_i(grid,2)
+    n_batch = data.shape[0]
+    length_d = data.shape[1]
+    n_channel = data.shape[2]
+    length_g = outsize[0]
     max_x = tf.cast(length_d-1, tf.int32)
-        
+
     # Extract points
     x = tf.reshape(grid[:,0], (-1,)) # [n_theta x n_points]
-    
+
     # Scale to domain
     x = x * (length_d-1)
-        
+
     # Do sampling
     x0 = tf.cast(tf.floor(x), tf.int32)
     x1 = x0 + 1
-        
+
     # Clip values
     x0 = tf.clip_by_value(x0, 0, max_x)
     x1 = tf.clip_by_value(x1, 0, max_x)
-        
-    # Take care of batch effect
-    base = tf_repeat(tf.range(n_batch)*length_d, length_g)
-    idx_1 = base + x0
-    idx_2 = base + x1
-    
-    # Lookup values
-    data_flat = tf.reshape(data, (-1,n_channel))
-    i1 = tf.gather(data_flat, idx_1)
-    i2 = tf.gather(data_flat, idx_2)
-        
+
+    # Batch effect
+    batch_idx = tf.tile(tf.range(n_batch), (length_g,))
+
+    # Index
+    i1 = tf.gather_nd(data, tf.stack([batch_idx, x0], axis=1))
+    i2 = tf.gather_nd(data, tf.stack([batch_idx, x1], axis=1))
+
     # Convert to floats
     x0 = tf.cast(x0, tf.float32)
     x1 = tf.cast(x1, tf.float32)
-        
+
     # Do interpolation
     new_data = i1 + tf.transpose((x - x0) * tf.transpose((i2 - i1), perm=[1,0]), perm=[1,0]) #w1*i1 + w2*i2
-        
+
     # Reshape and return
     new_data = tf.reshape(new_data, (n_batch, length_g, n_channel))
     return new_data
 
-#%%    
+#%%
 def interpolate2D(data, grid, outsize):
     data, grid = tf.cast(data, tf.float32), tf.cast(grid, tf.float32)
 

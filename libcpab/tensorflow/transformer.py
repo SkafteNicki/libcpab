@@ -54,7 +54,7 @@ def CPAB_transformer_slow(points, theta, params):
     
         # Create homogenous coordinates
         ones = tf.ones((n_theta, 1, n_points))
-        if len(points) == 2:
+        if len(points.shape) == 2:
             newpoints = tf.tile(points[None], (n_theta, 1, 1)) # [n_theta, ndim, n_points]
         else:
             newpoints = points
