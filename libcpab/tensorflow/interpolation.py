@@ -41,7 +41,7 @@ def interpolate1D(data, grid, outsize):
     x1 = tf.clip_by_value(x1, 0, max_x)
 
     # Batch effect
-    batch_idx = tf.tile(tf.range(n_batch), (length_g,))
+    batch_idx = tf.reshape(tf.transpose(tf.reshape(tf.tile(tf.range(n_batch), (length_g,)), (length_g, n_batch))), (-1,))
 
     # Index
     i1 = tf.gather_nd(data, tf.stack([batch_idx, x0], axis=1))

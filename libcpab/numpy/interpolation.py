@@ -20,7 +20,7 @@ def interpolate1D(data, grid, outsize):
     n_batch = data.shape[0]
     width = data.shape[1]
     n_channels = data.shape[2]
-    out_width = outsize
+    out_width = outsize[0]
     
     # Extract points
     x = grid[:,0].flatten()
