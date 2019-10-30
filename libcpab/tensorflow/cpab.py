@@ -30,7 +30,7 @@ class cpab(object):
                  zero_boundary=True, 
                  volume_perservation=False,
                  return_tf_tensors=False,
-                 override):
+                 override=False):
         # Check input
         assert len(tess_size) > 0 and len(tess_size) <= 3, \
             '''Transformer only support 1D, 2D or 3D'''
