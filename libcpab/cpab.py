@@ -49,6 +49,7 @@ class Cpab(object):
         @calc_vectorfield
         @visualize_vectorfield
         @visualize_tesselation
+        @visualize_deformgrid
     """
     def __init__(self, 
                  tess_size,
@@ -345,13 +346,14 @@ class Cpab(object):
         return v
     
     #%%
-    def visualize_vectorfield(self, theta, nb_points = 50):
+    def visualize_vectorfield(self, theta, nb_points = 50, fig = plt.figure()):
         """ Utility function that helps visualize the vectorfield for a specific
             parametrization vector theta 
         Arguments:    
             theta: [1, d] single parametrization vector
             nb_points: number of points in each dimension to plot i.e. in 2D
                 with nb_points=50 the function will plot 50*50=2500 arrows!
+            fig: matplotlib figure handle
         Output:
             plot: handle to quiver plot
         """
@@ -365,19 +367,16 @@ class Cpab(object):
         
         # Plot
         if self.params.ndim == 1:
-            fig = plt.figure()
             ax = fig.add_subplot(111)
             plot = ax.quiver(grid[0,:], np.zeros_like(grid), v, np.zeros_like(v), units='xy')
             ax.set_xlim(self.params.domain_min[0], self.params.domain_max[0])
         elif self.params.ndim == 2:
-            fig = plt.figure()
             ax = fig.add_subplot(111)
             plot = ax.quiver(grid[0,:], grid[1,:], v[0,:], v[1,:], units='xy')
             ax.set_xlim(self.params.domain_min[0], self.params.domain_max[0])
             ax.set_ylim(self.params.domain_min[1], self.params.domain_max[1])            
         elif self.params.ndim==3:
             from mpl_toolkits.mplot3d import Axes3D
-            fig = plt.figure()
             ax = fig.add_subplot(111, projection='3d')
             plot = ax.quiver(grid[0,:], grid[1,:], grid[2,:], v[0,:], v[1,:], v[2,:],
                              length=0.3, arrow_length_ratio=0.5)
@@ -388,15 +387,51 @@ class Cpab(object):
         plt.axis('equal')
         plt.title('Velocity field')
         return plot
-        
+    
     #%%
-    def visualize_tesselation(self, nb_points = 50, show_outside=False):
+    def visualize_deformgrid(self, theta, nb_lines = 10, nb_points= 1000, fig = plt.figure()):
+        """ Utility function that helps visualize a deformation. Currently
+            only implemented in 2D.
+        Arguments:
+            theta: [1, d] single parametrization vector
+            nb_lines: int, number of lines in x/y direction
+            nb_points: int, number of points on each line
+            fig: matplotlib figure handle
+        Output:
+            plot: list of plot handles to lines
+        """
+        if self.params.ndim == 2:
+            x = np.linspace(0,1,nb_lines)
+            y = np.linspace(0,1,nb_lines)
+            plots = []
+            for i in range(nb_lines):
+                xx = x[i]*np.ones((1,nb_points))
+                yy = np.linspace(0,1,nb_points).reshape(1,nb_points)
+                grid = np.concatenate((xx, yy), axis=0)
+                grid = self.transform_grid(grid, theta)[0]
+                plot = plt.plot(grid[0], grid[1], '-k')
+                plots.append(plot)
+      
+            for i in range(nb_lines):
+                xx = np.linspace(0,1,nb_points).reshape(1,nb_points)
+                yy = y[i]*np.ones((1,nb_points))
+                grid = np.concatenate((xx, yy), axis=0)
+                grid = self.transform_grid(grid, theta)[0]
+                plot = plt.plot(grid[0], grid[1], '-k')            
+                plots.append(plot)
+            return plots
+        else:
+            raise NotImplementedError('This is only implemented for 2D domain')
+    
+    #%%
+    def visualize_tesselation(self, nb_points = 50, show_outside=False, fig=plt.figure()):
         """ Utility function that helps visualize the tesselation.
         Arguments:
             nb_points: number of points in each dimension
             show_outside: if true, will sample points outside the normal [0,1]^ndim
                 domain to show how the tesselation (or in fact the findcellidx)
                 function extends to outside domain.
+            fig: matplotlib figure handle
         Output:
             plot: handle to tesselation plot
         """
@@ -419,17 +454,14 @@ class Cpab(object):
         
         # Plot
         if self.params.ndim == 1:
-            fig = plt.figure()
             ax = fig.add_subplot(111)
             plot = ax.scatter(grid.flatten(), np.zeros_like(grid).flatten(), c=idx)
         elif self.params.ndim == 2:
-            fig = plt.figure()
             ax = fig.add_subplot(111)
             plot = ax.imshow(idx.reshape(self.params.ndim*[nb_points]))
         elif self.params.ndim == 3:
             import matplotlib.animation as animation
             idx = idx.reshape(self.params.ndim*[nb_points])
-            fig = plt.figure()
             im = plt.imshow(idx[0,:,:], animated=True)
             def update(frames):
                 im.set_array(idx[frames,:,:])
