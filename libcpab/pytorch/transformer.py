@@ -120,7 +120,7 @@ def CPAB_transformer_slow(points, theta, params):
     # Do integration
     for i in range(params.nstepsolver):
         idx = findcellidx(params.ndim, newpoints[:,:,0].t(), params.nc) + batch_idx
-        Tidx = Trels[idx]
+        Tidx = Trels[idx.long()]
         newpoints = torch.matmul(Tidx, newpoints)
     
     newpoints = newpoints.squeeze()[:,:params.ndim].t()
