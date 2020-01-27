@@ -31,8 +31,10 @@ def findcellidx2D(p, nx, ny):
     inc_x = 1.0 / nx
     inc_y = 1.0 / ny
     
-    p0 = torch.min(nx * inc_x - 1e-8, torch.max(0.0, p[0]))
-    p1 = torch.min(ny * inc_y - 1e-8, torch.max(0.0, p[1]))
+    #p0 = torch.min(nx * inc_x - 1e-8, torch.max(0.0, p[0]))
+    #p1 = torch.min(ny * inc_y - 1e-8, torch.max(0.0, p[1]))
+    p0 = torch.clamp(p[0], 0.0, nx * inc_x - 1e-8)
+    p1 = torch.clamp(p[1], 0.0, ny * inc_y - 1e-8)
     
     xmod = torch.fmod(p0, inc_x)
     ymod = torch.fmod(p1, inc_y)
