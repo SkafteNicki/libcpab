@@ -28,6 +28,7 @@ def findcellidx1D(p, nx):
 
 #%%
 def findcellidx2D(p, nx, ny):
+    n = p.shape[1]
     inc_x = 1.0 / nx
     inc_y = 1.0 / ny
     
@@ -42,8 +43,8 @@ def findcellidx2D(p, nx, ny):
     x = xmod / inc_x
     y = ymod / inc_y
     
-    idx = mymin(nx-1, (p0-xmod) / inc_x) + \
-          mymin(ny-1, (p1-ymod) / inc_y) * nx
+    idx = mymin((nx-1)*torch.ones(n, device=p.device), (p0-xmod) / inc_x) + \
+          mymin((ny-1)*torch.ones(n, device=p.device), (p1-ymod) / inc_y) * nx
     idx *= 4
     
     # Out of bound left
