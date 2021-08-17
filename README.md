@@ -58,7 +58,7 @@ or use the supplied setup script
 python setup.py install
 ```
 
-### Note to ensorflow users
+### Note to Tensorflow users
 To run the fast c++ or cuda version using the tensorflow backend, you probably
 need to compile the source files yourself into a dynamic library. The repo only contains
 the dynamic library compiled on my own desktop, so there is a good chance it wont
