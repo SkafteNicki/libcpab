@@ -29,6 +29,7 @@ dependencies = [
     "matplotlib",
     "torch",
     "scipy",
+    "setuptools",
 ]
 
 [tool.setuptools]
