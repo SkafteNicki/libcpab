@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 """
-Created on Wed Nov 21 14:31:34 2018
-
-@author: nsde
+This code is a modified version of the original by SkafteNicki.
+See https://github.com/SkafteNicki/libcpab for original code.
+See LICENSE for more details.
 """
 
 #%%

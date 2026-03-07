@@ -1,16 +1,23 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-Created on Fri Nov 16 15:34:36 2018
-
-@author: nsde
+This code is a modified version of the original by SkafteNicki.
+See https://github.com/SkafteNicki/libcpab for original code.
+See LICENSE for more details.
 """
 
 #%%
+from typing import Union, Tuple, List
+import os
 import numpy as np
 import matplotlib.pyplot as plt
-from .core.utility import params, get_dir, create_dir
-from .core.tesselation import Tesselation1D, Tesselation2D, Tesselation3D
+import torch
+
+from .tesselation import Tesselation1D, Tesselation2D, Tesselation3D
+from .interpolation import interpolate
+from .transformer import CPAB_transformer as transformer
+from .findcellidx import findcellidx
+
+class params:
+    pass
 
 #%%
 class Cpab(object):
@@ -21,11 +28,7 @@ class Cpab(object):
     Arguments:
         tess_size: list, with the number of cells in each dimension
         
-        backend: string, computational backend to use. Choose between 
-            "numpy" (default), "pytorch" or "tensorflow"
-        
-        device: string, either "cpu" (default) or "gpu". For the numpy backend
-            only the "cpu" option is valid
+        device: string, either "cpu" (default) or "gpu".
         
         zero_boundary: bool, determines is the velocity at the boundary is zero 
         
@@ -41,7 +44,7 @@ class Cpab(object):
         @get_bases
         @uniform_meshgrid
         @sample_transformation
-        @sample_transformation_with_smooth_prior
+        @sample_transformation_with_prior
         @identity
         @transform_grid
         @interpolate
@@ -52,16 +55,15 @@ class Cpab(object):
         @visualize_deformgrid
     """
     def __init__(self, 
-                 tess_size,
-                 backend = 'numpy',
+                 tess_size: Union[Tuple[int], List[int]],
                  device = 'cpu', 
-                 zero_boundary=True,
-                 volume_perservation=False,
-                 override=False):
+                 zero_boundary: bool = True,
+                 volume_perservation: bool = False,
+                 override: bool = False):
         # Check input
-        self._check_input(tess_size, backend, device, 
-                          zero_boundary, volume_perservation, override)
-        
+        if not (0 < len(tess_size) <= 3) or not all([e > 0 for e in tess_size]):
+            raise ValueError("tess_size must be a list of positive integers of length 1, 2 or 3.")
+
         # Parameters
         self.params = params()
         self.params.nc = tess_size
@@ -79,8 +81,8 @@ class Cpab(object):
         self.params.use_slow = False
         
         # For saving the basis
-        self._dir = get_dir(__file__) + '/../basis_files/'
-        create_dir(self._dir)
+        self._dir = os.path.dirname(os.path.realpath(__file__)) + '/../basis_files/'
+        if not os.path.exists(self._dir): os.mkdir(self._dir)
         
         # Specific for the different dims
         if self.params.ndim == 1:
@@ -107,19 +109,7 @@ class Cpab(object):
         self.params.basis = self.tesselation.B
         self.params.D, self.params.d = self.params.basis.shape
                 
-        # Load backend and set device
-        self.backend_name = backend
-        if self.backend_name == 'numpy':
-            from .numpy import functions as backend
-        elif self.backend_name == 'tensorflow':
-            from .tensorflow import functions as backend
-        elif self.backend_name == 'pytorch':
-            from .pytorch import functions as backend
-        self.backend = backend
-        self.device = device.lower()
-        
-        # Assert that we have a recent version of the backend
-        self.backend.assert_version()
+        self.device = device
         
     #%%
     def get_theta_dim(self):
@@ -145,8 +135,7 @@ class Cpab(object):
                 number give better approximations but takes longer time to compute
             numeric_grad: bool, determines if we should use the analytical grad
                 or numeric grad for gradient computations
-            use_slow: bool, determine if the integration should be done using the
-                pure "python" version of each backend
+            use_slow: bool, determine if the integration should be done using the pure "python" version
         """
         assert nstepsolver > 0, '''nstepsolver must be a positive number'''
         assert type(nstepsolver) == int, '''nstepsolver must be integer'''
@@ -157,18 +146,23 @@ class Cpab(object):
         self.params.use_slow = use_slow
         
     #%%    
-    def uniform_meshgrid(self, n_points):
+    def uniform_meshgrid(self, n_points, domain_min=None, domain_max=None):
         """ Constructs a meshgrid 
         Arguments:
             n_points: list, number of points in each dimension
         Output:
             grid: [ndim, nP] matrix of points, where nP = product(n_points)
         """
-        return self.backend.uniform_meshgrid(self.params.ndim,
-                                             self.params.domain_min,
-                                             self.params.domain_max,
-                                             n_points, self.device)
-      
+        if domain_min is None: domain_min = self.params.domain_min
+        if domain_max is None: domain_max = self.params.domain_max
+        lin = [torch.linspace(domain_min[i], domain_max[i], n_points[i], 
+                            device=self.device) for i in range(self.params.ndim)]
+        mesh = torch.meshgrid(lin[::-1])
+        grid = torch.cat([g.reshape(1,-1) for g in mesh[::-1]], dim=0)
+        return grid
+
+
+
     #%%
     def sample_transformation(self, n_sample=1, mean=None, cov=None):
         """ Method for sampling transformation from simply multivariate gaussian
@@ -180,13 +174,11 @@ class Cpab(object):
         Output:
             samples: [n_sample, d] matrix. Each row is a independent sample from
                 a multivariate gaussian
-        """
-        if mean is not None: self._check_type(mean); self._check_device(mean)
-        if cov is not None: self._check_type(cov); self._check_device(cov)
-        samples = self.backend.sample_transformation(self.params.d, n_sample, 
-                                                     mean, cov, self.device)
-        return self.backend.to(samples, device=self.device)
-        
+        """        
+        mean = torch.zeros(self.params.d, dtype=torch.float32, device=self.device) if mean is None else mean
+        cov = torch.eye(self.params.d, dtype=torch.float32, device=self.device) if cov is None else cov
+        distribution = torch.distributions.MultivariateNormal(mean, cov)
+        return distribution.sample((n_sample,)).to(self.device)        
     
     #%%
     def sample_transformation_with_prior(self, n_sample=1, mean=None, 
@@ -208,33 +200,39 @@ class Cpab(object):
                 a multivariate gaussian
         """
         
-        # Get cell centers and convert to backend type
-        centers = self.backend.to(self.tesselation.get_cell_centers(), device=self.device)
-        
+        # Get cell centers
+        centers = torch.tensor(self.tesselation.get_cell_centers(), dtype=torch.float32, device=self.device)
+
         # Get distance between cell centers
-        dist = self.backend.pdist(centers)
+        def pdist(mat):
+            norm = torch.sum(mat * mat, 1)
+            norm = torch.reshape(norm, (-1, 1))
+            D = norm - 2*mat.mm(mat.t()) + norm.t()
+            return D
+
+        dist = pdist(centers)
         
         # Make into a covariance matrix between parameters
         ppc = self.params.params_pr_cell
-        cov_init = self.backend.zeros(self.params.D, self.params.D, device=self.device)
+        cov_init = torch.zeros(self.params.D, self.params.D, device=self.device)
         
         for i in range(self.params.nC):
             for j in range(self.params.nC):
                 # Make block matrix with large values
-                block = 100*self.backend.maximum(dist)*self.backend.ones(ppc, ppc)
+                block = 100*dist.max()*torch.ones(ppc, ppc)
                 # Fill in diagonal with actual values
-                block[self.backend.arange(ppc), self.backend.arange(ppc)] = \
-                    self.backend.repeat(dist[i,j], ppc)
+                block[torch.arange(ppc), torch.arange(ppc)] = \
+                    dist[i,j].repeat(ppc)
                 # Fill block into the large covariance
                 cov_init[ppc*i:ppc*(i+1), ppc*j:ppc*(j+1)] = block
         
         # Squared exponential kernel
-        cov_avees = output_variance**2 * self.backend.exp(-(cov_init / (2*length_scale**2)))
+        cov_avees = output_variance**2 * torch.exp(-(cov_init / (2*length_scale**2)))
 
         # Transform covariance to theta space
-        B = self.backend.to(self.params.basis, self.device)
-        B_t = self.backend.transpose(B)
-        cov_theta = self.backend.matmul(B_t, self.backend.matmul(cov_avees, B))
+        B = torch.tensor(self.params.basis, dtype=torch.float32, device=self.device)
+        B_t = B.t()
+        cov_theta = torch.matmul(B_t, torch.matmul(cov_avees, B))
         
         # Sample
         samples = self.sample_transformation(n_sample, mean=mean, cov=cov_theta)
@@ -251,7 +249,8 @@ class Cpab(object):
         Output:
             samples: [n_sample, d] matrix. Each row is a sample    
         """
-        return self.backend.identity(self.params.d, n_sample, epsilon, self.device)
+        assert epsilon>=0, "epsilon need to be larger than 0"
+        return torch.zeros(n_sample, self.params.d, dtype=torch.float32, device=self.device) + epsilon
     
     #%%
     def transform_grid(self, grid, theta):
@@ -267,13 +266,11 @@ class Cpab(object):
                 grid. The slice transformed_grid[i] corresponds to the grid being
                 transformed by theta[i]
         """
-        self._check_type(grid); self._check_device(grid)
-        self._check_type(theta); self._check_device(theta)
         if len(grid.shape) == 3: # check that grid and theta can broadcastes together
             assert grid.shape[0] == theta.shape[0], '''When passing a 3D grid, expects
                 the first dimension to be of same length as the first dimension of
                 theta'''
-        transformed_grid = self.backend.transformer(grid, theta, self.params)
+        transformed_grid = transformer(grid, theta, self.params)
         return transformed_grid
     
     #%%    
@@ -281,12 +278,7 @@ class Cpab(object):
         """ Linear interpolation method
         Arguments:
             data: [n_batch, *data_shape] tensor, with input data. The format of
-                the data_shape depends on the dimension of the data AND the
-                backend that is being used. In tensorflow and numpy:
-                    In 1D: [n_batch, number_of_features, n_channels]
-                    In 2D: [n_batch, width, height, n_channels]
-                    In 3D: [n_batch, width, height, depth, n_channels]
-                In pytorch:
+                the data_shape depends on the dimension of the data:
                     In 1D: [n_batch, n_channels, number_of_features]
                     In 2D: [n_batch, n_channels, width, height]
                     In 3D: [n_batch, n_channels, width, height, depth]
@@ -295,10 +287,8 @@ class Cpab(object):
             outsize: list, with number of points in the output
         Output:
             interlated: [n_batch, *outsize] tensor with the interpolated data
-        """            
-        self._check_type(data); self._check_device(data)
-        self._check_type(grid); self._check_device(grid)
-        return self.backend.interpolate(self.params.ndim, data, grid, outsize)
+        """
+        return interpolate(self.params.ndim, data, grid, outsize)
     
     #%%
     def transform_data(self, data, theta, outsize):
@@ -306,12 +296,7 @@ class Cpab(object):
             transformation of data.
         Arguments:
             data: [n_batch, *data_shape] tensor, with input data. The format of
-                the data_shape depends on the dimension of the data AND the
-                backend that is being used. In tensorflow and numpy:
-                    In 1D: [n_batch, number_of_features, n_channels]
-                    In 2D: [n_batch, width, height, n_channels]
-                    In 3D: [n_batch, width, height, depth, n_channels]
-                In pytorch:
+                the data_shape depends on the dimension of the data:
                     In 1D: [n_batch, n_channels, number_of_features]
                     In 2D: [n_batch, n_channels, width, height]
                     In 3D: [n_batch, n_channels, width, height, depth]
@@ -322,9 +307,6 @@ class Cpab(object):
         Output:
             data_t: [n_batch, *outsize] tensor, transformed and interpolated data
         """
-
-        self._check_type(data); self._check_device(data)
-        self._check_type(theta); self._check_device(theta)
         grid = self.uniform_meshgrid(outsize)
         grid_t = self.transform_grid(grid, theta)
         data_t = self.interpolate(data, grid_t, outsize)
@@ -339,14 +321,29 @@ class Cpab(object):
             theta: [1, d] single parametrization vector
         Output:    
             v: [ndim, nP] matrix, with velocity vectors for each point
-        """
-        self._check_type(grid); self._check_device(grid)
-        self._check_type(theta); self._check_device(theta)
-        v = self.backend.calc_vectorfield(grid, theta, self.params)
-        return v
-    
+        """    
+        # Calculate velocity fields
+        B = torch.tensor(self.params.basis, dtype=theta.dtype, device=theta.device)
+        Avees = torch.matmul(B, theta.flatten())
+        As = torch.reshape(Avees, (self.params.nC, *self.params.Ashape))
+        
+        # Find cell index
+        idx = findcellidx(self.params.ndim, grid, self.params.nc)
+        
+        # Do indexing
+        Aidx = As[idx]
+        
+        # Convert to homogeneous coordinates
+        grid = torch.cat((grid, torch.ones(1, grid.shape[1], device=grid.device)), dim=0)
+        grid = grid[None].permute(2,1,0)
+        
+        # Do matrix multiplication
+        v = torch.matmul(Aidx, grid)
+        return v[:,:,0].t()
+
+
     #%%
-    def visualize_vectorfield(self, theta, nb_points = 50, fig = plt.figure()):
+    def visualize_vectorfield(self, theta, nb_points = 50, fig = None):
         """ Utility function that helps visualize the vectorfield for a specific
             parametrization vector theta 
         Arguments:    
@@ -357,13 +354,14 @@ class Cpab(object):
         Output:
             plot: handle to quiver plot
         """
-        self._check_type(theta)
-        
+        if fig is None:
+            fig = plt.figure()
+
         # Calculate vectorfield and convert to numpy
         grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
         v = self.calc_vectorfield(grid, theta)
-        v = self.backend.tonumpy(v)
-        grid = self.backend.tonumpy(grid)
+        v = v.cpu().numpy()
+        grid = grid.cpu().numpy()
         
         # Plot
         if self.params.ndim == 1:
@@ -376,7 +374,6 @@ class Cpab(object):
             ax.set_xlim(self.params.domain_min[0], self.params.domain_max[0])
             ax.set_ylim(self.params.domain_min[1], self.params.domain_max[1])            
         elif self.params.ndim==3:
-            from mpl_toolkits.mplot3d import Axes3D
             ax = fig.add_subplot(111, projection='3d')
             plot = ax.quiver(grid[0,:], grid[1,:], grid[2,:], v[0,:], v[1,:], v[2,:],
                              length=0.3, arrow_length_ratio=0.5)
@@ -389,7 +386,7 @@ class Cpab(object):
         return plot
     
     #%%
-    def visualize_deformgrid(self, theta, nb_lines = 10, nb_points= 1000, fig = plt.figure()):
+    def visualize_deformgrid(self, theta, nb_lines = 10, nb_points= 1000, fig = None):
         """ Utility function that helps visualize a deformation. Currently
             only implemented in 2D.
         Arguments:
@@ -400,6 +397,9 @@ class Cpab(object):
         Output:
             plot: list of plot handles to lines
         """
+        if fig is None:
+            fig = plt.figure()
+
         if self.params.ndim == 2:
             x = np.linspace(0,1,nb_lines)
             y = np.linspace(0,1,nb_lines)
@@ -424,7 +424,7 @@ class Cpab(object):
             raise NotImplementedError('This is only implemented for 2D domain')
     
     #%%
-    def visualize_tesselation(self, nb_points = 50, show_outside=False, fig=plt.figure()):
+    def visualize_tesselation(self, nb_points = 50, show_outside=False, fig=None):
         """ Utility function that helps visualize the tesselation.
         Arguments:
             nb_points: number of points in each dimension
@@ -435,6 +435,9 @@ class Cpab(object):
         Output:
             plot: handle to tesselation plot
         """
+        if fig is None:
+            fig = plt.figure()
+
         if show_outside:
             domain_size = [self.params.domain_max[i] - self.params.domain_min[i] 
                            for i in range(self.params.ndim)]
@@ -442,15 +445,14 @@ class Cpab(object):
                           for i in range(self.params.ndim)]
             domain_max = [self.params.domain_max[i]+domain_size[i]/10 
                           for i in range(self.params.ndim)]
-            grid = self.backend.uniform_meshgrid(self.params.ndim, domain_min, 
-                        domain_max, [nb_points for _ in range(self.params.ndim)])
+            grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)], domain_min, domain_max)
         else:
             grid = self.uniform_meshgrid([nb_points for _ in range(self.params.ndim)])
         
         # Find cellindex and convert to numpy
-        idx = self.backend.findcellidx(self.params.ndim, grid, self.params.nc)
-        idx = self.backend.tonumpy(idx)
-        grid = self.backend.tonumpy(grid)
+        idx = findcellidx(self.params.ndim, grid, self.params.nc)
+        idx = idx.cpu().numpy()
+        grid = grid.cpu().numpy()
         
         # Plot
         if self.params.ndim == 1:
@@ -475,50 +477,7 @@ class Cpab(object):
         plt.title('Tesselation ' + str(self.params.nc))
         return plot
     
-    #%%
-    def _check_input(self, tess_size, backend, device, 
-                     zero_boundary, volume_perservation, override):
-        """ Utility function used to check the input to the class.
-            Not meant to be called by the user. """
-        assert len(tess_size) > 0 and len(tess_size) <= 3, \
-            '''Transformer only supports 1D, 2D or 3D'''
-        assert type(tess_size) == list or type(tess_size) == tuple, \
-            '''Argument tess_size must be a list or tuple'''
-        assert all([type(e)==int for e in tess_size]), \
-            '''All elements of tess_size must be integers'''
-        assert all([e > 0 for e in tess_size]), \
-            '''All elements of tess_size must be positive'''
-        assert backend in ['numpy', 'tensorflow', 'pytorch'], \
-            '''Unknown backend, choose between 'numpy', 'tensorflow' or 'pytorch' '''
-        assert device in ['cpu', 'gpu'], \
-            '''Unknown device, choose between 'cpu' or 'gpu' '''
-        if backend == 'numpy':
-            assert device == 'cpu', '''Cannot use gpu with numpy backend '''
-        assert type(zero_boundary) == bool, \
-            '''Argument zero_boundary must be True or False'''
-        assert type(volume_perservation) == bool, \
-            '''Argument volume_perservation must be True or False'''
-        assert type(override) == bool, \
-            '''Argument override must be True or False '''
-            
-    #%%
-    def _check_type(self, x):
-        """ Assert that the type of x is compatible with the class i.e
-                numpy backend expects np.array
-                pytorch backend expects torch.tensor
-                tensorflow backend expects tf.tensor
-        """
-        assert isinstance(x, self.backend.backend_type()), \
-            ''' Input has type {0} but expected type {1} '''.format(
-            type(x), self.backend.backend_type())
-            
-    #%%
-    def _check_device(self, x):
-        """ Asssert that x is on the same device (cpu or gpu) as the class """
-        assert self.backend.check_device(x, self.device), '''Input is placed on 
-            device {0} but the class expects it to be on device {1}'''.format(
-            str(x.device), self.device)
-            
+
     #%%
     def __repr__(self):
         output = '''
@@ -531,9 +490,7 @@ class Cpab(object):
                 Domain upper bound:         {4}
                 Zero Boundary:              {5}
                 Volume perservation:        {6}
-            Backend:                        {7}
         '''.format(self.params.nc, self.params.nC, self.params.d, 
             self.params.domain_min, self.params.domain_max, 
-            self.params.zero_boundary, self.params.volume_perservation,
-            self.backend_name)
+            self.params.zero_boundary, self.params.volume_perservation)
         return output

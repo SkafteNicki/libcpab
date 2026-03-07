@@ -1,7 +1,7 @@
 #include <ATen/ATen.h>
 #include <cuda.h>
 #include <cuda_runtime.h>
-#include "../core/cpab_ops.cuh"
+#include "cpab_ops.cuh"
 
 #define DIV_UP(a, b) (((a) + (b)-1) / (b))
 

@@ -1,13 +1,19 @@
-# -*- coding: utf-8 -*-
 """
-Created on Sun Nov 18 14:23:25 2018
-
-@author: nsde
+This code is a modified version of the original by SkafteNicki.
+See https://github.com/SkafteNicki/libcpab for original code.
+See LICENSE for more details.
 """
 
 #%%
+import os, pickle
 import numpy as np
-from .utility import make_hashable, check_if_file_exist, null, save_obj, load_obj
+import scipy.linalg as la
+
+def make_hashable(arr):
+    """ Make an array hasable. In this way we can use built-in functions like
+        set(...) and intersection(...) on the array
+    """
+    return tuple([tuple(r.tolist()) for r in arr])
 
 #%%
 class Tesselation(object):
@@ -65,7 +71,7 @@ class Tesselation(object):
                             'vp' + str(int(self.volume_perservation))
 
         # Check if file exist else calculate the basis
-        if not check_if_file_exist(self._basis_file+'.pkl') or override:
+        if not os.path.isfile(self._basis_file+'.cpab_basis') or override:
             # Get vertices
             self.find_verts()
             
@@ -89,13 +95,19 @@ class Tesselation(object):
                 self.L = np.concatenate((self.L, temp), axis=0)
             
             # Find null space
-            self.B = null(self.L)
+            u, s, vh = la.svd(self.L)
+            padding = np.max([0, np.shape(self.L)[-1] - np.shape(s)[0]])
+            null_mask = np.concatenate(((s <= 1e-6), np.ones((padding,), dtype=bool)), axis=0)
+            null_space = np.compress(null_mask, vh, axis=0)
+            self.B = np.transpose(null_space)
         
             # Save to file
-            save_obj(self.__dict__, self._basis_file)
+            with open(self._basis_file + '.cpab_basis', 'wb') as f:
+                pickle.dump(self.__dict__, f, pickle.HIGHEST_PROTOCOL)
         
         else:
-            self.__dict__ = load_obj(self._basis_file)
+            with open(self._basis_file + '.cpab_basis', 'rb') as f:
+                self.__dict__ = pickle.load(f)
     
     def get_cell_centers(self):
         """ Get the centers of all the cells """

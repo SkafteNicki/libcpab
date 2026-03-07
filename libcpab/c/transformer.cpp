@@ -1,5 +1,5 @@
 #include <torch/extension.h>
-#include "../core/cpab_ops.h"
+#include "cpab_ops.h"
 #include <iostream>
 
 at::Tensor cpab_forward(at::Tensor points_in, //[ndim, n_points] or [batch_size, ndim, n_points]

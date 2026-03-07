@@ -1,7 +1,8 @@
-.spyproject
 __pycache__
-basis_files/
-ana_small.pkl
+*.cpab_basis
 *.so
 *.o
 *.pyc
+
+dist/*
+*.egg-info

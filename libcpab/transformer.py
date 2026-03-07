@@ -1,16 +1,15 @@
-# -*- coding: utf-8 -*-
 """
-Created on Tue Nov 20 10:27:16 2018
-
-@author: nsde
+This code is a modified version of the original by SkafteNicki.
+See https://github.com/SkafteNicki/libcpab for original code.
+See LICENSE for more details.
 """
 
 #%%
+import os
 import torch
 from torch.utils.cpp_extension import load
 from .findcellidx import findcellidx
 from .expm import expm
-from ..core.utility import get_dir
 
 #%%
 class _notcompiled:
@@ -23,13 +22,13 @@ class _notcompiled:
         self.backward = f
 
 #%%
-_dir = get_dir(__file__)
+_dir = os.path.dirname(os.path.realpath(__file__))
 _verbose = False # TODO: set this flag in the main class, maybe
 # Jit compile cpu source
 try:
     cpab_cpu = load(name = 'cpab_cpu',
-                    sources = [_dir + '/transformer.cpp',
-                               _dir + '/../core/cpab_ops.cpp'],
+                    sources = [_dir + '/c/transformer.cpp',
+                               _dir + '/c/cpab_ops.cpp'],
                     verbose=_verbose)
     _cpu_succes = True
     if _verbose:
@@ -49,9 +48,9 @@ except Exception as e:
 # Jit compile gpu source
 try:
     cpab_gpu = load(name = 'cpab_gpu',
-                    sources = [_dir + '/transformer_cuda.cpp',
-                               _dir + '/transformer_cuda.cu',
-                               _dir + '/../core/cpab_ops.cu'],
+                    sources = [_dir + '/c/transformer_cuda.cpp',
+                               _dir + '/c/transformer_cuda.cu',
+                               _dir + '/c/cpab_ops.cu'],
                     verbose=_verbose,
                     with_cuda=True)
     _gpu_succes = True

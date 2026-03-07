@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 """
-Created on Thu Dec 13 09:14:45 2018
-
-@author: nsde
+This code is a modified version of the original by SkafteNicki.
+See https://github.com/SkafteNicki/libcpab for original code.
+See LICENSE for more details.
 """
 #%%
 import torch
@@ -24,7 +23,7 @@ def expm(A):
     U, V = pade13(Ascaled)
     P = U + V
     Q = -U + V
-    R, _ = torch.solve(P, Q) # solve P = Q*R
+    R = torch.linalg.solve(Q, P) # solve P = Q*R
     
     # Unsquaring step    
     n = n_squarings.max()
